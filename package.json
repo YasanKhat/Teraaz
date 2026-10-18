@@ -1,0 +1,47 @@
+{
+  "name": "taraz",
+  "version": "1.0.0",
+  "description": "تراز — دفترِ هوشمند کسب‌وکار؛ حسابداری مدرن برای کسب‌وکارهای ایرانی",
+  "main": "./out/main/index.js",
+  "author": "YasanKhat",
+  "homepage": "https://github.com/YasanKhat/Faanos",
+  "scripts": {
+    "format": "prettier --write .",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "dev": "electron-vite dev",
+    "dev:web": "vite --config vite.config.ts",
+    "build:web": "vite build --config vite.config.ts",
+    "start": "electron-vite preview",
+    "build": "npm run typecheck && electron-vite build",
+    "build:unpack": "npm run build && electron-builder --dir",
+    "build:win": "npm run build && electron-builder --win",
+    "build:mac": "electron-vite build && electron-builder --mac",
+    "build:linux": "electron-vite build && electron-builder --linux"
+  },
+  "dependencies": {
+    "@fontsource/estedad": "^5.3.0",
+    "@fontsource/vazirmatn": "^5.3.0",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.43.0",
+    "lucide-react": "^1.59.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^22.19.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "electron": "^39.8.10",
+    "electron-builder": "^26.0.12",
+    "electron-vite": "^5.0.0",
+    "prettier": "^3.7.4",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.6"
+  }
+}
