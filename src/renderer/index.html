@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>تراز | دفتر هوشمند کسب‌وکار</title>
+    <script>
+      // Paint the stored theme before React mounts to avoid a light flash.
+      try {
+        const raw = localStorage.getItem('taraz-ledger-v1')
+        if (raw) {
+          const theme = JSON.parse(raw)?.state?.settings?.theme
+          if (theme === 'dark') {
+            document.documentElement.dataset.theme = 'dark'
+            document.documentElement.style.backgroundColor = '#091411'
+            document.documentElement.style.colorScheme = 'dark'
+          }
+        }
+      } catch (error) {}
+    </script>
+    <meta
+      name="description"
+      content="تراز — نرم‌افزار حسابداری و مدیریت مالی کسب‌وکارهای ایرانی. فاکتور، خزانه، انبار، دفتر روزنامه و گزارش‌های مدیریتی."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%230B4033'/%3E%3Cpath d='M32 10l4.6 17.4L54 32l-17.4 4.6L32 54l-4.6-17.4L10 32l17.4-4.6z' fill='none' stroke='%23D7B56E' stroke-width='2.2'/%3E%3Cpath d='M22 38l7-8 5 4 8-10' fill='none' stroke='%23D7B56E' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: http: https:;"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
