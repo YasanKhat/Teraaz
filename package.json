@@ -1,10 +1,10 @@
 {
-  "name": "taraz",
+  "name": "tabar",
   "version": "1.0.0",
-  "description": "تراز — دفترِ هوشمند کسب‌وکار؛ حسابداری مدرن برای کسب‌وکارهای ایرانی",
+  "description": "تبار — همراهِ کاملِ تاریخ ۲، پایهٔ یازدهم انسانی",
   "main": "./out/main/index.js",
   "author": "YasanKhat",
-  "homepage": "https://github.com/YasanKhat/Faanos",
+  "homepage": "https://github.com/YasanKhat/Teraaz",
   "scripts": {
     "format": "prettier --write .",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
@@ -22,12 +22,16 @@
   },
   "dependencies": {
     "@fontsource/estedad": "^5.3.0",
+    "@fontsource/noto-nastaliq-urdu": "^5.3.0",
     "@fontsource/vazirmatn": "^5.3.0",
     "clsx": "^2.1.1",
+    "d3-geo": "^3.1.1",
     "framer-motion": "^12.43.0",
     "lucide-react": "^1.59.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

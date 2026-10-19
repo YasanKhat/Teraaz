@@ -1,345 +1,124 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type * as React from 'react'
-import { createPortal } from 'react-dom'
-import { AnimatePresence, motion } from 'framer-motion'
-import {
-  ArrowLeftRight,
-  CornerDownLeft,
-  Package,
-  Plus,
-  Receipt,
-  Search,
-  ShoppingBag,
-  Users,
-  Wallet,
-  type LucideIcon
-} from 'lucide-react'
-import clsx from 'clsx'
-import { PAGE_META, NAV_SECTIONS } from '../domain/navigation'
-import { invoiceTotals, contactOf } from '../domain/calc'
-import { formatJalali } from '../lib/jalali'
-import { compact, money } from '../lib/format'
-import { fa } from '../lib/digits'
-import { useApp } from '../store/useApp'
-import { useNav, useUi } from '../store/ui'
-import { invoiceNoLabel } from '../domain/journal'
-import { matchesSearch, normalizeSearch } from './kit'
+import { Search, CornerDownLeft, X } from 'lucide-react'
+import { searchAll, type SearchHit } from '../lib/search'
+import { normalizeFa } from '../lib/utils'
 
-interface PaletteItem {
-  id: string
-  group: string
-  title: string
-  subtitle?: string
-  badge?: string
-  icon: LucideIcon
-  keywords?: string
-  run: () => void
-}
-
-export function CommandPalette(): React.JSX.Element {
-  const open = useUi((state) => state.paletteOpen)
-  const setOpen = useUi((state) => state.setPaletteOpen)
-  const navigate = useNav((state) => state.navigate)
-
-  const data = useApp()
-  const [query, setQuery] = useState('')
+export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
-  const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!open) return
-    setQuery('')
-    setActive(0)
-    const timer = window.setTimeout(() => inputRef.current?.focus(), 40)
-    return () => window.clearTimeout(timer)
+    const openHandler = () => setOpen(true)
+    const keyHandler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setOpen((v) => !v)
+      }
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('tabar:open-search', openHandler as EventListener)
+    window.addEventListener('keydown', keyHandler)
+    return () => {
+      window.removeEventListener('tabar:open-search', openHandler as EventListener)
+      window.removeEventListener('keydown', keyHandler)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => inputRef.current?.focus(), 40)
+      setActive(0)
+    } else {
+      setQ('')
+    }
   }, [open])
 
-  const close = (): void => setOpen(false)
+  const results = useMemo(() => (q.trim().length >= 2 ? searchAll(q, 10) : []), [q])
 
-  const items = useMemo<PaletteItem[]>(() => {
-    const list: PaletteItem[] = []
+  useEffect(() => setActive(0), [q])
 
-    const quick: PaletteItem[] = [
-      {
-        id: 'q-sale',
-        group: 'دسترسی سریع',
-        title: 'صدور فاکتور فروش',
-        subtitle: 'ثبت فروش جدید',
-        icon: Receipt,
-        keywords: 'فروش invoice sales',
-        run: () => {
-          navigate('sales', { create: true })
-          close()
-        }
-      },
-      {
-        id: 'q-purchase',
-        group: 'دسترسی سریع',
-        title: 'ثبت فاکتور خرید',
-        subtitle: 'خرید از تأمین‌کننده',
-        icon: ShoppingBag,
-        keywords: 'خرید purchase',
-        run: () => {
-          navigate('purchases', { create: true })
-          close()
-        }
-      },
-      {
-        id: 'q-expense',
-        group: 'دسترسی سریع',
-        title: 'ثبت هزینه',
-        subtitle: 'هزینهٔ جدید',
-        icon: Wallet,
-        keywords: 'هزینه expense',
-        run: () => {
-          navigate('expenses', { create: true })
-          close()
-        }
-      },
-      {
-        id: 'q-contact',
-        group: 'دسترسی سریع',
-        title: 'طرف‌حساب جدید',
-        subtitle: 'مشتری یا تأمین‌کننده',
-        icon: Users,
-        keywords: 'مشتری تأمین کننده contact',
-        run: () => {
-          navigate('contacts', { create: true })
-          close()
-        }
-      },
-      {
-        id: 'q-product',
-        group: 'دسترسی سریع',
-        title: 'کالا یا خدمت جدید',
-        subtitle: 'افزودن به انبار',
-        icon: Package,
-        keywords: 'کالا محصول انبار product',
-        run: () => {
-          navigate('products', { create: true })
-          close()
-        }
-      },
-      {
-        id: 'q-transfer',
-        group: 'دسترسی سریع',
-        title: 'انتقال بین حساب‌ها',
-        subtitle: 'صندوق و بانک',
-        icon: ArrowLeftRight,
-        keywords: 'انتقال وجه transfer',
-        run: () => {
-          navigate('accounts', { create: true })
-          close()
-        }
-      }
-    ]
-    list.push(...quick)
+  const go = (hit: SearchHit) => {
+    onNavigate(hit.route)
+    setOpen(false)
+  }
 
-    for (const section of NAV_SECTIONS) {
-      for (const page of section.items) {
-        const meta = PAGE_META[page]
-        list.push({
-          id: `nav-${page}`,
-          group: 'صفحه‌ها',
-          title: meta.label,
-          subtitle: meta.hint,
-          icon: meta.icon,
-          keywords: page,
-          run: () => {
-            navigate(page)
-            close()
-          }
-        })
-      }
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (!results.length) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActive((a) => (a + 1) % results.length)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActive((a) => (a - 1 + results.length) % results.length)
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      go(results[active])
     }
+  }
 
-    const recentInvoices = [...data.invoices]
-      .sort((a, b) => (a.date < b.date ? 1 : -1))
-      .slice(0, 8)
-    for (const invoice of recentInvoices) {
-      const contact = contactOf(data, invoice.contactId)
-      const totals = invoiceTotals(invoice)
-      list.push({
-        id: `inv-${invoice.id}`,
-        group: 'فاکتورهای اخیر',
-        title: `${invoice.kind === 'sale' ? 'فروش' : 'خرید'} ${invoiceNoLabel(invoice)}`,
-        subtitle: `${contact?.name ?? '—'} · ${formatJalali(invoice.date, 'medium')}`,
-        badge: `${compact(totals.total)} تومان`,
-        icon: invoice.kind === 'sale' ? Receipt : ShoppingBag,
-        keywords: `${invoiceNoLabel(invoice)} ${contact?.name ?? ''}`,
-        run: () => {
-          navigate('invoice', { id: invoice.id })
-          close()
-        }
-      })
-    }
+  if (!open) return null
 
-    if (query.trim()) {
-      for (const contact of data.contacts.slice(0, 12)) {
-        list.push({
-          id: `ct-${contact.id}`,
-          group: 'طرف‌حساب‌ها',
-          title: contact.name,
-          subtitle: `${contact.kind === 'customer' ? 'مشتری' : 'تأمین‌کننده'}${contact.city ? ` · ${contact.city}` : ''}`,
-          icon: Users,
-          keywords: `${contact.phone} ${contact.company ?? ''}`,
-          run: () => {
-            navigate('contacts')
-            close()
-          }
-        })
-      }
-      for (const product of data.products.slice(0, 12)) {
-        list.push({
-          id: `pr-${product.id}`,
-          group: 'کالاها',
-          title: product.name,
-          subtitle: `${product.category} · ${money(product.price)} تومان`,
-          icon: Package,
-          keywords: `${product.code} ${product.category}`,
-          run: () => {
-            navigate('products')
-            close()
-          }
-        })
-      }
-    }
-
-    return list
-  }, [data, navigate, query])
-
-  const filtered = useMemo(() => {
-    if (!query.trim()) return items
-    const needle = normalizeSearch(query)
-    return items.filter((item) =>
-      matchesSearch(`${item.title} ${item.subtitle ?? ''} ${item.keywords ?? ''}`, needle)
-    )
-  }, [items, query])
-
-  useEffect(() => {
-    setActive(0)
-  }, [query])
-
-  useEffect(() => {
-    if (!open) return
-    const node = listRef.current?.querySelector<HTMLElement>(`[data-palette-index="${active}"]`)
-    node?.scrollIntoView({ block: 'nearest' })
-  }, [active, open])
-
-  useEffect(() => {
-    if (!open) return
-    const handler = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        close()
-      } else if (event.key === 'ArrowDown') {
-        event.preventDefault()
-        setActive((current) => Math.min(filtered.length - 1, current + 1))
-      } else if (event.key === 'ArrowUp') {
-        event.preventDefault()
-        setActive((current) => Math.max(0, current - 1))
-      } else if (event.key === 'Enter') {
-        event.preventDefault()
-        filtered[active]?.run()
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [open, filtered, active])
-
-  const groups = useMemo(() => {
-    const map = new Map<string, { item: PaletteItem; index: number }[]>()
-    const order: string[] = []
-    filtered.forEach((item, index) => {
-      if (!map.has(item.group)) {
-        map.set(item.group, [])
-        order.push(item.group)
-      }
-      map.get(item.group)?.push({ item, index })
-    })
-    return order.map((group) => ({ group, entries: map.get(group) ?? [] }))
-  }, [filtered])
-
-  return createPortal(
-    <AnimatePresence>
-      {open ? (
-        <motion.div
-          className="palette-overlay"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.16 }}
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) close()
-          }}
-        >
-          <motion.div
-            className="palette"
-            initial={{ opacity: 0, y: -12, scale: 0.985 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.99 }}
-            transition={{ type: 'spring', stiffness: 360, damping: 30 }}
-          >
-            <div className="palette-input-wrap">
-              <Search size={19} />
-              <input
-                ref={inputRef}
-                className="palette-input"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="جست‌وجوی فاکتور، طرف‌حساب، کالا یا صفحه…"
-              />
-              <span className="kbd">ESC</span>
+  return (
+    <div className="fixed inset-0 z-[80] flex items-start justify-center px-4 pt-[12vh]" role="dialog" aria-modal>
+      <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={() => setOpen(false)} />
+      <div className="panel anim-up relative w-full max-w-xl overflow-hidden rounded-2xl">
+        <div className="flex items-center gap-2.5 border-b border-line px-4 py-3">
+          <Search size={18} className="text-gold" />
+          <input
+            ref={inputRef}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="جست‌وجو در درس‌ها، چهره‌ها، رویدادها و واژه‌ها…"
+            className="w-full bg-transparent text-sm outline-none placeholder:text-faint"
+          />
+          <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)} aria-label="بستن">
+            <X size={15} />
+          </button>
+        </div>
+        <div className="max-h-[52vh] overflow-y-auto p-2">
+          {q.trim().length < 2 && (
+            <div className="px-3 py-6 text-center text-sm leading-7 text-muted">
+              نام یک درس، شخصیت یا رویداد را بنویس…
+              <div className="mt-2 text-xs text-faint">مثلاً «چالدران» یا «نظامیه»</div>
             </div>
-
-            <div className="palette-list" ref={listRef}>
-              {filtered.length === 0 ? (
-                <div className="palette-empty">
-                  نتیجه‌ای برای «{query}» پیدا نشد.
-                </div>
-              ) : (
-                groups.map(({ group, entries }) => (
-                  <div key={group}>
-                    <div className="palette-section">{group}</div>
-                    {entries.map(({ item, index }) => {
-                      const Icon = item.icon
-                      return (
-                        <button
-                          key={item.id}
-                          data-palette-index={index}
-                          className={clsx('palette-item', index === active && 'active')}
-                          onMouseEnter={() => setActive(index)}
-                          onClick={item.run}
-                        >
-                          <span className="p-icon">
-                            <Icon size={14} />
-                          </span>
-                          <span className="p-body">
-                            <span className="p-title">{item.title}</span>
-                            {item.subtitle ? <span className="p-sub" style={{ display: 'block' }}>{item.subtitle}</span> : null}
-                          </span>
-                          {item.badge ? <span className="p-badge num">{item.badge}</span> : null}
-                        </button>
-                      )
-                    })}
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="palette-foot">
-              <span>
-                <CornerDownLeft size={11} /> رفتن
+          )}
+          {q.trim().length >= 2 && results.length === 0 && (
+            <div className="px-3 py-8 text-center text-sm text-muted">چیزی پیدا نشد. املای دیگری را امتحان کن.</div>
+          )}
+          {results.map((hit, i) => (
+            <button
+              key={`${hit.type}-${hit.title}`}
+              onMouseEnter={() => setActive(i)}
+              onClick={() => go(hit)}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-right transition ${
+                i === active ? 'bg-gold/10' : 'hover:bg-ink/5'
+              }`}
+            >
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-surface2 text-base">
+                {hit.icon}
               </span>
-              <span>↑ ↓ جابه‌جایی</span>
-              <span className="spacer" />
-              <span>{fa(filtered.length)} نتیجه</span>
-            </div>
-          </motion.div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>,
-    document.body
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold">{hit.title}</span>
+                <span className="block truncate text-[0.7rem] text-muted">{hit.sub}</span>
+              </span>
+              <span className="tag shrink-0">{hit.type}</span>
+              {i === active && <CornerDownLeft size={14} className="shrink-0 text-faint" />}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center justify-between border-t border-line px-4 py-2 text-[0.68rem] text-faint">
+          <span>جست‌وجوی سراسری تبار</span>
+          <span className="flex items-center gap-2">
+            <kbd className="rounded border border-line px-1.5 py-0.5">{normalizeFa('↑↓') || '↑↓'}</kbd>
+            برای حرکت
+            <kbd className="rounded border border-line px-1.5 py-0.5">Enter</kbd>
+            برای رفتن
+          </span>
+        </div>
+      </div>
+    </div>
   )
 }

@@ -1,501 +1,257 @@
-import { useEffect, useRef, useState } from 'react'
-import type * as React from 'react'
+import { useRef, useState } from 'react'
 import {
-  Building2,
   Check,
-  Database,
   Download,
-  HardDrive,
+  Info,
   Keyboard,
   Moon,
-  RefreshCw,
-  ShieldCheck,
-  Sparkles,
+  Palette,
+  RotateCcw,
   Sun,
   Trash2,
   Upload,
-  Wallet
+  Type
 } from 'lucide-react'
-import clsx from 'clsx'
-import { CURRENCIES } from '../domain/catalogs'
-import { buildJournal } from '../domain/journal'
-import { currentJalaliYear, todayIso } from '../lib/jalali'
-import { downloadJson } from '../lib/export'
-import { fa } from '../lib/digits'
-import { useApp } from '../store/useApp'
-import { confirmAction, toast } from '../store/ui'
-import type { AppData } from '../domain/types'
-import {
-  Badge,
-  Button,
-  Card,
-  Field,
-  PageHeader,
-  Switch
-} from '../components/kit'
-import { LogoMark } from '../components/Logo'
+import { useProgress } from '../store/useProgress'
+import { applyTheme } from '../components/Shell'
+import { cn, daysUntil, fas, jalali } from '../lib/utils'
+import { SectionHead } from '../components/ui'
+import { lessons } from '../data/lessons'
+import { timeline } from '../data/timeline'
+import { figures } from '../data/figures'
+import { cities, markers } from '../data/map'
+import { exams } from '../data/exams'
 
-export function SettingsPage(): React.JSX.Element {
-  const data = useApp()
-  const updateSettings = useApp((state) => state.updateSettings)
-  const updateCompany = useApp((state) => state.updateCompany)
-  const resetDemo = useApp((state) => state.resetDemo)
-  const clearAll = useApp((state) => state.clearAll)
-  const importData = useApp((state) => state.importData)
+const STORAGE_KEY = 'tabar-history-v1'
 
+export function Settings() {
+  const settings = useProgress((s) => s.settings)
+  const setSetting = useProgress((s) => s.setSetting)
+  const reset = useProgress((s) => s.reset)
+  const importState = useProgress((s) => s.importState)
   const fileRef = useRef<HTMLInputElement>(null)
-  const [company, setCompany] = useState(data.settings.company)
-  const [fiscalYear, setFiscalYear] = useState(data.settings.fiscalYear)
-  const [currency, setCurrency] = useState(data.settings.currency)
-  const [vatRate, setVatRate] = useState(data.settings.vatRate)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [confirmReset, setConfirmReset] = useState(false)
 
-  useEffect(() => {
-    setCompany(data.settings.company)
-    setFiscalYear(data.settings.fiscalYear)
-    setCurrency(data.settings.currency)
-    setVatRate(data.settings.vatRate)
-  }, [data.settings])
-
-  const sizeKb = Math.max(
-    1,
-    Math.round(
-      new Blob([
-        JSON.stringify({
-          settings: data.settings,
-          accounts: data.accounts,
-          contacts: data.contacts,
-          products: data.products,
-          invoices: data.invoices,
-          payments: data.payments,
-          expenses: data.expenses,
-          transfers: data.transfers,
-          manualJournals: data.manualJournals
-        })
-      ]).size / 1024
-    )
-  )
-
-  const nowYear = currentJalaliYear()
-  const yearOptions = Array.from({ length: 7 }, (_, index) => nowYear - 3 + index)
-
-  const saveCompany = (): void => {
-    if (!company.name.trim() || !company.owner.trim()) {
-      toast.error('اطلاعات ناقص است', 'نام کسب‌وکار و نام مدیر را وارد کنید.')
+  const exportData = () => {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) {
+      setMsg({ ok: false, text: 'هنوز داده‌ای برای خروجی وجود ندارد.' })
       return
     }
-    updateCompany(company)
-    toast.success('هویت کسب‌وکار ذخیره شد', company.name)
+    const blob = new Blob([raw], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `tabar-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    setMsg({ ok: true, text: 'پروندهٔ پشتیبان دانلود شد.' })
   }
 
-  const saveFinance = (): void => {
-    if (vatRate < 0 || vatRate > 100) {
-      toast.error('نرخ مالیات معتبر نیست', 'نرخ باید بین صفر تا ۱۰۰ باشد.')
-      return
-    }
-    updateSettings({ fiscalYear, currency, vatRate })
-    toast.success('تنظیمات مالی ذخیره شد', `سال مالی ${fa(fiscalYear)}`)
+  const onFile = async (file: File) => {
+    const text = await file.text()
+    const ok = importState(text)
+    setMsg(ok ? { ok: true, text: 'داده‌ها با موفقیت بازیابی شد.' } : { ok: false, text: 'پرونده معتبر نیست.' })
   }
-
-  const exportBackup = (): void => {
-    const backup: AppData = {
-      version: data.version,
-      settings: data.settings,
-      accounts: data.accounts,
-      contacts: data.contacts,
-      products: data.products,
-      invoices: data.invoices,
-      payments: data.payments,
-      expenses: data.expenses,
-      transfers: data.transfers,
-      manualJournals: data.manualJournals
-    }
-    downloadJson(`taraz-backup-${todayIso().replaceAll('-', '')}.json`, backup)
-    toast.success('پشتیبان دانلود شد', 'فایل JSON شامل تمام داده‌های تراز است.')
-  }
-
-  const onImport = (file: File): void => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(String(reader.result)) as AppData
-        const result = importData(parsed)
-        if (!result.ok) {
-          toast.error('بازیابی انجام نشد', result.error)
-          return
-        }
-        toast.success('داده‌ها بازیابی شد', 'تمام اطلاعات از فایل پشتیبان جایگزین شد.')
-      } catch {
-        toast.error('فایل معتبر نیست', 'فایل انتخاب‌شده یک پشتیبان معتبر تراز نیست.')
-      }
-    }
-    reader.readAsText(file)
-  }
-
-  const confirmResetDemo = async (): Promise<void> => {
-    const confirmed = await confirmAction({
-      title: 'بازنشانی دادهٔ نمونه',
-      message: 'تمام تغییرات شما حذف و داده‌های نمونهٔ گالری آریانا دوباره ساخته می‌شود. ادامه می‌دهید؟',
-      confirmLabel: 'بازنشانی',
-      danger: true
-    })
-    if (!confirmed) return
-    resetDemo()
-    toast.success('دادهٔ نمونه بازسازی شد', 'دفتر تراز با اطلاعات تازه آماده است.')
-  }
-
-  const confirmClear = async (): Promise<void> => {
-    const confirmed = await confirmAction({
-      title: 'پاک‌سازی کامل داده‌ها',
-      message:
-        'همه فاکتورها، طرف‌حساب‌ها، کالاها، هزینه‌ها و اسناد حذف می‌شوند. هویت کسب‌وکار و تنظیمات باقی می‌ماند. این کار قابل بازگشت نیست.',
-      confirmLabel: 'پاک‌سازی کامل',
-      danger: true
-    })
-    if (!confirmed) return
-    clearAll()
-    toast.success('داده‌ها پاک شد', 'برای شروع، فاکتورها و اطلاعات خود را وارد کنید.')
-  }
-
-  const journalCount = buildJournal(data).length
 
   return (
-    <div className="page">
-      <PageHeader
-        title="تنظیمات"
-        subtitle="هویت کسب‌وکار، سال مالی، ظاهر برنامه و پشتیبان‌گیری — همه زیر یک سقف."
-        actions={
-          <Badge tone="gold" dot>
-            نسخهٔ ۱٫۰ · تراز
-          </Badge>
-        }
+    <div>
+      <SectionHead
+        kicker="تنظیمات"
+        title={<>تابار را <span className="gold-text">مال خودت</span> کن</>}
+        desc="ظاهر، خوانایی، تاریخ امتحان و پشتیبان‌گیری. همهٔ داده‌ها فقط روی دستگاه خودت ذخیره می‌شوند."
       />
 
-      <Card className="card-pad">
-        <div className="flex items-center gap-3 mb-2">
-          <span className="kpi-icon">
-            <Building2 size={17} />
-          </span>
-          <div>
-            <div className="card-title">هویت کسب‌وکار</div>
-            <div className="card-sub">این اطلاعات در فاکتورها، گزارش‌ها و چاپ‌ها استفاده می‌شود.</div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="surface p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <Palette size={16} className="text-gold" />
+            <h3 className="text-sm font-bold">ظاهر</h3>
           </div>
-        </div>
-        <div className="form-grid mt-2">
-          <Field label="نام کسب‌وکار" required>
-            <input
-              className="input"
-              value={company.name}
-              onChange={(event) => setCompany({ ...company, name: event.target.value })}
-            />
-          </Field>
-          <Field label="نام مدیر" required>
-            <input
-              className="input"
-              value={company.owner}
-              onChange={(event) => setCompany({ ...company, owner: event.target.value })}
-            />
-          </Field>
-          <Field label="شماره تماس">
-            <input
-              className="input ltr"
-              value={company.phone}
-              onChange={(event) => setCompany({ ...company, phone: event.target.value })}
-            />
-          </Field>
-          <Field label="ایمیل">
-            <input
-              className="input ltr"
-              value={company.email}
-              onChange={(event) => setCompany({ ...company, email: event.target.value })}
-            />
-          </Field>
-          <Field label="شناسه مالیاتی">
-            <input
-              className="input ltr"
-              value={company.taxId}
-              onChange={(event) => setCompany({ ...company, taxId: event.target.value })}
-            />
-          </Field>
-          <Field label="نشانی" className="full">
-            <input
-              className="input"
-              value={company.address}
-              onChange={(event) => setCompany({ ...company, address: event.target.value })}
-            />
-          </Field>
-        </div>
-        <div className="flex items-center justify-end mt-2">
-          <Button variant="primary" icon={Check} onClick={saveCompany}>
-            ذخیرهٔ هویت کسب‌وکار
-          </Button>
-        </div>
-      </Card>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { id: 'dark' as const, label: 'شبانه', desc: 'لاجوردی و طلایی', icon: Moon },
+              { id: 'light' as const, label: 'روشن', desc: 'کاغذ و مرکب', icon: Sun }
+            ].map((t) => {
+              const Icon = t.icon
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    setSetting('theme', t.id)
+                    applyTheme(t.id)
+                  }}
+                  className={cn(
+                    'rounded-xl border p-4 text-right transition',
+                    settings.theme === t.id ? 'border-gold/50 bg-gold/8' : 'border-line bg-surface2/30 hover:border-gold/25'
+                  )}
+                >
+                  <Icon size={18} className={settings.theme === t.id ? 'text-gold' : 'text-muted'} />
+                  <div className="mt-2 text-[0.82rem] font-bold">{t.label}</div>
+                  <div className="text-[0.62rem] text-faint">{t.desc}</div>
+                  {settings.theme === t.id && <span className="mt-1 inline-flex items-center gap-1 text-[0.58rem] text-gold"><Check size={10} /> فعال</span>}
+                </button>
+              )
+            })}
+          </div>
 
-      <div className="grid grid-2">
-        <Card className="card-pad">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="kpi-icon gold">
-              <Wallet size={17} />
+          <div className="mt-5">
+            <div className="mb-2 flex items-center justify-between text-[0.75rem] font-semibold">
+              <span className="flex items-center gap-1.5"><Type size={14} /> اندازهٔ متن</span>
+              <span className="text-[0.65rem] text-faint">{fas(Math.round(settings.fontScale * 100))}٪</span>
+            </div>
+            <input
+              type="range"
+              min={0.85}
+              max={1.25}
+              step={0.05}
+              value={settings.fontScale}
+              onChange={(e) => setSetting('fontScale', Number(e.target.value))}
+              className="w-full accent-[var(--c-gold)]"
+            />
+            <div className="mt-1 flex justify-between text-[0.55rem] text-faint"><span>فشرده</span><span>بزرگ‌تر</span></div>
+          </div>
+
+          <button
+            onClick={() => setSetting('motion', !settings.motion)}
+            className="mt-5 flex w-full items-center justify-between rounded-xl border border-line bg-surface2/30 px-4 py-3"
+          >
+            <div className="text-right">
+              <div className="text-[0.8rem] font-semibold">انیمیشن‌ها</div>
+              <div className="text-[0.62rem] text-faint">اگر دستگاهت کند است یا حرکت کمتر می‌خواهی، خاموشش کن.</div>
+            </div>
+            <span className={cn('relative h-6 w-11 shrink-0 rounded-full transition', settings.motion ? 'bg-gold' : 'bg-line')}>
+              <span className={cn('absolute top-1 size-4 rounded-full bg-bg transition-all', settings.motion ? 'right-1' : 'right-6')} />
             </span>
-            <div>
-              <div className="card-title">مالی و مالیات</div>
-              <div className="card-sub">سال مالی، واحد پول و نرخ مالیات پیش‌فرض</div>
-            </div>
-          </div>
-          <div className="form-grid mt-2">
-            <Field label="سال مالی">
-              <select
-                className="select"
-                value={fiscalYear}
-                onChange={(event) => setFiscalYear(Number(event.target.value))}
-              >
-                {yearOptions.map((year) => (
-                  <option key={year} value={year}>
-                    {fa(year)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="واحد پول">
-              <select
-                className="select"
-                value={currency}
-                onChange={(event) => setCurrency(event.target.value)}
-              >
-                {CURRENCIES.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="نرخ مالیات بر ارزش افزوده" hint="درصد پیش‌فرض در فاکتورهای جدید">
-              <div className="input-group">
-                <input
-                  className="input ltr"
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={vatRate}
-                  onChange={(event) => setVatRate(Number(event.target.value) || 0)}
-                />
-                <span className="input-suffix">٪</span>
-              </div>
-            </Field>
-          </div>
-          <div className="flex items-center justify-end mt-2">
-            <Button variant="soft" icon={Check} onClick={saveFinance}>
-              ذخیرهٔ تنظیمات مالی
-            </Button>
-          </div>
-        </Card>
+          </button>
+        </section>
 
-        <Card className="card-pad">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="kpi-icon violet">
-              <Sparkles size={17} />
-            </span>
-            <div>
-              <div className="card-title">ظاهر و خوانایی</div>
-              <div className="card-sub">تراز را شبیه خودتان کنید</div>
-            </div>
+        <section className="surface p-5">
+          <div className="mb-4 flex items-center gap-2">
+            <Check size={16} className="text-gold" />
+            <h3 className="text-sm font-bold">امتحان</h3>
           </div>
-
-          <div className="tiny muted mb-2">پوستهٔ برنامه</div>
-          <div className="grid grid-2" style={{ gap: 10 }}>
-            <button
-              className={clsx('theme-choice', data.settings.theme === 'light' && 'active')}
-              onClick={() => updateSettings({ theme: 'light' })}
-            >
-              <span className="theme-preview light">
-                <span className="tp-side" />
-                <span className="tp-main">
-                  <span className="tp-card" />
-                  <span className="tp-line" />
-                  <span className="tp-line short" />
-                </span>
-              </span>
-              <span className="flex items-center gap-2">
-                <Sun size={14} /> روشن — کاغذ و زمرد
-              </span>
-            </button>
-            <button
-              className={clsx('theme-choice', data.settings.theme === 'dark' && 'active')}
-              onClick={() => updateSettings({ theme: 'dark' })}
-            >
-              <span className="theme-preview dark">
-                <span className="tp-side" />
-                <span className="tp-main">
-                  <span className="tp-card" />
-                  <span className="tp-line" />
-                  <span className="tp-line short" />
-                </span>
-              </span>
-              <span className="flex items-center gap-2">
-                <Moon size={14} /> تاریک — شب و طلا
-              </span>
-            </button>
-          </div>
-
-          <div className="divider mt-3 mb-2" />
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600 }}>نمایش اعداد فارسی</div>
-              <div className="tiny muted">در گزارش‌ها و فاکتورها از ۱۲۳ استفاده شود</div>
-            </div>
-            <Switch
-              checked={data.settings.persianDigits}
-              onChange={(value) => updateSettings({ persianDigits: value })}
-              label="اعداد فارسی"
+          <label className="mb-4 block">
+            <div className="mb-1.5 text-[0.72rem] text-muted">عنوان امتحان</div>
+            <input
+              value={settings.examTitle}
+              onChange={(e) => setSetting('examTitle', e.target.value)}
+              className="w-full rounded-xl border border-line bg-surface2/40 px-3 py-2.5 text-[0.82rem] outline-none focus:border-gold/40"
             />
-          </div>
-          <div className="flex items-center justify-between gap-3 mt-2">
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600 }}>ذخیره‌سازی محلی</div>
-              <div className="tiny muted">داده‌ها فقط در همین مرورگر/دستگاه می‌مانند</div>
-            </div>
-            <Badge tone="success" dot>
-              فعال
-            </Badge>
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid grid-2">
-        <Card className="card-pad">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="kpi-icon blue">
-              <Database size={17} />
-            </span>
-            <div>
-              <div className="card-title">داده‌ها و پشتیبان‌گیری</div>
-              <div className="card-sub">نسخهٔ امن و کامل از دفتر خود بسازید</div>
-            </div>
+          </label>
+          <label className="block">
+            <div className="mb-1.5 text-[0.72rem] text-muted">تاریخ امتحان</div>
+            <input
+              type="date"
+              value={settings.examDate}
+              onChange={(e) => setSetting('examDate', e.target.value)}
+              className="w-full rounded-xl border border-line bg-surface2/40 px-3 py-2.5 text-[0.82rem] outline-none focus:border-gold/40 [color-scheme:dark]"
+            />
+          </label>
+          <div className="mt-3 rounded-xl border border-gold/25 bg-gold/8 p-3 text-[0.72rem] leading-6 text-muted">
+            <span className="font-bold text-gold">{fas(daysUntil(settings.examDate))} روز</span> تا {settings.examTitle}
+            <span className="mx-1 text-faint">·</span>
+            {jalali(new Date(settings.examDate + 'T00:00:00'))}
           </div>
 
-          <div className="grid grid-3 mt-2" style={{ gap: 10 }}>
-            <div className="mini-stat">
-              <HardDrive size={14} />
-              <div>
-                <b className="num">{fa(sizeKb)} KB</b>
-                <span>حجم داده</span>
-              </div>
+          <div className="mt-5 border-t border-line pt-4">
+            <div className="mb-2 text-[0.78rem] font-semibold">پشتیبان‌گیری</div>
+            <p className="mb-3 text-[0.65rem] leading-6 text-faint">
+              پیشرفت، یادداشت‌ها و کارت‌ها در همین مرورگر ذخیره می‌شوند. برای انتقال به دستگاهی دیگر، پروندهٔ پشتیبان بگیر.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button className="btn btn-sm" onClick={exportData}><Download size={13} /> خروجی</button>
+              <button className="btn btn-sm" onClick={() => fileRef.current?.click()}><Upload size={13} /> بازیابی</button>
             </div>
-            <div className="mini-stat">
-              <ReceiptIcon />
-              <div>
-                <b className="num">{fa(data.invoices.length)}</b>
-                <span>فاکتور</span>
-              </div>
-            </div>
-            <div className="mini-stat">
-              <ShieldCheck size={14} />
-              <div>
-                <b className="num">{fa(journalCount)}</b>
-                <span>سند</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-2 mt-3 flex-wrap">
-            <Button variant="soft" icon={Download} onClick={exportBackup}>
-              دانلود پشتیبان
-            </Button>
-            <Button variant="ghost" icon={Upload} onClick={() => fileRef.current?.click()}>
-              بازیابی از فایل
-            </Button>
             <input
               ref={fileRef}
               type="file"
               accept="application/json"
-              hidden
-              onChange={(event) => {
-                const file = event.target.files?.[0]
-                if (file) onImport(file)
-                event.target.value = ''
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) void onFile(f)
+                e.target.value = ''
               }}
             />
+            {msg && <div className={cn('mt-2 text-[0.65rem]', msg.ok ? 'text-turq' : 'text-rose')}>{msg.text}</div>}
           </div>
+        </section>
 
-          <div className="divider mt-3 mb-2" />
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="ghost" size="sm" icon={RefreshCw} onClick={confirmResetDemo}>
-              بازنشانی دادهٔ نمونه
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Trash2}
-              style={{ color: 'var(--danger)' }}
-              onClick={confirmClear}
-            >
-              پاک‌سازی کامل
-            </Button>
+        <section className="surface p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Keyboard size={16} className="text-gold" />
+            <h3 className="text-sm font-bold">کلیدهای میان‌بر</h3>
           </div>
-          <div className="tiny muted mt-1">
-            پیش از پاک‌سازی یا بازنشانی، یک فایل پشتیبان دانلود کنید.
+          <div className="space-y-1.5">
+            {[
+              ['Ctrl / ⌘ + K', 'جست‌وجوی سریع در همهٔ محتوا'],
+              ['Space', 'برگرداندن کارت مرور'],
+              ['۱ تا ۴', 'انتخاب گزینه در آزمون'],
+              ['Enter', 'سؤال بعدی'],
+              ['Esc', 'بستن پنجره‌ها']
+            ].map(([k, d]) => (
+              <div key={k} className="flex items-center justify-between rounded-lg border border-line bg-surface2/30 px-3 py-2">
+                <span className="text-[0.68rem] text-muted">{d}</span>
+                <kbd className="rounded border border-line bg-bg/60 px-1.5 py-0.5 font-mono text-[0.6rem] text-faint" dir="ltr">{k}</kbd>
+              </div>
+            ))}
           </div>
-        </Card>
+        </section>
 
-        <div className="stack">
-          <Card className="card-pad">
-            <div className="flex items-center gap-3 mb-2">
-              <span className="kpi-icon">
-                <Keyboard size={17} />
-              </span>
-              <div>
-                <div className="card-title">میان‌برهای صفحه‌کلید</div>
-                <div className="card-sub">برای کار سریع‌تر</div>
+        <section className="surface p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Info size={16} className="text-gold" />
+            <h3 className="text-sm font-bold">دربارهٔ تبار</h3>
+          </div>
+          <p className="text-[0.72rem] leading-7 text-muted">
+            تبار یک همراهِ مطالعهٔ کامل برای کتاب <span className="font-semibold text-ink">تاریخ ۲ — پایهٔ یازدهم، رشتهٔ انسانی</span> است. همهٔ محتوا بر پایهٔ متن کتاب درسی و پرسش‌های امتحان نهایی تدوین شده و برنامه کاملاً آفلاین کار می‌کند.
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-1.5 text-center sm:grid-cols-3">
+            {[
+              ['درس', lessons.length],
+              ['رویداد', timeline.length],
+              ['چهره', figures.length],
+              ['شهر', cities.length],
+              ['نشان', markers.length],
+              ['آزمون', exams.length]
+            ].map(([label, n]) => (
+              <div key={String(label)} className="rounded-lg border border-line bg-surface2/25 py-2">
+                <div className="text-sm font-bold text-gold">{fas(Number(n))}</div>
+                <div className="text-[0.55rem] text-faint">{label}</div>
               </div>
-            </div>
-            <div className="shortcut-row">
-              <span>جست‌وجوی سراسری</span>
-              <span className="kbd">⌘ K</span>
-            </div>
-            <div className="shortcut-row">
-              <span>بستن پنجره‌ها</span>
-              <span className="kbd">Esc</span>
-            </div>
-            <div className="shortcut-row">
-              <span>جابه‌جایی در نتایج</span>
-              <span className="kbd">↑ ↓</span>
-            </div>
-            <div className="shortcut-row">
-              <span>انتخاب نتیجه</span>
-              <span className="kbd">Enter</span>
-            </div>
-          </Card>
+            ))}
+          </div>
+          <div className="mt-4 rounded-lg border border-rose/25 bg-rose/5 p-3">
+            <div className="mb-1.5 flex items-center gap-1.5 text-[0.72rem] font-bold text-rose"><Trash2 size={12} /> پاک‌کردن همهٔ داده‌ها</div>
+            <p className="mb-2 text-[0.62rem] leading-5 text-faint">این کار پیشرفت، یادداشت‌ها و نشان‌ها را برای همیشه پاک می‌کند.</p>
+            {confirmReset ? (
+              <div className="flex gap-2">
+                <button
+                  className="btn btn-sm flex-1 border-rose/50 text-rose"
+                  onClick={() => {
+                    reset()
+                    setConfirmReset(false)
+                    setMsg({ ok: true, text: 'همهٔ داده‌ها پاک شد.' })
+                  }}
+                >
+                  <Trash2 size={12} /> بله، پاک کن
+                </button>
+                <button className="btn btn-sm flex-1" onClick={() => setConfirmReset(false)}>انصراف</button>
+              </div>
+            ) : (
+              <button className="btn btn-sm w-full" onClick={() => setConfirmReset(true)}>
+                <RotateCcw size={12} /> شروع از نو
+              </button>
+            )}
+          </div>
+        </section>
+      </div>
 
-          <Card className="card-pad" style={{ overflow: 'hidden' }}>
-            <div className="flex items-center gap-3">
-              <div className="brand-mark" style={{ background: 'var(--brand-grad)', width: 48, height: 48 }}>
-                <LogoMark size={30} />
-              </div>
-              <div>
-                <div className="card-title">تراز، نسخهٔ ۱٫۰</div>
-                <div className="card-sub">دفترِ هوشمند کسب‌وکار</div>
-              </div>
-              <span className="spacer" />
-              <Badge tone="gold">ساخته‌شده در ایران</Badge>
-            </div>
-            <div className="tiny muted mt-2" style={{ lineHeight: 2 }}>
-              تراز یک نرم‌افزار حسابداری دوطرفه با تمرکز بر تجربهٔ فارسی، گزارش‌های مدیریتی و
-              سادگی است. داده‌های شما بدون نیاز به اینترنت و سرور، روی همین دستگاه نگهداری
-              می‌شود.
-            </div>
-            <div className="flex gap-2 mt-2">
-              <Badge tone="neutral">Electron</Badge>
-              <Badge tone="neutral">React 19</Badge>
-              <Badge tone="neutral">TypeScript</Badge>
-              <Badge tone="neutral">Offline-first</Badge>
-            </div>
-          </Card>
-        </div>
+      <div className="mt-6 text-center text-[0.62rem] leading-6 text-faint">
+        ساخته‌شده برای دانش‌آموزان تاریخ ۲ · نسخهٔ ۲٫۰ · همهٔ محتوا محلی است
       </div>
     </div>
   )
-}
-
-function ReceiptIcon(): React.JSX.Element {
-  return <Wallet size={14} />
 }
