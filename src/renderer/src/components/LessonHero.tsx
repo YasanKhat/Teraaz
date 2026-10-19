@@ -25,12 +25,12 @@ export interface LessonHeroProps {
   onPrint?: () => void
 }
 
-function Crumbs({ chapter, lesson }: { chapter: Chapter; lesson: Lesson }) {
+function Crumbs({ chapter, lesson, light = false }: { chapter: Chapter; lesson: Lesson; light?: boolean }) {
   return (
-    <div className="mb-2 flex flex-wrap items-center gap-2 text-[0.6rem] text-faint">
-      <button className="hover:text-gold" onClick={() => navigate('chapters')}>فهرست کتاب</button>
+    <div className={cn('mb-2 flex flex-wrap items-center gap-2 text-[0.6rem]', light ? 'text-white/70' : 'text-faint')}>
+      <button className={light ? 'transition hover:text-white' : 'transition hover:text-gold'} onClick={() => navigate('chapters')}>فهرست کتاب</button>
       <ChevronLeft size={10} className="rotate-180" />
-      <button className="hover:text-gold" onClick={() => navigate(`chapter/${chapter.id}`)}>
+      <button className={light ? 'transition hover:text-white' : 'transition hover:text-gold'} onClick={() => navigate(`chapter/${chapter.id}`)}>
         پردهٔ {fas(chapter.id)}: {chapter.title}
       </button>
       <ChevronLeft size={10} className="rotate-180" />
@@ -68,11 +68,12 @@ function Actions({ p, light = false }: { p: LessonHeroProps; light?: boolean }) 
       <button className={cn('btn btn-ghost btn-sm', p.isBookmarked && 'text-gold')} onClick={p.onBookmark} aria-label="نشان‌کردن">
         {p.isBookmarked ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}
       </button>
-      <span className={cn('ms-auto hidden items-center gap-2 text-[0.58rem] sm:flex', light ? 'text-white/55' : 'text-faint')}>
-        <span className="w-16 h-[3px] overflow-hidden rounded-full bg-line/70">
+      <span className={cn('ms-auto hidden items-center gap-2 text-[0.56rem] sm:flex', light ? 'text-white/55' : 'text-faint')}>
+        <span>پیشرفت</span>
+        <span className={cn('h-[3px] w-16 overflow-hidden rounded-full', light ? 'bg-white/20' : 'bg-line/70')}>
           <span className="block h-full rounded-full bg-gold" style={{ width: `${p.readPct}%` }} />
         </span>
-        {fas(p.readPct)}٪
+        <span className="tabular-nums text-gold/90">{fas(p.readPct)}٪</span>
       </span>
     </div>
   )
@@ -146,7 +147,7 @@ function CinematicHero(p: LessonHeroProps) {
       <img src={art[p.plan.art]} alt="" className="absolute inset-0 size-full object-cover" />
       <div className="absolute inset-0 bg-gradient-to-t from-[#080b12] via-[#080b12]/82 to-[#080b12]/35" />
       <div className="relative p-4 pb-5 md:p-7">
-        <Crumbs chapter={p.chapter} lesson={p.lesson} />
+        <Crumbs chapter={p.chapter} lesson={p.lesson} light />
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <Meta p={p} tone="light" />

@@ -161,6 +161,11 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
   const nextLesson = lessons.find((l) => l.id === (lesson?.id ?? 0) + 1)
   const prevLesson = [...lessons].reverse().find((l) => l.id === (lesson?.id ?? 0) - 1)
 
+  const switchReadSource = (next: 'book' | 'summary' | 'digest') => {
+    setReadSource(next)
+    window.setTimeout(() => document.getElementById('read-top')?.scrollIntoView({ block: 'start' }), 40)
+  }
+
   const speak = () => {
     if (!lesson || typeof window === 'undefined' || !('speechSynthesis' in window)) return
     if (speaking) {
@@ -216,7 +221,7 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
       {/* ── ناوبری صحنه ───────────────────────────────────────── */}
       <div className="sticky top-[57px] z-20 -mx-4 border-b border-line bg-bg/80 px-4 py-2 backdrop-blur-xl md:-mx-0 md:rounded-xl md:border md:px-3">
         <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto">
-          <div className="flex shrink-0 items-center rounded-lg border border-line bg-bg/60 p-0.5">
+          <div className="flex shrink-0 flex-wrap items-center gap-0.5 rounded-lg border border-line bg-bg/60 p-0.5 md:flex-nowrap md:gap-0">
             <button
               onClick={() => setMode('journey')}
               className={cn('flex items-center gap-1 rounded-md px-2 py-1 text-[0.66rem] transition', mode === 'journey' ? 'bg-gold/15 text-gold' : 'text-muted hover:text-ink')}
@@ -279,19 +284,19 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
           {mode === 'read' && (
             <div className="ms-1 flex shrink-0 items-center gap-1 border-s border-line ps-2">
               <button
-                onClick={() => setReadSource('book')}
+                onClick={() => switchReadSource('book')}
                 className={cn('rounded-md px-2 py-1 text-[0.64rem] transition', readSource === 'book' ? 'bg-ink/10 text-ink' : 'text-faint hover:text-ink')}
               >
                 کتاب کامل
               </button>
               <button
-                onClick={() => setReadSource('summary')}
+                onClick={() => switchReadSource('summary')}
                 className={cn('rounded-md px-2 py-1 text-[0.64rem] transition', readSource === 'summary' ? 'bg-ink/10 text-ink' : 'text-faint hover:text-ink')}
               >
                 خلاصهٔ کتاب
               </button>
               <button
-                onClick={() => setReadSource('digest')}
+                onClick={() => switchReadSource('digest')}
                 className={cn('rounded-md px-2 py-1 text-[0.64rem] transition', readSource === 'digest' ? 'bg-ink/10 text-ink' : 'text-faint hover:text-ink')}
               >
                 چکیده

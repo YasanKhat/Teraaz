@@ -1,0 +1,10 @@
+import puppeteer from 'puppeteer-core'
+const b = await puppeteer.launch({ executablePath: '/tmp/chromium', args: ['--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--single-process','--no-zygote'], headless: true, defaultViewport: { width: 1280, height: 1000 } })
+const p = await b.newPage()
+await p.goto('http://127.0.0.1:5173/#/exams', { waitUntil: 'networkidle0' })
+await new Promise(x => setTimeout(x, 800))
+const box = await p.evaluate(() => { const t = document.querySelector('table'); const r = t.getBoundingClientRect(); window.scrollBy(0, r.top - 120); return true })
+await new Promise(x => setTimeout(x, 400))
+await p.screenshot({ path: '/home/user/shots/barom2.png', clip: { x: 640, y: 60, width: 540, height: 400 } })
+console.log('ok')
+await b.close()

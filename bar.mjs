@@ -1,0 +1,12 @@
+import puppeteer from 'puppeteer-core'
+const b = await puppeteer.launch({ executablePath: '/tmp/chromium', args: ['--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--single-process','--no-zygote'], headless: true, defaultViewport: { width: 1280, height: 1000 } })
+const p = await b.newPage()
+const errs=[]; p.on('pageerror', e=>errs.push(e.message))
+await p.goto('http://127.0.0.1:5173/#/exams', { waitUntil: 'networkidle0' })
+await new Promise(x => setTimeout(x, 800))
+await p.evaluate(() => document.body.innerText.includes('جدول بارم') && window.scrollTo(0, 1250))
+await new Promise(x => setTimeout(x, 400))
+await p.screenshot({ path: '/home/user/shots/barom.png' })
+console.log('has table', await p.evaluate(() => !!document.querySelector('table')))
+console.log('ERRS', errs.slice(0,3))
+await b.close()

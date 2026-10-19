@@ -196,6 +196,45 @@ export function Quiz({ examId }: { examId?: string }) {
         </div>
       </div>
 
+      <div className="surface mt-4 p-4 sm:p-5">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2 border-b border-line pb-2">
+          <div>
+            <div className="kicker mb-1">جدول بارم</div>
+            <h3 className="text-base font-black">از هر درس چند نمره می‌آید</h3>
+          </div>
+          <span className="text-[0.62rem] text-faint">همان جدول رسمی کتاب · جمع هر نوبت {fas(20)} نمره</span>
+        </div>
+        <div className="grid gap-x-6 gap-y-0 sm:grid-cols-2">
+          {[0, 1].map((half) => (
+            <table key={half} className="w-full text-[0.72rem]">
+              <thead>
+                <tr className="text-[0.58rem] text-faint">
+                  <th className="pb-1 text-right font-normal">درس</th>
+                  <th className="pb-1 text-center font-normal">نوبت اول</th>
+                  <th className="pb-1 text-center font-normal">نوبت دوم</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lessons.slice(half * 8, half * 8 + 8).map((l) => (
+                  <tr key={l.id} className="border-t border-line/60">
+                    <td className="py-1 text-right">
+                      <span className="tabular-nums text-faint">{fas(l.id)}</span>{' '}
+                      <span className="text-muted">{l.title.length > 26 ? l.title.slice(0, 26) + '…' : l.title}</span>
+                    </td>
+                    <td className="py-1 text-center tabular-nums text-ink/85" dir="ltr">
+                      {l.baram.mid ? l.baram.mid.replace(' تا ', '–') : '—'}
+                    </td>
+                    <td className="py-1 text-center tabular-nums text-gold" dir="ltr">
+                      {l.baram.final ?? '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ))}
+        </div>
+      </div>
+
       <div className="mt-6 grid gap-4 lg:grid-cols-[1.3fr_1fr]">
         <div className="surface p-5">
           <div className="mb-3 flex items-center justify-between">
