@@ -674,17 +674,21 @@ export function LessonFilm({
     setDir(1)
     setPlaying(false)
     savedAt.current = null
+    setSearchHit(null)
 
-    if (jumpTo && jumpTo.trim().length > 1) {
-      const needle = norm(jumpTo)
+    const needle = jumpTo && jumpTo.trim().length > 1 ? norm(jumpTo) : ''
+    if (needle) {
       const hit = frames.findIndex((f, k) => k > 0 && norm(textOfFrame(f)).includes(needle))
       if (hit > 0) {
         setI(hit)
-        setSearchHit(jumpTo.trim())
+        setSearchHit(jumpTo!.trim())
+      } else {
+        /* جست‌وجو در این درس نتیجه نداد؛ از قاب اول شروع می‌کنیم و چیپ را نمی‌گذاریم */
+        setSearchHit(null)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lesson.id])
+  }, [lesson.id, jumpTo, frames])
 
   const go = useCallback(
     (next: number) => {
