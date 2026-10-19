@@ -12,9 +12,12 @@ import {
   Pause,
   Play,
   Quote as QuoteIcon,
+  Search,
   Sparkles,
   Target,
-  TriangleAlert
+  TriangleAlert,
+  Volume2,
+  VolumeX
 } from 'lucide-react'
 import type { Lesson, Section } from '../data/types'
 import type { Panel, LessonPlan } from '../data/plans/types'
@@ -200,6 +203,20 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
 
 /* ── قاب‌ها ────────────────────────────────────────────────────────────── */
 
+/** متن خواندنیِ یک قاب — برای روایت صوتی و برای جست‌وجو */
+function textOfFrame(frame: Frame): string {
+  const parts: string[] = []
+  const walk = (v: unknown) => {
+    if (typeof v === 'string') parts.push(v)
+    else if (Array.isArray(v)) v.forEach(walk)
+    else if (v && typeof v === 'object') Object.values(v as Record<string, unknown>).forEach(walk)
+  }
+  walk(frame)
+  return parts.join(' · ').replace(/\s+/g, ' ').trim()
+}
+
+const norm = (s: string) => s.replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/\s+/g, ' ').trim()
+
 /** واژه‌های تازه‌ای که در همین قاب به کار رفته‌اند — پانوشتِ کوتاه، نه واژه‌نامه */
 function glossOf(frame: Frame, lesson: Lesson): { term: string; def: string }[] {
   const text = JSON.stringify(frame)
@@ -209,9 +226,21 @@ function glossOf(frame: Frame, lesson: Lesson): { term: string; def: string }[] 
     .map((t) => ({ term: t.term, def: t.def }))
 }
 
-function Stage({ frame, lesson, accent }: { frame: Frame; lesson: Lesson; accent: string }) {
+function Stage({
+  frame,
+  lesson,
+  accent,
+  resumeAt,
+  onJump
+}: {
+  frame: Frame
+  lesson: Lesson
+  accent: string
+  resumeAt?: number
+  onJump?: (i: number) => void
+}) {
   const gloss = glossOf(frame, lesson)
-  const body = renderStage(frame, lesson, accent)
+  const body = renderStage(frame, lesson, accent, { resumeAt, onJump })
   return (
     <div className="film-stage" data-kind={frame.kind}>
       {body}
@@ -228,7 +257,12 @@ function Stage({ frame, lesson, accent }: { frame: Frame; lesson: Lesson; accent
   )
 }
 
-function renderStage(frame: Frame, lesson: Lesson, accent: string) {
+function renderStage(
+  frame: Frame,
+  lesson: Lesson,
+  accent: string,
+  { resumeAt, onJump }: { resumeAt?: number; onJump?: (i: number) => void }
+) {
   switch (frame.kind) {
     case 'cover':
       return (
@@ -241,8 +275,15 @@ function renderStage(frame: Frame, lesson: Lesson, accent: string) {
             <h1 className="film-cover__title">{lesson.title}</h1>
             <p className="film-cover__sub">{lesson.subtitle}</p>
             <p className="film-cover__hook">{lesson.hook}</p>
-            <div className="film-cover__hint">
-              <ChevronLeft size={15} /> با دکمه‌های جهت‌دار جلو برو؛ هر قاب یک قدم از درس است
+            <div className="film-cover__actions">
+              {typeof resumeAt === 'number' && resumeAt > 1 && (
+                <button className="film-cover__resume" onClick={() => onJump?.(resumeAt)}>
+                  <Play size={14} /> ادامه از قاب {fas(resumeAt + 1)}
+                </button>
+              )}
+              <div className="film-cover__hint">
+                <ChevronLeft size={15} /> با دکمه‌های جهت‌دار جلو برو؛ هر قاب یک قدم از درس است
+              </div>
             </div>
           </div>
         </div>
@@ -279,10 +320,14 @@ function renderStage(frame: Frame, lesson: Lesson, accent: string) {
 
     case 'head':
       return (
-        <div className="film-frame film-center">
-          <div>
+        <div className="film-frame film-center" style={{ backgroundImage: `url(${art[lesson.id <= 4 ? 'ch1' : lesson.id <= 8 ? 'ch2' : lesson.id <= 12 ? 'ch3' : 'ch4']})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+          <div className="film-cover__veil" />
+          <div style={{ position: 'relative', zIndex: 1 }}>
             <div className="film-kicker">{frame.kicker}</div>
-            <h2 className="film-h2">{frame.title}</h2>
+            <h2 className="film-h2" style={{ color: '#f8ecd2' }}>{frame.title}</h2>
+            <p className="film-prose" style={{ color: 'rgba(246,236,214,0.7)', textAlign: 'center', marginTop: '0.4rem' }}>
+              بخش‌هایی از کتاب که در قاب‌های پیشین جا نشدند — به همین ترتیب ادامه بده.
+            </p>
           </div>
         </div>
       )
@@ -555,27 +600,61 @@ function renderStage(frame: Frame, lesson: Lesson, accent: string) {
 
 /* ── پوستهٔ فیلم ───────────────────────────────────────────────────────── */
 
-export function LessonFilm({ lesson, plan, chapter }: { lesson: Lesson; plan: LessonPlan; chapter: Chapter }) {
+export function LessonFilm({
+  lesson,
+  plan,
+  chapter,
+  jumpTo
+}: {
+  lesson: Lesson
+  plan: LessonPlan
+  chapter: Chapter
+  jumpTo?: string
+}) {
   const story = storyByLesson(lesson.id)
   const frames = useMemo(() => buildReel(lesson, plan, story), [lesson, plan, story])
   const [i, setI] = useState(0)
   const [dir, setDir] = useState(1)
   const [playing, setPlaying] = useState(false)
+  const [voice, setVoice] = useState(false)
+  const [searchHit, setSearchHit] = useState<string | null>(null)
   const frame = frames[Math.min(i, frames.length - 1)]
   const accent = lesson.accent
   const done = useProgress((s) => s.completed.includes(lesson.id))
   const completeLesson = useProgress((s) => s.completeLesson)
   const setProgress = useProgress((s) => s.setLessonProgress)
   const setLastLesson = useProgress((s) => s.setLastLesson)
+  const saveReadPos = useProgress((s) => s.saveReadPos)
+
+  /* جای ادامهٔ درس — فقط یک‌بار هنگام ورود خوانده می‌شود تا حین تماشا نپرد */
+  const savedAt = useRef<number | null>(null)
+  if (savedAt.current === null) {
+    const fraction = useProgress.getState().readPos[lesson.id] ?? 0
+    const guess = Math.round(fraction * frames.length) - 1
+    savedAt.current = guess > 1 && guess < frames.length - 2 ? guess : 0
+  }
 
   useEffect(() => {
     setLastLesson(lesson.id)
     window.scrollTo({ top: 0 })
+    savedAt.current = null
   }, [lesson.id, setLastLesson])
 
   useEffect(() => {
     setI(0)
     setDir(1)
+    setPlaying(false)
+    savedAt.current = null
+
+    if (jumpTo && jumpTo.trim().length > 1) {
+      const needle = norm(jumpTo)
+      const hit = frames.findIndex((f, k) => k > 0 && norm(textOfFrame(f)).includes(needle))
+      if (hit > 0) {
+        setI(hit)
+        setSearchHit(jumpTo.trim())
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson.id])
 
   const go = useCallback(
@@ -595,8 +674,9 @@ export function LessonFilm({ lesson, plan, chapter }: { lesson: Lesson; plan: Le
   useEffect(() => {
     const pct = Math.round(((i + 1) / frames.length) * 100)
     if (!done) setProgress(lesson.id, Math.max(8, Math.min(96, pct)))
+    if (i > 0) saveReadPos(lesson.id, (i + 1) / frames.length)
     if (i === frames.length - 1 && !done) completeLesson(lesson.id)
-  }, [i, frames.length, lesson.id, done, setProgress, completeLesson])
+  }, [i, frames.length, lesson.id, done, setProgress, completeLesson, saveReadPos])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -621,6 +701,25 @@ export function LessonFilm({ lesson, plan, chapter }: { lesson: Lesson; plan: Le
     const t = window.setTimeout(() => next(), dwell)
     return () => window.clearTimeout(t)
   }, [playing, i, dwell, next, frames.length])
+
+  /* روایت صوتی همین قاب — برای کسی که ترجیح می‌دهد گوش بدهد */
+  useEffect(() => {
+    if (!voice) return
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+    const text = textOfFrame(frame)
+    if (!text) return
+    window.speechSynthesis.cancel()
+    const utter = new SpeechSynthesisUtterance(text.slice(0, 900))
+    utter.lang = 'fa-IR'
+    utter.rate = 0.98
+    window.speechSynthesis.speak(utter)
+    return () => window.speechSynthesis.cancel()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voice, i])
+
+  useEffect(() => () => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
+  }, [])
 
   // کشیدن انگشت روی موبایل: به چپ = جلو
   const touch = useRef<{ x: number; y: number } | null>(null)
@@ -672,8 +771,16 @@ export function LessonFilm({ lesson, plan, chapter }: { lesson: Lesson; plan: Le
             </div>
           </div>
         </div>
-        <div className="film__counter">
-          {fas(i + 1)} <span>/</span> {fas(frames.length)}
+        <div className="flex items-center gap-2">
+          {searchHit && (
+            <button className="film__search" onClick={() => setSearchHit(null)} title="پاک‌کردن جست‌وجو">
+              <Search size={11} /> {searchHit}
+              <span>×</span>
+            </button>
+          )}
+          <div className="film__counter">
+            {fas(i + 1)} <span>/</span> {fas(frames.length)}
+          </div>
         </div>
       </div>
 
@@ -702,7 +809,13 @@ export function LessonFilm({ lesson, plan, chapter }: { lesson: Lesson; plan: Le
             transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
             className="film__slide"
           >
-            <Stage frame={frame} lesson={lesson} accent={accent} />
+            <Stage
+              frame={frame}
+              lesson={lesson}
+              accent={accent}
+              resumeAt={savedAt.current ?? 0}
+              onJump={(k) => { savedAt.current = 0; go(k) }}
+            />
           </motion.div>
         </AnimatePresence>
       </div>
@@ -723,6 +836,14 @@ export function LessonFilm({ lesson, plan, chapter }: { lesson: Lesson; plan: Le
           </button>
           <button className="film__arrow film__arrow--next" onClick={next} disabled={i >= frames.length - 1} aria-label="قاب بعد">
             <ChevronLeft size={22} />
+          </button>
+          <button
+            className={cn('film__play', voice && 'is-on')}
+            onClick={() => setVoice((v) => !v)}
+            aria-label={voice ? 'خاموش‌کردن روایت' : 'روشن‌کردن روایت صوتی'}
+            title={voice ? 'خاموش‌کردن روایت' : 'روایت صوتی'}
+          >
+            {voice ? <Volume2 size={15} /> : <VolumeX size={15} />}
           </button>
         </div>
 

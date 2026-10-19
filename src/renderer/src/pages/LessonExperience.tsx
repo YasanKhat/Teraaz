@@ -9,7 +9,7 @@ import { LessonFilm } from '../components/LessonFilm'
  * هیچ فهرست، واژه‌نامه یا بخشِ جداگانه‌ای در این صفحه نیست؛
  * همهٔ آموزش در قاب‌های پشت‌سرهمِ فیلم اتفاق می‌افتد.
  */
-export function LessonExperience({ id }: { id?: string; autoFilm?: boolean; openRead?: boolean; initialQuery?: string }) {
+export function LessonExperience({ id, initialQuery = '' }: { id?: string; autoFilm?: boolean; openRead?: boolean; initialQuery?: string }) {
   const lesson = lessonById(Number(id))
   const plan = lesson ? planByLesson(lesson.id) : undefined
   const chapter = lesson ? chapterById(lesson.chapter) : undefined
@@ -25,5 +25,5 @@ export function LessonExperience({ id }: { id?: string; autoFilm?: boolean; open
     )
   }
 
-  return <LessonFilm lesson={lesson} plan={plan} chapter={chapter} />
+  return <LessonFilm lesson={lesson} plan={plan} chapter={chapter} jumpTo={initialQuery} />
 }

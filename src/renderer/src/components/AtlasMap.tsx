@@ -347,6 +347,7 @@ export function AtlasMap({
   const regionLabels = useMemo(() => {
     return Object.keys(regions)
       .filter((id) => phase.regions?.includes(id) || phase.ghost?.includes(id) || spec.base?.includes(id))
+      .filter((id, k, all) => all.indexOf(id) === k)
       .map((id) => {
         const f = regionFeature(id)
         if (!f) return null
@@ -505,7 +506,7 @@ export function AtlasMap({
 
             {/* جغرافیای سیاسی پایه: قلمرو دولت‌های این دوره */}
             <g clipPath={`url(#${uid}-landclip)`}>
-              {(spec.base ?? [])
+              {[...new Set(spec.base ?? [])]
                 .filter((id) => !phase.regions?.includes(id) && !phase.ghost?.includes(id))
                 .map((id) => {
                   const f = regionFeature(id)

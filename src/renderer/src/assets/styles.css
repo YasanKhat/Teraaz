@@ -3065,3 +3065,42 @@ a:focus-visible {
   background: linear-gradient(0deg, color-mix(in oklab, var(--c-bg) 92%, transparent), transparent);
   pointer-events: none;
 }
+
+/* دکمهٔ «ادامه» روی جلد و نشان جست‌وجو */
+.film-cover__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.9rem; margin-top: 1rem; }
+
+.film-cover__resume {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 0.7rem;
+  border: 1px solid color-mix(in oklab, var(--c-gold) 55%, transparent);
+  background: color-mix(in oklab, var(--c-gold) 16%, transparent);
+  color: #ffe6a8;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  transition: 0.16s ease;
+}
+
+.film-cover__resume:hover { background: color-mix(in oklab, var(--c-gold) 26%, transparent); }
+
+.film-cover__actions .film-cover__hint { margin-top: 0; border-top: none; padding-top: 0; }
+
+.film__search {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 12rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.6rem;
+  color: var(--c-gold);
+  border: 1px solid color-mix(in oklab, var(--c-gold) 40%, transparent);
+  background: color-mix(in oklab, var(--c-gold) 10%, transparent);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+}
+
+.film__search span { opacity: 0.6; margin-inline-start: 0.2rem; }

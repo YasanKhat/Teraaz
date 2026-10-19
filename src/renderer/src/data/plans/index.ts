@@ -42,7 +42,7 @@ const BASE: Record<number, string[]> = {
   13: [...IRAN_WIDE, 'jazira', 'anatolia'],
   14: IRAN,
   15: EUROPE,
-  16: [...EUROPE, 'europe', 'hejaz', 'iraq', 'sind']
+  16: [...EUROPE, 'hejaz', 'iraq', 'sind', 'europe']
 }
 
 const withBase = (plan: LessonPlan): LessonPlan => ({
@@ -51,7 +51,7 @@ const withBase = (plan: LessonPlan): LessonPlan => ({
     ...scene,
     maps: scene.maps?.map((m) => ({
       ...m,
-      spec: { ...m.spec, base: m.spec.base ?? (BASE[plan.lesson] ?? IRAN) }
+      spec: { ...m.spec, base: [...new Set(m.spec.base ?? (BASE[plan.lesson] ?? IRAN))] }
     }))
   }))
 })
