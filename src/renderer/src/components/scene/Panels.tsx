@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, ChevronDown, CircleHelp, Eye, Lightbulb, Quote, ScrollText, Sparkles, X } from 'lucide-react'
+import { Check, ChevronDown, CircleHelp, Eye, Lightbulb, Quote, ScrollText, Sparkles, TriangleAlert, X } from 'lucide-react'
 import type { Block, Section } from '../../data/types'
 import type { Panel } from '../../data/plans/types'
 import { figureById } from '../../data/figures'
@@ -55,7 +55,7 @@ function BlockView({ block, accent }: { block: Block; accent: string }) {
       return (
         <div className={cn('scene-note', block.t === 'warn' && 'scene-note--warn')}>
           <div className="mb-1 flex items-center gap-1.5 text-[0.8rem] font-bold">
-            {block.t === 'warn' ? <X size={13} className="text-rose" /> : <Lightbulb size={13} className="text-gold" />}
+            {block.t === 'warn' ? <TriangleAlert size={13} className="text-rose" /> : <Lightbulb size={13} className="text-gold" />}
             {block.title ?? (block.t === 'warn' ? 'دقت کن' : 'نکته')}
           </div>
           <p className="text-[0.9rem] leading-8 text-muted">{block.text}</p>

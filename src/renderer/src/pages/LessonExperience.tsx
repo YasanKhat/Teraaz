@@ -63,7 +63,6 @@ export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFi
   const recordQuiz = useProgress((s) => s.recordQuiz)
   const markQuest = useProgress((s) => s.markQuest)
   const quizRecord = useProgress((s) => (lesson ? s.quizzes[`lesson-${lesson.id}`] : undefined))
-
   const sceneCount = plan?.scenes.length ?? 1
 
   useEffect(() => {
@@ -106,7 +105,24 @@ export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFi
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
   }, [])
 
-  const scenes = plan?.scenes ?? []
+  const baseScenes = plan?.scenes ?? []
+  const allScenes = useMemo(() => {
+    if (!lesson) return baseScenes
+    const used = new Set<number>()
+    baseScenes.forEach((sc) => (sc.sections ?? []).forEach((n) => used.add(n)))
+    const missing = lesson.sections.map((_, i) => i).filter((i) => !used.has(i))
+    if (!missing.length) return baseScenes
+    return [
+      ...baseScenes,
+      {
+        title: 'پیوست: بخش‌های تکمیلی درس',
+        kicker: 'برای کامل‌شدن تصویر',
+        sections: missing,
+        panels: []
+      }
+    ]
+  }, [baseScenes, lesson])
+  const scenes = allScenes
   const idxInChapter = chapterPlan?.lessons.findIndex((l) => l.lesson === lesson?.id) ?? -1
   const nextLesson = lessons.find((l) => l.id === (lesson?.id ?? 0) + 1)
   const prevLesson = [...lessons].reverse().find((l) => l.id === (lesson?.id ?? 0) - 1)
@@ -208,45 +224,70 @@ export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFi
       {/* ── ناوبری صحنه ───────────────────────────────────────── */}
       <div className="sticky top-[57px] z-20 -mx-4 border-b border-line bg-bg/80 px-4 py-2 backdrop-blur-xl md:-mx-0 md:rounded-xl md:border md:px-3">
         <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto">
-          <span className="kicker me-1 hidden shrink-0 sm:block">صحنه‌ها</span>
-          {scenes.map((s, i) => (
+          <div className="flex shrink-0 items-center rounded-lg border border-line bg-bg/60 p-0.5">
             <button
-              key={s.title}
-              onClick={() => {
-                setMode('journey')
-                setShowAll(true)
-                setTimeout(() => refs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30)
-              }}
-              data-active={active === i && mode === 'journey'}
-              className={cn(
-                'flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[0.7rem] transition',
-                active === i && mode === 'journey' ? 'bg-gold/12 text-gold' : 'text-muted hover:bg-ink/5'
-              )}
+              onClick={() => setMode('journey')}
+              className={cn('flex items-center gap-1 rounded-md px-2 py-1 text-[0.66rem] transition', mode === 'journey' ? 'bg-gold/15 text-gold' : 'text-muted hover:text-ink')}
             >
-              <span className="text-[0.55rem] opacity-70">{fas(i + 1)}</span>
-              {s.title.length > 26 ? s.title.slice(0, 26) + '…' : s.title}
+              <Layers size={11} /> صحنه‌ها
             </button>
-          ))}
-          <span className="mx-1 h-4 w-px shrink-0 bg-line" />
-          <button onClick={() => setMode('exam')} className={cn('shrink-0 rounded-lg px-2.5 py-1.5 text-[0.7rem]', mode === 'exam' ? 'bg-gold/12 text-gold' : 'text-muted hover:bg-ink/5')}>
-            <Target size={12} className="inline" /> آزمون
-          </button>
-          <button onClick={() => setMode('cards')} className={cn('shrink-0 rounded-lg px-2.5 py-1.5 text-[0.7rem]', mode === 'cards' ? 'bg-gold/12 text-gold' : 'text-muted hover:bg-ink/5')}>
-            <Layers size={12} className="inline" /> کارت‌ها
-          </button>
-          <button onClick={() => setMode('read')} className={cn('shrink-0 rounded-lg px-2.5 py-1.5 text-[0.7rem]', mode === 'read' ? 'bg-gold/12 text-gold' : 'text-muted hover:bg-ink/5')}>
-            <BookOpen size={12} className="inline" /> متن کامل
-          </button>
+            <button
+              onClick={() => setMode('read')}
+              className={cn('flex items-center gap-1 rounded-md px-2 py-1 text-[0.66rem] transition', mode === 'read' ? 'bg-gold/15 text-gold' : 'text-muted hover:text-ink')}
+            >
+              <BookOpen size={11} /> متن کامل
+            </button>
+            <button
+              onClick={() => setMode('cards')}
+              className={cn('flex items-center gap-1 rounded-md px-2 py-1 text-[0.66rem] transition', mode === 'cards' ? 'bg-gold/15 text-gold' : 'text-muted hover:text-ink')}
+            >
+              <Layers size={11} /> کارت‌ها
+            </button>
+            <button
+              onClick={() => setMode('exam')}
+              className={cn('flex items-center gap-1 rounded-md px-2 py-1 text-[0.66rem] transition', mode === 'exam' ? 'bg-gold/15 text-gold' : 'text-muted hover:text-ink')}
+            >
+              <Target size={11} /> آزمون
+            </button>
+          </div>
+          {mode === 'journey' && (
+            <>
+              <span className="h-4 w-px shrink-0 bg-line" />
+              {scenes.map((s, i) => (
+                <button
+                  key={s.title}
+                  onClick={() => {
+                    setShowAll(true)
+                    setTimeout(() => refs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30)
+                  }}
+                  data-active={active === i}
+                  className={cn(
+                    'flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-[0.66rem] transition',
+                    active === i ? 'bg-ink/8 text-gold' : 'text-muted hover:bg-ink/5'
+                  )}
+                >
+                  <span className="text-[0.52rem] opacity-70">{fas(i + 1)}</span>
+                  {s.title.length > 22 ? s.title.slice(0, 22) + '…' : s.title}
+                </button>
+              ))}
+            </>
+          )}
+          {mode !== 'journey' && (
+            <span className="ms-auto shrink-0 text-[0.56rem] text-faint">
+              {mode === 'read' ? 'همان متن کتاب، کامل' : mode === 'cards' ? 'برای مرور سریع' : 'خودآزمایی درس'}
+            </span>
+          )}
         </div>
       </div>
 
       {mode === 'read' && (
         <section className="mx-auto max-w-3xl">
-          <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-line pb-3">
-            <div>
-              <div className="kicker mb-1">متن کامل درس {fas(lesson.id)}</div>
-              <h2 className="text-lg font-black">{lesson.title}</h2>
-              <p className="mt-1 text-[0.68rem] text-faint">همان چیزی که در کتاب می‌خواندی — اینجا، با تایپوگرافی خوانا و آمادهٔ چاپ.</p>
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
+            <div className="flex items-baseline gap-2">
+              <span className="kicker">متن کامل درس {fas(lesson.id)}</span>
+              <span className="text-[0.6rem] text-faint">
+                {fas(lesson.sections.length)} بخش · {fas(lesson.terms.length)} واژه · آمادهٔ چاپ
+              </span>
             </div>
             <button className="btn btn-sm" onClick={() => window.print()}><Printer size={13} /> چاپ / PDF</button>
           </div>
@@ -254,8 +295,8 @@ export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFi
           <div className="space-y-8">
             {lesson.sections.map((sec, i) => (
               <article key={sec.title}>
-                <h3 className="mb-2.5 flex items-center gap-2 text-[1.05rem] font-black">
-                  <span className="bignum text-[1.1rem]">{fas(i + 1)}</span>
+                <h3 className="mb-2.5 flex items-baseline gap-2 text-[1.05rem] font-black">
+                  <span className="text-[0.66rem] tabular-nums text-gold/70">{fas(i + 1)}</span>
                   {sec.title}
                 </h3>
                 <div className="space-y-4">

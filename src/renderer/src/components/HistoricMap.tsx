@@ -370,7 +370,7 @@ export function HistoricMap({ spec, autoplay = false }: { spec: MapSpec; autopla
           </AnimatePresence>
 
           {/* گلِ نیم‌ساعت و مقیاس */}
-          <g transform={`translate(${view.x + view.w - 74} ${view.y + view.h - 66}) scale(${Math.max(0.5, Math.min(1, 420 / view.w))})`} opacity="0.75">
+          <g transform={`translate(${view.x + view.w - 96} ${view.y + view.h - 76}) scale(${Math.max(0.5, Math.min(1, 420 / view.w))})`} opacity="0.75">
             <circle r="34" fill="none" stroke="#d9c39a" strokeWidth="0.8" />
             <circle r="24" fill="none" stroke="#d9c39a" strokeWidth="0.5" strokeDasharray="2 3" />
             <path d="M0,-34 L7,0 L0,34 L-7,0 Z" fill="#d9c39a" fillOpacity="0.5" />

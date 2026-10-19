@@ -6,6 +6,7 @@ import { art } from '../art'
 import { navigate } from '../lib/router'
 import { cn, fas } from '../lib/utils'
 import { useProgress } from '../store/useProgress'
+import { ChapterSignature } from '../components/ChapterSignature'
 
 export function Chapter({ id }: { id?: string }) {
   const ch = chapterPlans.find((c) => c.chapter === Number(id)) ?? chapterPlans[0]
@@ -68,6 +69,9 @@ export function Chapter({ id }: { id?: string }) {
 
       <div className="ornate-rule"><span /></div>
 
+      {/* ── امضای ساختاری این پرده (متفاوت در هر فصل) ─────────── */}
+      <ChapterSignature chapter={ch.chapter} />
+
       {/* ── فیلم‌نامهٔ درس‌ها ───────────────────────────────────── */}
       <section>
         <div className="mb-4 flex items-end justify-between">
@@ -75,70 +79,69 @@ export function Chapter({ id }: { id?: string }) {
             <div className="kicker">فیلم‌نامه</div>
             <h2 className="text-[1.05rem] font-black">درس‌ها، به ترتیب روایت</h2>
           </div>
-          <span className="text-[0.6rem] text-faint">روی هر صحنه بزن</span>
+          <span className="text-[0.6rem] text-faint">هر درس، یک فیلم و یک متن</span>
         </div>
 
-        <div className="relative">
-          <div className="absolute inset-y-2 start-[13px] w-px bg-line md:start-[15px]" />
-          <div className="space-y-3">
-            {ch.lessons.map((lp, i) => {
-              const l = lessonById(lp.lesson)
-              if (!l) return null
-              const isDone = completed.includes(l.id)
-              const read = progress[l.id] ?? 0
-              const checks = lp.scenes.reduce((n, s) => n + s.panels.filter((p) => p.kind === 'check').length, 0)
-              const maps = lp.scenes.reduce((n, s) => n + (s.maps?.length ?? 0), 0)
-              return (
-                <div key={l.id} className="relative ps-10 md:ps-12">
-                  <span
-                    className={cn(
-                      'absolute start-0 top-4 grid size-7 place-items-center rounded-full border bg-bg text-[0.56rem] font-bold md:size-8',
-                      isDone ? 'border-turq/50 text-turq' : read > 0 ? 'border-gold/60 text-gold' : 'border-line text-faint'
+        <div className="grid gap-3 md:grid-cols-2">
+          {ch.lessons.map((lp) => {
+            const l = lessonById(lp.lesson)
+            if (!l) return null
+            const isDone = completed.includes(l.id)
+            const read = progress[l.id] ?? 0
+            const checks = lp.scenes.reduce((n, s) => n + s.panels.filter((p) => p.kind === 'check').length, 0)
+            const maps = lp.scenes.reduce((n, s) => n + (s.maps?.length ?? 0), 0)
+            return (
+              <article
+                key={l.id}
+                className={cn(
+                  'group relative flex flex-col overflow-hidden rounded-xl border bg-surface/25 transition hover:border-gold/35',
+                  isDone ? 'border-turq/35' : 'border-line'
+                )}
+              >
+                <button onClick={() => navigate(`lesson/${l.id}`)} className="flex flex-1 items-stretch gap-3 p-3 text-start">
+                  <div className="relative w-[78px] shrink-0 overflow-hidden rounded-lg border border-line/60 sm:w-[92px]">
+                    <img src={art[lp.art]} alt="" className="size-full object-cover transition duration-500 group-hover:scale-[1.04]" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-bg/80 via-bg/10 to-transparent" />
+                    <span className="absolute bottom-1 start-1 rounded bg-bg/75 px-1.5 py-0.5 text-[0.54rem] font-bold text-gold">
+                      درس {fas(l.id)}
+                    </span>
+                    {isDone && (
+                      <span className="absolute top-1 end-1 grid size-4 place-items-center rounded-full bg-turq text-bg">
+                        <Check size={10} />
+                      </span>
                     )}
-                  >
-                    {isDone ? <Check size={12} /> : fas(l.id)}
-                  </span>
-                  <div className="group border-b border-line pb-3">
-                    <button className="w-full text-start" onClick={() => navigate(`lesson/${l.id}`)}>
-                      <div className="flex flex-wrap items-center gap-2 text-[0.54rem] text-faint">
-                        <span className="text-gold">صحنهٔ {fas(i + 1)}</span>
-                        <span>·</span>
-                        <span>{l.span}</span>
-                        <span className="flex items-center gap-0.5"><Clock3 size={9} /> {fas(l.minutes)}′</span>
-                        <span>· {fas(lp.scenes.length)} صحنه</span>
-                        {checks > 0 && <span>· {fas(checks)} خودآزمایی</span>}
-                        {maps > 0 && <span className="text-turq">· {fas(maps)} نقشه</span>}
-                        {isDone && <span className="text-turq">· خوانده‌شده</span>}
-                      </div>
-                      <h3 className="mt-1 text-[1rem] font-black leading-8 group-hover:text-gold">{l.title}</h3>
-                      <p className="mt-0.5 line-clamp-1 text-[0.72rem] text-muted">{lp.question}</p>
-                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[0.58rem] text-faint">
-                        {lp.scenes.slice(0, 4).map((s) => (
-                          <span key={s.title} className="flex items-center gap-1">
-                            <span className="size-1 rounded-full bg-gold/60" /> {s.title}
-                          </span>
-                        ))}
-                      </div>
-                    </button>
-                    {read > 0 && !isDone && (
-                      <div className="mt-2 flex items-center gap-2">
-                        <div className="h-px flex-1 bg-line"><div className="h-px bg-gold" style={{ width: `${read}%` }} /></div>
-                        <span className="text-[0.54rem] text-faint">{fas(read)}٪</span>
-                      </div>
-                    )}
-                    <div className="mt-1.5 flex items-center gap-3 text-[0.6rem]">
-                      <button className="flex items-center gap-1 text-gold/85 transition hover:text-gold" onClick={() => navigate(`film/${l.id}`)}>
-                        <Play size={10} /> تماشای درس
-                      </button>
-                      <button className="flex items-center gap-1 text-faint transition hover:text-ink" onClick={() => navigate(`lesson/${l.id}`)}>
-                        خواندن صحنه‌به‌صحنه <ArrowLeft size={10} />
-                      </button>
-                    </div>
                   </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5 text-[0.52rem] text-faint">
+                      <span>{l.span}</span>
+                      <span>·</span>
+                      <span className="flex items-center gap-0.5"><Clock3 size={9} /> {fas(l.minutes)}′</span>
+                      <span>· {fas(lp.scenes.length)} صحنه</span>
+                      {checks > 0 && <span className="text-gold/80">· {fas(checks)} خودآزمایی</span>}
+                      {maps > 0 && <span className="text-turq">· {fas(maps)} نقشه</span>}
+                    </div>
+                    <h3 className="mt-1 text-[0.95rem] font-black leading-7 group-hover:text-gold">{l.title}</h3>
+                    <p className="mt-0.5 line-clamp-2 text-[0.68rem] leading-6 text-muted">{lp.question}</p>
+                  </div>
+                </button>
+                {read > 0 && !isDone && (
+                  <div className="mx-3 flex items-center gap-2">
+                    <div className="h-px flex-1 bg-line"><div className="h-px bg-gold" style={{ width: `${read}%` }} /></div>
+                    <span className="text-[0.52rem] text-faint">{fas(read)}٪</span>
+                  </div>
+                )}
+                <div className="mt-2 flex items-center gap-3 border-t border-line/70 px-3 py-2 text-[0.58rem]">
+                  <button className="flex items-center gap-1 font-semibold text-gold/85 transition hover:text-gold" onClick={() => navigate(`film/${l.id}`)}>
+                    <Play size={9} /> تماشای درس
+                  </button>
+                  <span className="h-3 w-px bg-line" />
+                  <button className="flex items-center gap-1 text-faint transition hover:text-ink" onClick={() => navigate(`lesson/${l.id}`)}>
+                    خواندن صحنه‌به‌صحنه <ArrowLeft size={9} />
+                  </button>
                 </div>
-              )
-            })}
-          </div>
+              </article>
+            )
+          })}
         </div>
       </section>
 
