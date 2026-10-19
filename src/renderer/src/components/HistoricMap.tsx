@@ -270,7 +270,9 @@ export function HistoricMap({ spec, autoplay = false }: { spec: MapSpec; autopla
           <g pointerEvents="none">
             {phase.regions?.map((id) => {
               const [rx, ry] = regionCenter(id)
-              const x = Math.max(view.x + 26, Math.min(view.x + view.w - 26, rx))
+              const label = regions[id]?.label ?? ''
+              const half = Math.max(26, (label.length * fs * 0.62) / 2 + 6)
+              const x = Math.max(view.x + half, Math.min(view.x + view.w - half, rx))
               const y = Math.max(view.y + 24, Math.min(view.y + view.h - 20, ry))
               return (
                 <motion.text

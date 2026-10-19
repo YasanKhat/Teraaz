@@ -56,7 +56,7 @@ export function Chapters() {
                     <span className="relative h-px flex-1 bg-line">
                       <span className="absolute inset-y-0 start-0 bg-gold" style={{ width: `${pct}%` }} />
                     </span>
-                    <span className="text-[0.56rem] tabular-nums text-faint">{fas(done)}/{fas(ids.length)}</span>
+                    <span className="text-[0.56rem] tabular-nums text-faint">{fas(done)} از {fas(ids.length)}</span>
                   </span>
                 </span>
                 <span className="hidden shrink-0 overflow-hidden rounded-[46%_46%_0.6rem_0.6rem/34%_34%_0.6rem_0.6rem] border border-gold/25 sm:block">

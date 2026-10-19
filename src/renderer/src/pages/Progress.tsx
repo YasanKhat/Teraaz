@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { ArrowLeft, Award, BookOpen, Check, Flame, Layers, NotebookPen, Target, Zap } from 'lucide-react'
 import { chapterPlans } from '../data/plans'
 import { lessonById, allQuestions } from '../data/lessons'
-import { badges } from '../data/exams'
+import { badges, exams } from '../data/exams'
 import { earnedBadges } from '../lib/badges'
 import { navigate } from '../lib/router'
 import { cn, daysAgoKey, fas, jalali, pct, timeAgo, todayKey } from '../lib/utils'
@@ -39,8 +39,8 @@ export function Progress() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <header className="mb-8 mt-2 text-center">
-        <div className="ornate-rule mb-4"><span /></div>
+      <header className="mb-6 text-center">
+        <div className="ornate-rule mb-3"><span /></div>
         <div className="kicker mb-2">کارنامهٔ من</div>
         <h1 className="display text-[1.9rem] leading-[2.2] md:text-[2.4rem]">{level.title}</h1>
         <p className="mx-auto mt-1 max-w-lg text-[0.8rem] leading-8 text-muted">
@@ -55,8 +55,24 @@ export function Progress() {
             <span>{fas(level.next)}</span>
           </div>
         </div>
-        <div className="ornate-rule mt-5"><span /></div>
+        <div className="ornate-rule mt-4"><span /></div>
       </header>
+
+      <section className="mb-8 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        {[
+          { label: 'امتیاز', value: fas(s.xp), icon: <Zap size={13} />, tone: 'text-gold' },
+          { label: 'زنجیرهٔ روزانه', value: `${fas(streak)} روز`, icon: <Flame size={13} />, tone: 'text-rose' },
+          { label: 'درس کامل‌شده', value: `${fas(done)} از ${fas(totalLessons)}`, icon: <BookOpen size={13} />, tone: 'text-turq' },
+          { label: 'نشان', value: `${fas(earns.length)} از ${fas(badges.length)}`, icon: <Award size={13} />, tone: 'text-lapis' }
+        ].map((tile) => (
+          <div key={tile.label} className="rounded-xl border border-line bg-surface/40 px-3 py-2.5">
+            <div className={cn('flex items-center gap-1 text-[0.56rem]', tile.tone)}>
+              {tile.icon} {tile.label}
+            </div>
+            <div className="mt-1 text-[1.2rem] font-black tabular-nums leading-6">{tile.value}</div>
+          </div>
+        ))}
+      </section>
 
       <section className="mb-10">
         <div className="kicker mb-3">مسیر پرده‌ها</div>
@@ -66,15 +82,15 @@ export function Progress() {
             const d = ids.filter((id) => s.completed.includes(id)).length
             const p = Math.round((d / ids.length) * 100)
             return (
-              <button key={ch.chapter} onClick={() => navigate(`chapter/${ch.chapter}`)} className="flex w-full items-center gap-3 py-3 text-start">
-                <span className="bignum shrink-0 text-[1.5rem]">{fas(ch.chapter)}</span>
+              <button key={ch.chapter} onClick={() => navigate(`chapter/${ch.chapter}`)} className="group flex w-full items-center gap-3 py-3 text-start">
+                <span className="grid size-7 shrink-0 place-items-center rounded-full border border-gold/35 text-[0.62rem] font-bold tabular-nums text-gold/85 group-hover:border-gold">{fas(ch.chapter)}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[0.86rem] font-bold">{ch.tagline}</span>
-                  <span className="mt-1 flex items-center gap-2">
-                    <span className="relative h-px flex-1 bg-line">
-                      <span className="absolute inset-y-0 start-0 bg-gold" style={{ width: `${p}%` }} />
+                  <span className="mt-1.5 flex items-center gap-2">
+                    <span className="relative h-[3px] flex-1 overflow-hidden rounded-full bg-line">
+                      <span className="absolute inset-y-0 start-0 rounded-full bg-gold" style={{ width: `${p}%` }} />
                     </span>
-                    <span className="text-[0.56rem] tabular-nums text-faint">{fas(d)}/{fas(ids.length)}</span>
+                    <span className="text-[0.56rem] tabular-nums text-faint">{fas(d)} از {fas(ids.length)}</span>
                   </span>
                 </span>
                 <span className="shrink-0 text-[0.6rem] text-gold">{fas(p)}٪</span>
@@ -172,19 +188,20 @@ export function Progress() {
           ) : (
             <div className="divide-y divide-line">
               {s.exams.slice(0, 6).map((r, i) => {
+                const ex = exams.find((e) => e.id === r.examId)
                 const ch = chapterPlans.find((c) => String(r.examId).startsWith(`chapter-${c.chapter}`))
                 const p = pct(r.correct, r.total)
                 return (
                   <div key={i} className="py-2.5">
                     <div className="flex items-center justify-between text-[0.7rem]">
-                      <span>{ch ? ch.tagline : r.examId}</span>
+                      <span>{ex ? ex.title : ch ? ch.tagline : r.examId}</span>
                       <span className={p >= 80 ? 'text-turq' : p >= 50 ? 'text-gold' : 'text-rose'}>{fas(p)}٪</span>
                     </div>
                     <div className="mt-1 flex items-center gap-2">
                       <span className="relative h-px flex-1 bg-line">
                         <span className={cn('absolute inset-y-0 start-0', p >= 80 ? 'bg-turq' : p >= 50 ? 'bg-gold' : 'bg-rose')} style={{ width: `${p}%` }} />
                       </span>
-                      <span className="text-[0.52rem] text-faint">{timeAgo(r.at)}</span>
+                      <span className="text-[0.52rem] text-faint">{fas(r.correct)} از {fas(r.total)} · {timeAgo(r.at)}</span>
                     </div>
                   </div>
                 )

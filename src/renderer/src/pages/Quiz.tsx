@@ -190,7 +190,7 @@ export function Quiz({ examId }: { examId?: string }) {
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-[0.7rem] font-bold" style={{ color: l.accent }}>درس {fas(l.id)}</span>
-                    {r && <span className="text-[0.55rem] text-gold">{fas(r.correct)}/{fas(r.total)}</span>}
+                    {r && <span className="text-[0.55rem] text-gold">{fas(r.correct)} از {fas(r.total)}</span>}
                   </div>
                   <div className="mt-0.5 truncate text-[0.66rem] text-muted">{l.title}</div>
                 </button>
