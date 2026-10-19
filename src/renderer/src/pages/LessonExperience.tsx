@@ -563,6 +563,14 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
               )
             })}
 
+            {story?.echo && (
+              <div className="lesson-echo">
+                <span className="lesson-echo__rule" />
+                <p className="lesson-echo__text">{story.echo}</p>
+                <span className="lesson-echo__rule" />
+              </div>
+            )}
+
             {/* ── میز آزمون ─────────────────────────────────── */}
             <section className="scroll-mt-32" ref={(el) => { refs.current[scenes.length] = el }} data-scene={scenes.length}>
               <div className="scene__head">
