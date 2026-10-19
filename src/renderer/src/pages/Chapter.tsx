@@ -7,6 +7,7 @@ import { navigate } from '../lib/router'
 import { cn, fas } from '../lib/utils'
 import { useProgress } from '../store/useProgress'
 import { ChapterSignature } from '../components/ChapterSignature'
+import { ChapterHero } from '../components/ChapterHero'
 
 export function Chapter({ id }: { id?: string }) {
   const ch = chapterPlans.find((c) => c.chapter === Number(id)) ?? chapterPlans[0]
@@ -47,40 +48,18 @@ export function Chapter({ id }: { id?: string }) {
         ← فهرست کتاب
       </button>
 
-      {/* ── پرده: تصویر در طاق، متن در کنار ─────────────────────── */}
-      <header className="grid items-end gap-6 md:grid-cols-[1fr_300px]">
-        <div>
-          <div className="mb-2 flex items-center gap-3">
-            <span className="bignum leading-none">{fas(ch.chapter)}</span>
-            <div>
-              <div className="text-[0.56rem] tracking-[0.24em] text-gold">پردهٔ {fas(ch.chapter)}</div>
-              <div className="text-[0.56rem] text-faint">{fas(ids.length)} درس · {fas(ch.lessons.reduce((n, l) => n + l.scenes.length, 0))} صحنه</div>
-            </div>
-          </div>
-          <h1 className="display text-[2rem] leading-[2] md:text-[2.6rem]">{ch.tagline}</h1>
-          <p className="mt-2 max-w-xl text-[0.86rem] leading-8 text-muted">{ch.intro}</p>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button className="btn btn-gold" onClick={() => navigate(`lesson/${next.lesson}`)}>
-              {pct === 0 ? 'آغاز پرده' : pct === 100 ? 'مرور از آغاز' : 'ادامه'} <ArrowLeft size={14} />
-            </button>
-            <button className="btn btn-sm" onClick={() => navigate(`recap/${ch.chapter}`)}>
-              <Target size={13} /> بازخوانی و آزمون پرده
-            </button>
-            <span className="text-[0.6rem] text-faint">{fas(done)} از {fas(ids.length)} درس</span>
-          </div>
-          <div className="mt-3 h-px w-full max-w-md bg-line">
-            <div className="h-px bg-gold" style={{ width: `${pct}%` }} />
-          </div>
-        </div>
-        <div className="arch aspect-[3/4] max-h-[300px] md:justify-self-end">
-          <img src={art[ch.art]} alt="" />
-          <div className="arch__veil" />
-          <div className="arch__frame" />
-          <div className="absolute inset-x-0 bottom-0 p-3 text-[0.58rem] text-white/80">
-            <span className="text-gold">پردهٔ {fas(ch.chapter)}</span> · {fas(pct)}٪ خوانده شده
-          </div>
-        </div>
-      </header>
+      <ChapterHero
+        chapter={ch.chapter}
+        tagline={ch.tagline}
+        intro={ch.intro}
+        image={art[ch.art]}
+        lessonCount={ids.length}
+        sceneCount={ch.lessons.reduce((n, l) => n + l.scenes.length, 0)}
+        done={done}
+        pct={pct}
+        nextLesson={next.lesson}
+        onExam={() => navigate(`recap/${ch.chapter}`)}
+      />
 
       <div className="ornate-rule"><span /></div>
 
