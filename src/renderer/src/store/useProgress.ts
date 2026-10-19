@@ -200,7 +200,16 @@ export const useProgress = create<State>()(
         try {
           const parsed = JSON.parse(raw)
           const data = parsed?.state ?? parsed
-          if (typeof data !== 'object' || data === null) return false
+          if (typeof data !== 'object' || data === null || Array.isArray(data)) return false
+          const known = ['xp', 'completed', 'lessonProgress', 'quizzes', 'exams', 'cards', 'bookmarks', 'notes', 'days', 'settings']
+          if (!known.some((k) => k in data)) return false
+          if (data.xp !== undefined && (typeof data.xp !== 'number' || !Number.isFinite(data.xp))) return false
+          for (const key of ['completed', 'exams', 'bookmarks', 'days']) {
+            if (data[key] !== undefined && !Array.isArray(data[key])) return false
+          }
+          for (const key of ['lessonProgress', 'quizzes', 'cards', 'notes', 'settings']) {
+            if (data[key] !== undefined && (typeof data[key] !== 'object' || data[key] === null || Array.isArray(data[key]))) return false
+          }
           set({ ...initial, ...data, settings: { ...initial.settings, ...(data.settings ?? {}) } })
           return true
         } catch {

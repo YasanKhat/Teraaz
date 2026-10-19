@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Search, CornerDownLeft, X } from 'lucide-react'
 import { searchAll, type SearchHit } from '../lib/search'
 import { searchBook, type BookHit } from '../lib/book'
-import { normalizeFa } from '../lib/utils'
+import { fas } from '../lib/utils'
 
 export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => void }) {
   const [open, setOpen] = useState(false)
@@ -33,6 +33,15 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
       setActive(0)
     } else {
       setQ('')
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
     }
   }, [open])
 
@@ -157,11 +166,11 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
                 }`}
               >
                 <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border border-gold/25 bg-gold/8 text-[0.7rem] font-bold text-gold">
-                  {hit.lesson}
+                  {fas(hit.lesson)}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="line-clamp-2 block text-[0.8rem] leading-6 text-ink/90">{hit.snippet}</span>
-                  <span className="block text-[0.62rem] text-faint">درس {hit.lesson} · متن کتاب</span>
+                  <span className="block text-[0.62rem] text-faint">درس {fas(hit.lesson)} · متن کتاب</span>
                 </span>
                 {idx === active && <CornerDownLeft size={14} className="mt-1 shrink-0 text-faint" />}
               </button>
@@ -178,7 +187,7 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
         <div className="flex items-center justify-between border-t border-line px-4 py-2 text-[0.68rem] text-faint">
           <span>جست‌وجوی سراسری تبار</span>
           <span className="flex items-center gap-2">
-            <kbd className="rounded border border-line px-1.5 py-0.5">{normalizeFa('↑↓') || '↑↓'}</kbd>
+            <kbd className="rounded border border-line px-1.5 py-0.5">↑↓</kbd>
             برای حرکت
             <kbd className="rounded border border-line px-1.5 py-0.5">Enter</kbd>
             برای رفتن
