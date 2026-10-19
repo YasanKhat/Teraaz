@@ -39,7 +39,7 @@ import { LessonSignature } from './signature'
 
 type Frame =
   | { kind: 'cover'; art: string }
-  | { kind: 'why'; title: string; text: string }
+  | { kind: 'why'; title: string; text: string; essence?: string; outline?: string[] }
   | { kind: 'scene'; n: number; total: number; title: string; kicker?: string; beat: string; art: string }
   | { kind: 'head'; kicker: string; title: string }
   | { kind: 'text'; kicker?: string; title?: string; body: string }
@@ -132,7 +132,14 @@ function sectionFrames(section: Section, kicker: string): Frame[] {
 
 export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<typeof storyByLesson>): Frame[] {
   const frames: Frame[] = [{ kind: 'cover', art: art[plan.art] }]
-  if (lesson.why) frames.push({ kind: 'why', title: 'چرا این درس را می‌خوانیم؟', text: lesson.why })
+  if (lesson.why)
+    frames.push({
+      kind: 'why',
+      title: 'چرا این درس را می‌خوانیم؟',
+      text: lesson.why,
+      essence: plan.essence,
+      outline: plan.scenes.map((sc) => sc.title).slice(0, 5)
+    })
   const scenes = plan.scenes
   const total = scenes.length
 
@@ -291,13 +298,26 @@ function renderStage(
 
     case 'why':
       return (
-        <div className="film-frame">
-          <div className="film-body">
+        <div className="film-frame film-frame--why">
+          <span className="film-why__ornament" aria-hidden="true" />
+          <div className="film-body film-body--wide">
             <div className="film-kicker">
               <Compass size={12} /> راهنمای آغاز
             </div>
             <h3 className="film-h3">{frame.title}</h3>
             <p className="film-prose">{frame.text}</p>
+            {frame.essence && <p className="film-why__essence">«{frame.essence}»</p>}
+            {frame.outline && frame.outline.length > 0 && (
+              <div className="film-why__outline">
+                <span className="film-why__outlineLabel">مسیر این درس</span>
+                {frame.outline.map((t, i) => (
+                  <span key={t + i} className="film-why__step">
+                    <b>{fas(i + 1)}</b>
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="film-faint">در قاب‌های بعد، همین درس را قدم‌به‌قدم با هم می‌خوانیم؛ هیچ پیش‌زمینه‌ای لازم نیست.</div>
           </div>
         </div>
@@ -438,8 +458,9 @@ function renderStage(
 
     case 'note':
       return (
-        <div className="film-frame film-center">
+        <div className="film-frame film-center film-frame--note">
           <div className={cn('film-note', frame.tone === 'warn' && 'film-note--warn')}>
+            <span className="film-note__watermark" aria-hidden="true">{frame.tone === 'warn' ? '!' : '✦'}</span>
             <div className="film-note__head">
               {frame.tone === 'warn' ? <TriangleAlert size={16} /> : <Sparkles size={16} />}
               {frame.title ?? (frame.tone === 'warn' ? 'دقت کن' : 'نکته')}
