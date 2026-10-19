@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { ArrowLeft, BookMarked, Compass, Crown, Landmark, Search, Swords } from 'lucide-react'
+import { ArrowLeft, BookMarked, Crown, Landmark, Swords } from 'lucide-react'
 import { navigate } from '../lib/router'
 import { cn, fas } from '../lib/utils'
 
@@ -20,35 +20,67 @@ function Frame({ kicker, title, note, children }: { kicker: string; title: strin
   )
 }
 
-function MethodLab() {
-  const steps = [
-    { icon: BookMarked, t: 'منبع', d: 'نوشتاری یا غیرنوشتاری؛ بنا، سند، روایت شفاهی', n: '۱' },
-    { icon: Search, t: 'نقد', d: 'نقد راوی و نقد گزارش؛ شش معیار سنجش خبر', n: '۲' },
-    { icon: Compass, t: 'روایت', d: 'بازسازی گذشته با شواهد، نه با حدس', n: '۳' }
+function SourceFamilies() {
+  const families = [
+    {
+      icon: Landmark,
+      t: 'غیرنوشتاری',
+      tone: 'text-turq',
+      items: [
+        { n: 'محوطه و بنا', d: 'مکان رویداد (غار حرا، اُحُد، چالدران) و اثر برجای‌مانده (نقش جهان، گوهرشاد)' },
+        { n: 'ابزار و دست‌ساخته', d: 'پوشاک، ظرف، جنگ‌افزار، ساز، مجسمه؛ گواه فرهنگ و آداب' },
+        { n: 'آثار شفاهی', d: 'اسطوره، خاطره، مَثَل، دوبیتی، لالایی' }
+      ]
+    },
+    {
+      icon: BookMarked,
+      t: 'نوشتاری',
+      tone: 'text-gold',
+      items: [
+        { n: 'کتاب‌های تاریخی', d: 'پنج گونه: عمومی، محلی، سلسله‌ای، تک‌نگاری، منظوم' },
+        { n: 'سفرنامه و جغرافیا', d: 'زندگی اجتماعی، راه‌ها، آب‌وهوا، کالاها' },
+        { n: 'ادبیات، سیاست‌نامه، سند و سکه', d: 'شعر و نثر، آیین کشورداری، فرمان و معاهده، نوشتهٔ روی سکه' }
+      ]
+    }
   ]
+  const books = ['عمومی — تاریخ طبری', 'محلی — تاریخ سیستان', 'سلسله‌ای — تاریخ بیهقی', 'تک‌نگاری — عجایب‌المقدور', 'منظوم — شاهنامه']
   return (
-    <div className="grid gap-2.5 sm:grid-cols-3">
-      {steps.map((s, i) => {
-        const Icon = s.icon
-        return (
-          <motion.div
-            key={s.t}
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: i * 0.08 }}
-            className="relative rounded-xl border border-line bg-bg/30 p-3.5"
-          >
-            <div className="flex items-center justify-between">
-              <Icon size={17} className="text-gold" />
-              <span className="text-[0.8rem] font-black tabular-nums text-gold/70">{s.n}</span>
-            </div>
-            <div className="mt-2 text-[0.84rem] font-bold">{s.t}</div>
-            <p className="mt-1 text-[0.66rem] leading-6 text-muted">{s.d}</p>
-            {i < 2 && <span className="absolute -left-2 top-1/2 hidden text-gold/50 sm:block">←</span>}
-          </motion.div>
-        )
-      })}
+    <div>
+      <div className="grid gap-2.5 sm:grid-cols-2">
+        {families.map((f, i) => {
+          const Icon = f.icon
+          return (
+            <motion.div
+              key={f.t}
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.08 }}
+              className="rounded-xl border border-line bg-bg/30 p-3.5"
+            >
+              <div className="flex items-center gap-2">
+                <Icon size={16} className={f.tone} />
+                <span className="text-[0.82rem] font-black">{f.t}</span>
+              </div>
+              <div className="mt-2 space-y-1.5">
+                {f.items.map((it) => (
+                  <div key={it.n}>
+                    <div className="text-[0.7rem] font-bold text-muted">{it.n}</div>
+                    <p className="text-[0.62rem] leading-5 text-faint">{it.d}</p>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )
+        })}
+      </div>
+      <div className="no-scrollbar mt-2.5 flex gap-1.5 overflow-x-auto pb-1">
+        {books.map((b) => (
+          <span key={b} className="shrink-0 rounded-lg border border-gold/25 bg-gold/5 px-2.5 py-1 text-[0.6rem] text-muted">
+            {b}
+          </span>
+        ))}
+      </div>
     </div>
   )
 }
@@ -175,14 +207,14 @@ function TwoWorlds() {
 export function ChapterSignature({ chapter }: { chapter: number }) {
   if (chapter === 1) {
     return (
-      <Frame kicker="کارگاه مورخ" title="ابزار تاریخ‌شناسی، سه گام" note="درس ۱ و ۲">
-        <MethodLab />
+      <Frame kicker="کارگاه مورخ" title="منبع، دو خانواده دارد" note="درس ۱">
+        <SourceFamilies />
       </Frame>
     )
   }
   if (chapter === 2) {
     return (
-      <Frame kicker="مسیر قدرت" title="از مکه تا بغداد" note="درس ۳ تا ۷">
+      <Frame kicker="مسیر قدرت" title="از مکه تا بغداد" note="درس ۲ تا ۷">
         <ProphecyRoute />
       </Frame>
     )
