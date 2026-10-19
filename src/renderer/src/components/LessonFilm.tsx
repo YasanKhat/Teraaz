@@ -608,10 +608,19 @@ function renderStage(
               <button className="btn btn-gold" onClick={() => navigate(`quiz/lesson-${lesson.id}`)}>
                 <Target size={14} /> آزمون این درس
               </button>
-              <button className="btn btn-ghost" onClick={() => navigate(`lesson/${Math.min(16, lesson.id + 1)}`)}>
-                درس بعد <ArrowLeft size={14} />
-              </button>
+              {lesson.id < 16 ? (
+                <button className="btn btn-ghost" onClick={() => navigate(`lesson/${lesson.id + 1}`)}>
+                  درس بعد <ArrowLeft size={14} />
+                </button>
+              ) : (
+                <button className="btn btn-ghost" onClick={() => navigate('chapters')}>
+                  فهرست درس‌ها <ArrowLeft size={14} />
+                </button>
+              )}
             </div>
+            <p className="film-faint" style={{ marginTop: '0.8rem' }}>
+              اگر جایی را نفهمیدی، با دکمهٔ جهت‌دار به همان قاب برگرد؛ همه‌چیز همین‌جاست.
+            </p>
           </div>
         </div>
       )
@@ -709,11 +718,14 @@ export function LessonFilm({
     return () => window.removeEventListener('keydown', onKey)
   }, [next, prev, lesson.chapter])
 
-  /* پخش خودکار: هر قاب به اندازهٔ متنش می‌ماند */
+  /* پخش خودکار: هر قاب به اندازهٔ متنش می‌ماند؛ با روایت صوتی، هم‌قدم با خواندن */
   const dwell = useMemo(() => {
-    const words = JSON.stringify(frame).replace(/[^\s]+/g, 'x').length / 2
-    return Math.max(6500, Math.min(15000, words * 190))
-  }, [frame])
+    const text = voice ? textOfFrame(frame) : JSON.stringify(frame)
+    const words = text.split(/\s+/).filter(Boolean).length
+    return voice
+      ? Math.max(7000, Math.min(60000, words * 430 + 2200))
+      : Math.max(6500, Math.min(15000, words * 190))
+  }, [frame, voice])
 
   useEffect(() => {
     if (!playing) return
