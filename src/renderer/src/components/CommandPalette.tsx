@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Search, CornerDownLeft, X } from 'lucide-react'
 import { searchAll, type SearchHit } from '../lib/search'
-import { searchBook, type BookHit } from '../lib/book'
+import { searchFilm, type FilmHit } from '../lib/filmSearch'
 import { fas } from '../lib/utils'
 
 export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => void }) {
@@ -46,22 +46,31 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
   }, [open])
 
   const results = useMemo(() => (q.trim().length >= 2 ? searchAll(q, 10) : []), [q])
-  const [bookHits, setBookHits] = useState<BookHit[]>([])
+  const [bookHits, setBookHits] = useState<FilmHit[]>([])
   const [bookPending, setBookPending] = useState(false)
 
   useEffect(() => {
     let alive = true
     if (q.trim().length < 3) {
       setBookHits([])
+      setBookPending(false)
       return
     }
     setBookPending(true)
     const t = window.setTimeout(() => {
-      searchBook(q, 5)
-        .then((h) => alive && setBookHits(h))
-        .catch(() => alive && setBookHits([]))
-        .finally(() => alive && setBookPending(false))
-    }, 220)
+      try {
+        const h = searchFilm(q, 5)
+        if (alive) {
+          setBookHits(h)
+          setBookPending(false)
+        }
+      } catch {
+        if (alive) {
+          setBookHits([])
+          setBookPending(false)
+        }
+      }
+    }, 140)
     return () => {
       alive = false
       window.clearTimeout(t)
@@ -92,7 +101,7 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
       else {
         const hit = bookHits[activeKey - results.length]
         if (hit) {
-          onNavigate(`lesson/${hit.lesson}?read=1&q=${encodeURIComponent(q.trim())}`)
+          onNavigate(`lesson/${hit.lesson}?q=${encodeURIComponent(q.trim())}`)
           setOpen(false)
         }
       }
@@ -112,7 +121,7 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="جست‌وجو در درس‌ها و متن کامل کتاب…"
+            placeholder="جست‌وجو در درس‌ها، واژه‌ها و متن فیلم…"
             className="w-full bg-transparent text-sm outline-none placeholder:text-faint"
           />
           <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)} aria-label="بستن">
@@ -148,7 +157,7 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
           ))}
           {bookHits.length > 0 && (
             <div className="mt-1 border-t border-line/70 px-3 pb-1 pt-2 text-[0.58rem] tracking-widest text-faint">
-              در فیلم درس‌ها
+              در متن فیلم درس‌ها
             </div>
           )}
           {bookHits.map((hit, i) => {
@@ -158,7 +167,7 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
                 key={`book-${hit.lesson}-${i}`}
                 onMouseEnter={() => setActive(idx)}
                 onClick={() => {
-                  onNavigate(`lesson/${hit.lesson}?read=1&q=${encodeURIComponent(q.trim())}`)
+                  onNavigate(`lesson/${hit.lesson}?q=${encodeURIComponent(q.trim())}`)
                   setOpen(false)
                 }}
                 className={`flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-right transition ${
@@ -170,7 +179,7 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="line-clamp-2 block text-[0.8rem] leading-6 text-ink/90">{hit.snippet}</span>
-                  <span className="block text-[0.62rem] text-faint">درس {fas(hit.lesson)} · فیلم درس</span>
+                  <span className="block text-[0.62rem] text-faint">درس {fas(hit.lesson)} · {hit.lessonTitle}</span>
                 </span>
                 {idx === active && <CornerDownLeft size={14} className="mt-1 shrink-0 text-faint" />}
               </button>
@@ -180,7 +189,7 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
             <div className="px-3 py-8 text-center text-sm text-muted">چیزی پیدا نشد. املای دیگری را امتحان کن.</div>
           )}
           {q.trim().length >= 2 && total === 0 && bookPending && (
-            <div className="px-3 py-8 text-center text-sm text-muted">در حال جست‌وجو در فیلم درس‌ها…</div>
+            <div className="px-3 py-8 text-center text-sm text-muted">در حال جست‌وجو در فیلم…</div>
           )}
           
         </div>
