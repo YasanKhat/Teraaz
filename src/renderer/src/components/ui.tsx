@@ -7,19 +7,25 @@ export function SectionHead({
   title,
   desc,
   action,
-  className
+  className,
+  level = 2
 }: {
   kicker?: string
   title: ReactNode
   desc?: ReactNode
   action?: ReactNode
   className?: string
+  level?: 1 | 2
 }) {
   return (
     <div className={cn('mb-5 flex flex-wrap items-end justify-between gap-3', className)}>
       <div>
         {kicker && <div className="kicker mb-2">{kicker}</div>}
-        <h2 className="text-xl font-bold tracking-tight md:text-2xl">{title}</h2>
+        {level === 1 ? (
+          <h1 className="display text-[1.7rem] leading-[2] md:text-[2.1rem]">{title}</h1>
+        ) : (
+          <h2 className="text-xl font-bold tracking-tight md:text-2xl">{title}</h2>
+        )}
         {desc && <p className="mt-1.5 max-w-2xl text-sm leading-7 text-muted">{desc}</p>}
       </div>
       {action}

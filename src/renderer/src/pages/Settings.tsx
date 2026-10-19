@@ -58,6 +58,7 @@ export function Settings() {
   return (
     <div>
       <SectionHead
+        level={1}
         kicker="تنظیمات"
         title={<>تابار را <span className="gold-text">مال خودت</span> کن</>}
         desc="ظاهر، خوانایی، تاریخ امتحان و پشتیبان‌گیری. همهٔ داده‌ها فقط روی دستگاه خودت ذخیره می‌شوند."

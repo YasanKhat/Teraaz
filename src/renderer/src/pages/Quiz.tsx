@@ -109,6 +109,7 @@ export function Quiz({ examId }: { examId?: string }) {
   return (
     <div>
       <SectionHead
+        level={1}
         kicker="آزمون‌ها"
         title={<>با <span className="gold-text">شرایط واقعی</span> تمرین کن</>}
         desc="آزمون‌های شبیه‌ساز نوبت اول و دوم، با زمان‌سنج، برگهٔ پاسخ و پاسخنامهٔ تشریحی. هر آزمون را می‌توانی چند بار بدهی."
