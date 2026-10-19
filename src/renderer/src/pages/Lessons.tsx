@@ -104,7 +104,7 @@ export function Lessons({ chapterId }: { chapterId?: string }) {
             <tbody>
               {baramTable.map((row) => {
                 const lesson = lessons.find((l) => l.id === row.lesson)
-                const finalScore = row.final && row.final !== '—' ? parseFloat(row.final.replace('٫', '.')) : 0
+                const finalScore = row.final && row.final !== '—' ? parseFloat(row.final.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace('٫', '.')) : 0
                 return (
                   <tr key={row.lesson}>
                     <td className="font-bold text-gold">{fas(row.lesson)}</td>

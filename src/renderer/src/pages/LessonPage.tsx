@@ -30,7 +30,7 @@ import { figureById } from '../data/figures'
 import { navigate } from '../lib/router'
 import { cn, fas, readingTime } from '../lib/utils'
 import { useProgress } from '../store/useProgress'
-import { Bar, Modal, SectionHead } from '../components/ui'
+import { Bar, ChapterMotif, Modal, SectionHead } from '../components/ui'
 import { Flashcards } from '../components/Flashcards'
 import { QuizRunner } from '../components/QuizRunner'
 
@@ -154,6 +154,7 @@ export function LessonPage({ id }: { id?: string }) {
   const [openEvent, setOpenEvent] = useState<string | null>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const [speaking, setSpeaking] = useState(false)
+  const [readPct, setReadPct] = useState(0)
 
   const speak = () => {
     if (!lesson || typeof window === 'undefined' || !('speechSynthesis' in window)) return
@@ -199,6 +200,21 @@ export function LessonPage({ id }: { id?: string }) {
     setTab('read')
   }, [id])
 
+  useEffect(() => {
+    if (tab !== 'read') return
+    const onScroll = () => {
+      const el = contentRef.current
+      if (!el) return
+      const top = el.getBoundingClientRect().top + window.scrollY - 150
+      const span = el.offsetHeight - window.innerHeight + 260
+      const p = span > 0 ? ((window.scrollY - top) / span) * 100 : 0
+      setReadPct(Math.max(0, Math.min(100, p)))
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [tab, lesson])
+
   const idx = lesson ? lessons.findIndex((l) => l.id === lesson.id) : -1
   const prev = idx > 0 ? lessons[idx - 1] : null
   const next = idx >= 0 && idx < lessons.length - 1 ? lessons[idx + 1] : null
@@ -230,6 +246,14 @@ export function LessonPage({ id }: { id?: string }) {
 
   return (
     <div>
+      {tab === 'read' && (
+        <div className="fixed inset-x-0 top-0 z-[60] h-[3px] bg-transparent lg:me-[264px]">
+          <div
+            className="h-full bg-gradient-to-l from-gold2 via-gold to-gold2 transition-[width] duration-150"
+            style={{ width: `${readPct}%` }}
+          />
+        </div>
+      )}
       <div className="mb-4 flex flex-wrap items-center gap-2 text-[0.68rem] text-faint">
         <button className="hover:text-ink" onClick={() => navigate('lessons')}>درس‌ها</button>
         <ChevronLeft size={12} className="rotate-180" />
@@ -244,6 +268,10 @@ export function LessonPage({ id }: { id?: string }) {
         <div
           className="pointer-events-none absolute -left-20 -top-24 size-64 rounded-full opacity-20 blur-3xl"
           style={{ background: lesson.accent }}
+        />
+        <ChapterMotif
+          motif={chapter.motif}
+          className="pointer-events-none absolute -bottom-12 -left-6 size-44 opacity-[0.06]"
         />
         <div className="relative flex flex-wrap items-start gap-4">
           <div
