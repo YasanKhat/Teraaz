@@ -187,20 +187,39 @@ export function Chapter({ id }: { id?: string }) {
 
             if (layout === 'poster') {
               return (
-                <article key={l.id} className="group relative overflow-hidden rounded-xl border border-line">
-                  <img src={art[imgOf(l.id, lp.art)]} alt="" className="absolute inset-0 size-full object-cover opacity-60 transition duration-700 group-hover:scale-[1.05] group-hover:opacity-75" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/80 to-bg/25" />
-                  <div className="relative p-4">
+                <article key={l.id} className="group relative overflow-hidden rounded-xl border border-gold/20">
+                  <img
+                    src={art[imgOf(l.id, lp.art)]}
+                    alt=""
+                    className="absolute inset-0 size-full object-cover transition duration-[1200ms] group-hover:scale-[1.06]"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#080b12] via-[#080b12]/72 to-[#080b12]/15" />
+                  <div className="relative p-4 pt-16">
                     <button onClick={() => navigate(`lesson/${l.id}`)} className="w-full text-start">
                       <div className="flex items-center justify-between">
-                        <span className="text-[0.54rem] font-bold text-gold">درس {fas(l.id)}</span>
+                        <span className="text-[0.54rem] font-bold tracking-widest text-gold">درس {fas(l.id)}</span>
                         {isDone && <Check size={12} className="text-turq" />}
                       </div>
-                      <h3 className="mt-1 text-[1.1rem] font-black leading-8">{l.title}</h3>
-                      <p className="mt-1 line-clamp-2 text-[0.7rem] leading-6 text-ink/70">{lp.question}</p>
-                      {meta}
+                      <h3 className="mt-1 text-[1.1rem] font-black leading-8 text-white">{l.title}</h3>
+                      <p className="mt-1 line-clamp-2 text-[0.7rem] leading-6 text-white/75">{lp.question}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[0.52rem] text-white/55">
+                        <span>{l.span}</span>
+                        <span>·</span>
+                        <span>{fas(lp.scenes.length)} صحنه</span>
+                        <span>·</span>
+                        <span>{fas(l.minutes)}′</span>
+                        {maps > 0 && <span className="text-turq/90">· {fas(maps)} نقشه</span>}
+                      </div>
                     </button>
-                    {actions}
+                    <div className="mt-3 flex items-center gap-3 border-t border-white/15 pt-2 text-[0.58rem]">
+                      <button className="flex items-center gap-1 font-semibold text-gold transition hover:text-gold2" onClick={() => navigate(`film/${l.id}`)}>
+                        <Play size={9} /> تماشای درس
+                      </button>
+                      <span className="h-3 w-px bg-white/20" />
+                      <button className="flex items-center gap-1 text-white/65 transition hover:text-white" onClick={() => navigate(`lesson/${l.id}`)}>
+                        خواندن صحنه‌به‌صحنه <ArrowLeft size={9} />
+                      </button>
+                    </div>
                   </div>
                 </article>
               )
