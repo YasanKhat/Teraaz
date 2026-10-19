@@ -2495,6 +2495,7 @@ a:focus-visible {
 
 .book-fold__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.55rem;
   padding: 0.6rem 0.85rem;
@@ -2520,3 +2521,19 @@ a:focus-visible {
 .book-fold__body {
   padding: 0.9rem 1rem 1rem;
 }
+
+.book-fold__peek {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex: 0 0 100%;
+  margin: 0.1rem 0 0 0;
+  padding-inline-start: 0.95rem;
+  font-size: 0.72rem;
+  line-height: 1.9;
+  color: var(--c-faint);
+  border-inline-start: 1px solid color-mix(in oklab, var(--c-gold) 35%, transparent);
+}
+
+.book-fold[open] .book-fold__peek { display: none; }

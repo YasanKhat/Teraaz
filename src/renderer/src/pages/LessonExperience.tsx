@@ -47,6 +47,26 @@ import { Flashcards } from '../components/Flashcards'
 
 type Mode = 'journey' | 'read' | 'bank' | 'lines' | 'exam' | 'cards'
 
+/** نخستین جملهٔ یک بخش، برای پیش‌نمایش زیر تیترِ بسته */
+function firstLine(sec: { blocks?: { t: string; text?: string; items?: unknown[]; rows?: string[][]; head?: string[] }[] }): string {
+  const first = (sec.blocks ?? [])[0] as
+    | { t: string; text?: string; items?: unknown[]; rows?: string[][]; head?: string[] }
+    | undefined
+  let raw = first?.text ?? ''
+  if (!raw && Array.isArray(first?.items)) {
+    const item = first.items[0] as { title?: string; text?: string } | string
+    raw = typeof item === 'string' ? item : (item.text ?? item.title ?? '')
+  }
+  if (!raw && Array.isArray(first?.rows)) {
+    raw = (first.rows[0] ?? []).filter(Boolean).join(' — ')
+  }
+  if (!raw && Array.isArray(first?.head)) raw = first.head.join(' · ')
+  const text = String(raw).replace(/\s+/g, ' ').trim()
+  if (!text) return ''
+  if (text.length <= 96) return text
+  return text.slice(0, 96).replace(/\s*\S*$/, '') + '…'
+}
+
 export function LessonExperience({ id, autoFilm = false, openRead = false, initialQuery = '' }: { id?: string; autoFilm?: boolean; openRead?: boolean; initialQuery?: string }) {
   const lesson = lessonById(Number(id))
   const plan = lesson ? planByLesson(lesson.id) : undefined
@@ -510,6 +530,7 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
                             <span className="flex-1 text-[0.86rem] font-bold">{sec.title}</span>
                             <span className="text-[0.56rem] text-faint">متن کتاب</span>
                             <ChevronDown size={13} className="text-faint transition group-open:rotate-180" />
+                            <span className="book-fold__peek">{firstLine(sec)}</span>
                           </summary>
                           <div className="book-fold__body">
                             <Blocks section={sec} accent={lesson.accent} />
