@@ -54,23 +54,24 @@ export function Recap({ id }: { id?: string }) {
 
       {tab === 'map' && (
         <div className="space-y-9">
-          {/* سه ایدهٔ بزرگ: فهرست عمودی، بدون کارت */}
+          {/* سه ایدهٔ بزرگ: سه ستون موازی */}
           <section>
-            <div className="kicker mb-2">سه ایدهٔ بزرگ</div>
-            <div className="divide-y divide-line">
+            <div className="mb-2 flex items-end justify-between">
+              <div className="kicker">سه ایدهٔ بزرگ</div>
+              <span className="text-[0.58rem] text-faint">اگر فقط همین سه را بفهمی، پرده را گرفته‌ای</span>
+            </div>
+            <div className="grid gap-2.5 sm:grid-cols-3">
               {ch.summary.bigIdeas.map((b, i) => (
-                <div key={b.title} className="flex gap-4 py-3">
-                  <span className="bignum shrink-0 text-[1.7rem] leading-[1.6]">{fas(i + 1)}</span>
-                  <div className="min-w-0">
-                    <div className="text-[0.92rem] font-bold">{b.title}</div>
-                    <p className="mt-0.5 text-[0.76rem] leading-7 text-muted">{b.text}</p>
-                  </div>
+                <div key={b.title} className="relative rounded-xl border border-line bg-surface/25 p-3.5">
+                  <span className="absolute end-3 top-2.5 text-[0.8rem] font-black tabular-nums text-gold/45">۰{fas(i + 1)}</span>
+                  <div className="pe-6 text-[0.86rem] font-bold leading-7">{b.title}</div>
+                  <p className="mt-1 text-[0.72rem] leading-6 text-muted">{b.text}</p>
                 </div>
               ))}
             </div>
           </section>
 
-          {/* زنجیرهٔ رویدادها: زمان‌خط دو ستونه */}
+          {/* زنجیرهٔ رویدادها: خط زمان دو ستونه */}
           <section>
             <div className="mb-3 flex items-end justify-between">
               <div>
@@ -79,14 +80,14 @@ export function Recap({ id }: { id?: string }) {
               </div>
               <span className="text-[0.6rem] text-faint">{fas(ch.summary.chain.length)} گره</span>
             </div>
-            <div className="relative border-s border-line ps-5">
+            <div className="grid gap-x-8 gap-y-0 sm:grid-cols-2">
               {ch.summary.chain.map((c, i) => (
-                <div key={c.label} className="relative pb-3.5 last:pb-0">
-                  <span className="absolute -start-[28px] top-1 grid size-4 place-items-center rounded-full border border-gold/50 bg-bg text-[0.46rem] text-gold">
+                <div key={c.label} className="relative border-s border-line pb-3.5 ps-5 last:pb-0">
+                  <span className="absolute -start-[9px] top-2 grid size-[17px] place-items-center rounded-full border border-gold/50 bg-bg text-[0.44rem] text-gold">
                     {fas(i + 1)}
                   </span>
-                  <div className="text-[0.84rem] font-bold">{c.label}</div>
-                  <div className="text-[0.72rem] leading-6 text-muted">{c.note}</div>
+                  <div className="text-[0.84rem] font-bold leading-6">{c.label}</div>
+                  <div className="text-[0.7rem] leading-6 text-muted">{c.note}</div>
                 </div>
               ))}
             </div>
