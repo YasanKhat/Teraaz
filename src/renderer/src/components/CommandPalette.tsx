@@ -148,7 +148,7 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
           ))}
           {bookHits.length > 0 && (
             <div className="mt-1 border-t border-line/70 px-3 pb-1 pt-2 text-[0.58rem] tracking-widest text-faint">
-              در متن کتاب
+              در فیلم درس‌ها
             </div>
           )}
           {bookHits.map((hit, i) => {
@@ -170,7 +170,7 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="line-clamp-2 block text-[0.8rem] leading-6 text-ink/90">{hit.snippet}</span>
-                  <span className="block text-[0.62rem] text-faint">درس {fas(hit.lesson)} · متن کتاب</span>
+                  <span className="block text-[0.62rem] text-faint">درس {fas(hit.lesson)} · فیلم درس</span>
                 </span>
                 {idx === active && <CornerDownLeft size={14} className="mt-1 shrink-0 text-faint" />}
               </button>
@@ -180,7 +180,7 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
             <div className="px-3 py-8 text-center text-sm text-muted">چیزی پیدا نشد. املای دیگری را امتحان کن.</div>
           )}
           {q.trim().length >= 2 && total === 0 && bookPending && (
-            <div className="px-3 py-8 text-center text-sm text-muted">در حال جست‌وجو در متن کتاب…</div>
+            <div className="px-3 py-8 text-center text-sm text-muted">در حال جست‌وجو در فیلم درس‌ها…</div>
           )}
           
         </div>

@@ -354,7 +354,7 @@ function renderStage(
 
     case 'text':
       return (
-        <div className="film-frame">
+        <div className="film-frame film-frame--copy">
           <div className="film-body">
             {frame.kicker && <div className="film-kicker">{frame.kicker}</div>}
             {frame.title && <h3 className="film-h3">{frame.title}</h3>}
@@ -365,7 +365,7 @@ function renderStage(
 
     case 'list':
       return (
-        <div className="film-frame film-frame--scroll">
+        <div className="film-frame film-frame--scroll film-frame--copy">
           <div className="film-body">
             {frame.kicker && <div className="film-kicker">{frame.kicker}</div>}
             {frame.title && <h3 className="film-h3">{frame.title}</h3>}

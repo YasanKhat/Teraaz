@@ -3327,3 +3327,46 @@ a:focus-visible {
   .film-frame--stage::before { width: 94vw; height: 34vh; }
   .film-stage[data-kind='danger'] .film-card p { font-size: 0.8rem; }
 }
+
+/* قاب متن: متن کمی درشت‌تر و با فاصلهٔ بیشتر، تا صفحه خالی به نظر نرسد */
+.film-frame--copy { position: relative; justify-content: center; }
+.film-frame--copy::after {
+  content: '';
+  position: absolute;
+  inset-inline: 20%;
+  inset-block-end: 14%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--c-gold) 22%, transparent), transparent);
+  pointer-events: none;
+}
+.film-frame--copy .film-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid color-mix(in oklab, var(--c-gold) 22%, var(--c-line));
+  border-radius: 999px;
+}
+.film-frame--copy::before {
+  content: '';
+  position: absolute;
+  inset-block: 9%;
+  inset-inline-start: 0;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, color-mix(in oklab, var(--c-gold) 45%, transparent), transparent);
+  pointer-events: none;
+}
+.film-frame--copy > .film-body {
+  position: relative;
+  max-width: 52rem;
+  padding: clamp(1.5rem, 4.5vw, 3.4rem) clamp(1.3rem, 4vw, 3rem);
+  border: 1px solid color-mix(in oklab, var(--c-gold) 16%, var(--c-line));
+  border-radius: 1.15rem;
+  background:
+    radial-gradient(120% 130% at 0% 100%, color-mix(in oklab, var(--c-gold) 7%, transparent), transparent 60%),
+    color-mix(in oklab, var(--c-ink) 2.5%, transparent);
+  box-shadow: 0 30px 70px -54px rgba(0, 0, 0, 0.9);
+}
+.film-frame--copy .film-h3 { font-size: clamp(1.2rem, 2vw, 1.55rem); line-height: 1.9; }
+.film-frame--copy .film-prose { font-size: clamp(0.95rem, 1.35vw, 1.08rem); line-height: 2.3; }
+.film-frame--copy .film-kicker { margin-bottom: 0.5rem; }

@@ -51,8 +51,9 @@ export function Home() {
           </motion.h1>
           <div className="plate__line" />
           <p className="max-w-xl text-[0.92rem] leading-9 text-muted">
-            {greeting()}، این یک کتاب درسی نیست؛ یک سفر است. شانزده درس، هر کدام با تجربه‌ای که فقط برای همان درس ساخته شده:
-            نقشه‌ای که با روایت باز می‌شود، سندی که باید داوری کنی، و آزمونی که مثل شب امتحان است.
+            {greeting()}، این یک کتاب درسی نیست؛ شانزده فیلم درس است. هر درس قاب‌به‌قاب جلو می‌رود، هر اصطلاح تازه را همان‌جا توضیح
+            می‌دهد، با نقشه و خط زمان و سند پیش چشمت می‌آورد و اگر بخواهی با صدای بلند برایت می‌خواند؛ از هر جا رها کردی، از همان قاب
+            ادامه می‌دهی.
           </p>
 
           <button onClick={() => navigate(`lesson/${current.id}`)} className="continue mt-5">
@@ -76,8 +77,11 @@ export function Home() {
 
           <div className="mt-3 flex flex-wrap items-center gap-3 text-[0.66rem]">
             <button className="flex items-center gap-1 text-gold/90 transition hover:text-gold" onClick={() => navigate(`film/${current.id}`)}>
-              <Play size={11} /> تماشای درس {fas(current.id)}
+              <Play size={11} /> تماشای فیلم درس {fas(current.id)}
             </button>
+            <span className="flex items-center gap-1 text-faint">
+              <Sparkles size={11} /> روایت صوتی هر قاب
+            </span>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[0.66rem] text-faint">
             <span className="flex items-center gap-1"><Flame size={11} className="text-rose" /> {fas(streak)} روز پیوسته</span>

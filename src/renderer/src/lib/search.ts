@@ -25,7 +25,7 @@ function build() {
     l.terms.forEach((t) => {
       rows.push({
         text: normalizeFa(`${t.term} ${t.def} ${l.title}`),
-        hit: { type: 'واژه', title: t.term, sub: t.def.slice(0, 60), route: `lesson/${l.id}?term=${encodeURIComponent(t.term)}`, icon: '🔖' }
+        hit: { type: 'واژه', title: t.term, sub: t.def.slice(0, 60), route: `lesson/${l.id}?q=${encodeURIComponent(t.term)}`, icon: '🔖' }
       })
     })
   })
