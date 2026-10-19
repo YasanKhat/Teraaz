@@ -29,6 +29,7 @@ import { art } from '../art'
 import { navigate } from '../lib/router'
 import { cn, fas, readingTime } from '../lib/utils'
 import { LessonHero } from '../components/LessonHero'
+import { BookText } from '../components/BookText'
 import { useProgress } from '../store/useProgress'
 import { HistoricMap } from '../components/HistoricMap'
 import { TimelineStrip } from '../components/scene/TimelineStrip'
@@ -49,6 +50,7 @@ export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFi
 
   const [active, setActive] = useState(0)
   const [mode, setMode] = useState<Mode>('journey')
+  const [readSource, setReadSource] = useState<'book' | 'digest'>('book')
   const [speaking, setSpeaking] = useState(false)
   const [showAll, setShowAll] = useState(false)
   const [film, setFilm] = useState(false)
@@ -231,6 +233,22 @@ export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFi
               ))}
             </>
           )}
+          {mode === 'read' && (
+            <div className="ms-1 flex shrink-0 items-center gap-1 border-s border-line ps-2">
+              <button
+                onClick={() => setReadSource('book')}
+                className={cn('rounded-md px-2 py-1 text-[0.64rem] transition', readSource === 'book' ? 'bg-ink/10 text-ink' : 'text-faint hover:text-ink')}
+              >
+                کتاب کامل
+              </button>
+              <button
+                onClick={() => setReadSource('digest')}
+                className={cn('rounded-md px-2 py-1 text-[0.64rem] transition', readSource === 'digest' ? 'bg-ink/10 text-ink' : 'text-faint hover:text-ink')}
+              >
+                چکیده
+              </button>
+            </div>
+          )}
           {mode !== 'journey' && (
             <span className="ms-auto shrink-0 text-[0.56rem] text-faint">
               {mode === 'read' ? 'همان متن کتاب، کامل' : mode === 'cards' ? 'برای مرور سریع' : 'خودآزمایی درس'}
@@ -241,16 +259,9 @@ export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFi
 
       {mode === 'read' && (
         <section className="mx-auto max-w-3xl">
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
-            <div className="flex items-baseline gap-2">
-              <span className="kicker">متن کامل درس {fas(lesson.id)}</span>
-              <span className="text-[0.6rem] text-faint">
-                {fas(lesson.sections.length)} بخش · {fas(lesson.terms.length)} واژه · آمادهٔ چاپ
-              </span>
-            </div>
-            <button className="btn btn-sm" onClick={() => window.print()}><Printer size={13} /> چاپ / PDF</button>
-          </div>
+          {readSource === 'book' && <BookText lessonId={lesson.id} title={lesson.title} accent={lesson.accent} />}
 
+          {readSource === 'digest' && (
           <div className="space-y-8">
             {lesson.sections.map((sec, i) => (
               <article key={sec.title}>
@@ -301,6 +312,12 @@ export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFi
                 ))}
               </ul>
             </article>
+          </div>
+          )}
+
+          <div className="no-print mt-8 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-[0.6rem] text-faint">
+            <span>{readSource === 'book' ? 'همان متن کتاب درسی؛ کامل و بی‌کم‌وکاست' : 'چکیده، واژه‌نامه و نکته‌های امتحانی'}</span>
+            <button className="btn btn-sm" onClick={() => window.print()}><Printer size={12} /> چاپ این درس</button>
           </div>
         </section>
       )}
