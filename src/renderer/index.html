@@ -1,30 +1,29 @@
 <!doctype html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>تراز | دفتر هوشمند کسب‌وکار</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>تبار — تاریخ ۲، پایهٔ یازدهم</title>
     <script>
-      // Paint the stored theme before React mounts to avoid a light flash.
+      // پوستهٔ ذخیره‌شده را پیش از بارگذاری React اعمال می‌کنیم تا پرش رنگ نداشته باشیم.
       try {
-        const raw = localStorage.getItem('taraz-ledger-v1')
+        const raw = localStorage.getItem('tabar-history-v1')
         if (raw) {
           const theme = JSON.parse(raw)?.state?.settings?.theme
-          if (theme === 'dark') {
-            document.documentElement.dataset.theme = 'dark'
-            document.documentElement.style.backgroundColor = '#091411'
-            document.documentElement.style.colorScheme = 'dark'
-          }
+          const motion = JSON.parse(raw)?.state?.settings?.motion
+          if (theme) document.documentElement.dataset.theme = theme
+          if (motion === false) document.documentElement.dataset.motion = 'off'
         }
       } catch (error) {}
     </script>
     <meta
       name="description"
-      content="تراز — نرم‌افزار حسابداری و مدیریت مالی کسب‌وکارهای ایرانی. فاکتور، خزانه، انبار، دفتر روزنامه و گزارش‌های مدیریتی."
+      content="تبار — همراهِ کاملِ درس تاریخ ۲ پایهٔ یازدهم انسانی: درس‌نامه‌های روایی، خط زمان تعاملی، نقشهٔ تاریخی، چهره‌ها، کارت‌های مرور فاصله‌دار و آزمون‌های شبیه‌ساز امتحان نهایی."
     />
+    <meta name="theme-color" content="#050913" />
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%230B4033'/%3E%3Cpath d='M32 10l4.6 17.4L54 32l-17.4 4.6L32 54l-4.6-17.4L10 32l17.4-4.6z' fill='none' stroke='%23D7B56E' stroke-width='2.2'/%3E%3Cpath d='M22 38l7-8 5 4 8-10' fill='none' stroke='%23D7B56E' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23050913'/%3E%3Cpath d='M32 8l5.2 18.8L56 32l-18.8 5.2L32 56l-5.2-18.8L8 32l18.8-5.2z' fill='none' stroke='%23E6BF73' stroke-width='1.8'/%3E%3Ccircle cx='32' cy='32' r='5' fill='none' stroke='%23E6BF73' stroke-width='1.4'/%3E%3Ccircle cx='32' cy='32' r='1.6' fill='%23E6BF73'/%3E%3C/svg%3E"
     />
     <meta
       http-equiv="Content-Security-Policy"
