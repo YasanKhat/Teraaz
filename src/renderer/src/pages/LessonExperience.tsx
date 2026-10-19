@@ -30,6 +30,8 @@ import { navigate } from '../lib/router'
 import { cn, fas, readingTime } from '../lib/utils'
 import { LessonHero } from '../components/LessonHero'
 import { BookText } from '../components/BookText'
+import { BookExam } from '../components/BookExam'
+import { ClipboardList } from 'lucide-react'
 import { useProgress } from '../store/useProgress'
 import { HistoricMap } from '../components/HistoricMap'
 import { TimelineStrip } from '../components/scene/TimelineStrip'
@@ -40,7 +42,7 @@ import { Bar, ProgressRing } from '../components/ui'
 import { QuizRunner } from '../components/QuizRunner'
 import { Flashcards } from '../components/Flashcards'
 
-type Mode = 'journey' | 'read' | 'exam' | 'cards'
+type Mode = 'journey' | 'read' | 'bank' | 'exam' | 'cards'
 
 export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFilm?: boolean }) {
   const lesson = lessonById(Number(id))
@@ -199,6 +201,12 @@ export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFi
               <BookOpen size={11} /> متن کامل
             </button>
             <button
+              onClick={() => setMode('bank')}
+              className={cn('flex items-center gap-1 rounded-md px-2 py-1 text-[0.66rem] transition', mode === 'bank' ? 'bg-gold/15 text-gold' : 'text-muted hover:text-ink')}
+            >
+              <ClipboardList size={11} /> پرسش‌ها
+            </button>
+            <button
               onClick={() => setMode('cards')}
               className={cn('flex items-center gap-1 rounded-md px-2 py-1 text-[0.66rem] transition', mode === 'cards' ? 'bg-gold/15 text-gold' : 'text-muted hover:text-ink')}
             >
@@ -251,7 +259,7 @@ export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFi
           )}
           {mode !== 'journey' && (
             <span className="ms-auto shrink-0 text-[0.56rem] text-faint">
-              {mode === 'read' ? 'همان متن کتاب، کامل' : mode === 'cards' ? 'برای مرور سریع' : 'خودآزمایی درس'}
+              {mode === 'read' ? 'همان متن کتاب، کامل' : mode === 'bank' ? 'پرسش‌های خود کتاب' : mode === 'cards' ? 'برای مرور سریع' : 'خودآزمایی درس'}
             </span>
           )}
         </div>
@@ -319,6 +327,12 @@ export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFi
             <span>{readSource === 'book' ? 'همان متن کتاب درسی؛ کامل و بی‌کم‌وکاست' : 'چکیده، واژه‌نامه و نکته‌های امتحانی'}</span>
             <button className="btn btn-sm" onClick={() => window.print()}><Printer size={12} /> چاپ این درس</button>
           </div>
+        </section>
+      )}
+
+      {mode === 'bank' && (
+        <section>
+          <BookExam lessonId={lesson.id} />
         </section>
       )}
 
