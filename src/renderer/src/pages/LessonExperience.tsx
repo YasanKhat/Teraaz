@@ -24,6 +24,7 @@ import {
 import { lessonById, lessons } from '../data/lessons'
 import { chapterById } from '../data/chapters'
 import { planByLesson, planChapterOfLesson } from '../data/plans'
+import { storyByLesson } from '../data/story'
 import type { Panel } from '../data/plans/types'
 import { art } from '../art'
 import { navigate } from '../lib/router'
@@ -193,6 +194,8 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
     )
   }
 
+  const story = storyByLesson(lesson.id)
+  const beatOf = (i: number) => story?.beats[i] ?? ''
   const isBookmarked = bookmarks.includes(`lesson-${lesson.id}`)
   const deck = [lesson]
   const allPanels = scenes.flatMap((s) => s.panels)
@@ -217,6 +220,14 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
         onSpeak={speak}
         onBookmark={() => toggleBookmark(`lesson-${lesson.id}`)}
       />
+
+      {story?.hook && (
+        <p className="hero-hook">
+          <span className="hero-hook__mark">«</span>
+          {story.hook}
+          <span className="hero-hook__mark">»</span>
+        </p>
+      )}
 
       {/* ── ناوبری صحنه ───────────────────────────────────────── */}
       <div className="sticky top-[57px] z-20 -mx-4 border-b border-line bg-bg/80 px-4 py-2 backdrop-blur-xl md:-mx-0 md:rounded-xl md:border md:px-3">
@@ -467,6 +478,12 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
                     </div>
                   </div>
 
+                  {beatOf(i) && (
+                    <Reveal>
+                      <p className="scene-prose scene-prose--lead">{beatOf(i)}</p>
+                    </Reveal>
+                  )}
+
                   <div className="space-y-4">
                     {s.maps?.map((m, k) => (
                       <Reveal key={k}>
@@ -487,21 +504,27 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
 
                     {sectionBlocks.map((sec) => (
                       <Reveal key={sec.title}>
-                        <div className="rounded-2xl border border-line bg-surface/45 p-4">
-                          <h3 className="mb-2.5 flex items-center gap-2 text-[0.95rem] font-bold">
-                            <span className="size-1.5 rotate-45 rounded-[1px] bg-gold" />
-                            {sec.title}
-                          </h3>
-                          <Blocks section={sec} accent={lesson.accent} />
-                        </div>
+                        <details className="book-fold group">
+                          <summary className="book-fold__head">
+                            <span className="book-fold__dot" />
+                            <span className="flex-1 text-[0.86rem] font-bold">{sec.title}</span>
+                            <span className="text-[0.56rem] text-faint">متن کتاب</span>
+                            <ChevronDown size={13} className="text-faint transition group-open:rotate-180" />
+                          </summary>
+                          <div className="book-fold__body">
+                            <Blocks section={sec} accent={lesson.accent} />
+                          </div>
+                        </details>
                       </Reveal>
                     ))}
 
-                    {s.panels.map((p, k) => (
-                      <Reveal key={k} delay={0.02 * k}>
-                        <PanelView panel={p} accent={lesson.accent} />
-                      </Reveal>
-                    ))}
+                    {s.panels
+                      .filter((p) => !(p.kind === 'read' && beatOf(i)))
+                      .map((p, k) => (
+                        <Reveal key={k} delay={0.02 * k}>
+                          <PanelView panel={p} accent={lesson.accent} />
+                        </Reveal>
+                      ))}
 
                     {s.takeaway && (
                       <Reveal>

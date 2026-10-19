@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Flag } from 'lucide-react'
-import { project, regionPath, regions, shapeById } from '../../lib/geo'
+import { countryShapes, project, regionPath, regions, shapeById } from '../../lib/geo'
 import { cn, fas } from '../../lib/utils'
 import { SignatureStage, Tag } from './kit'
 
@@ -19,6 +19,9 @@ const STEPS: Step[] = [
 
 const RESIST = ['tabaristan', 'azerbaijan']
 
+/** همسایگان غربی (تصویر زمینه‌اند، نه قلمرو) */
+const WEST = new Set(['724', '620', '250', '380', '276', '300', '642', '616', '348', '528', '056', '040', '826', '203'])
+
 const SHORT: Record<string, string> = {
   iraq: 'سواد و عراق',
   khuzestan: 'خوزستان',
@@ -34,6 +37,7 @@ const SHORT: Record<string, string> = {
 export function IranFront() {
   const [i, setI] = useState(1)
   const shape = useMemo(() => shapeById('364'), [])
+  const neighbours = useMemo(() => countryShapes().filter((c) => c.id !== '364'), [])
   const view = useMemo(() => {
     const pts: [number, number][] = [
       [44.2, 40.4],
@@ -87,20 +91,39 @@ export function IranFront() {
               </pattern>
             </defs>
 
-            <rect x={view.x} y={view.y} width={view.w} height={view.h} fill="#0b1526" />
-            <g opacity="0.4">
-              {Array.from({ length: 9 }, (_, k) => (
-                <line key={k} x1={view.x + (k * view.w) / 9} y1={view.y} x2={view.x + (k * view.w) / 9} y2={view.y + view.h} stroke="#7f8fae" strokeWidth={0.4} />
-              ))}
-              {Array.from({ length: 6 }, (_, k) => (
-                <line key={`h${k}`} x1={view.x} y1={view.y + (k * view.h) / 6} x2={view.x + view.w} y2={view.y + (k * view.h) / 6} stroke="#7f8fae" strokeWidth={0.4} />
-              ))}
+            <defs>
+              <radialGradient id="iran-sea" cx="45%" cy="35%" r="85%">
+                <stop offset="0%" stopColor="#17324f" />
+                <stop offset="60%" stopColor="#112842" />
+                <stop offset="100%" stopColor="#0a1a2c" />
+              </radialGradient>
+              <clipPath id="iran-clip">
+                <path d={shape} />
+              </clipPath>
+            </defs>
+            <rect x={view.x} y={view.y} width={view.w} height={view.h} fill="url(#iran-sea)" />
+            <g>
+              {neighbours.map((c) => {
+                const west = WEST.has(c.id)
+                return (
+                  <path
+                    key={c.id}
+                    d={c.d}
+                    fill={west ? '#243348' : '#cbb995'}
+                    fillOpacity={west ? 0.7 : 0.28}
+                    stroke={west ? '#3d5675' : '#a98d5e'}
+                    strokeOpacity={0.45}
+                    strokeWidth="0.5"
+                  />
+                )
+              })}
             </g>
 
             {/* بدنهٔ ایران: خاک سرزمین هنوز آزاد */}
             <path d={shape} fill="#e6d5ae" stroke="#a98f5d" strokeWidth={1.4} />
 
-            {/* نواحی ازدست‌رفته */}
+            {/* نواحی ازدست‌رفته — بریده بر مرز ایران */}
+            <g clipPath="url(#iran-clip)">
             {STEPS.map((s, k) => {
               const on = k < i
               if (!on) return null
@@ -124,11 +147,14 @@ export function IranFront() {
             {RESIST.map((id) => (
               <path key={id} d={regionPath(id)} fill="url(#iran-hatch)" fillOpacity={0.25} stroke="#d9c39a" strokeOpacity={0.5} strokeWidth={0.9} strokeDasharray="4 3" />
             ))}
+            </g>
 
             {/* برچسب‌ها */}
             {Object.keys(regions).map((id) => {
               const done = doneRegions.includes(id)
               if (id !== 'iraq' && !STEPS.some((s) => s.region === id) && !RESIST.includes(id)) return null
+              // فقط نواحی‌ای که درون مرزهای ایران‌اند برچسب می‌گیرند
+              if (id === 'iraq') return null
               const pts = regions[id].points.map(([lon, lat]) => project(lon, lat))
               const cx = pts.reduce((a, p) => a + p[0], 0) / pts.length
               const cy = pts.reduce((a, p) => a + p[1], 0) / pts.length
@@ -138,7 +164,7 @@ export function IranFront() {
                   x={cx}
                   y={cy}
                   textAnchor="middle"
-                  fontSize={11}
+                  fontSize={8.5}
                   fontWeight={800}
                   fill={done ? '#2b0f09' : RESIST.includes(id) ? '#e6d5ae' : '#7d6a48'}
                   style={{ fontFamily: 'Estedad, sans-serif' }}
@@ -148,7 +174,7 @@ export function IranFront() {
               )
             })}
 
-            <path d={shape} fill="none" stroke="#7a5a2a" strokeWidth={2} />
+            <path d={shape} fill="none" stroke="#7a5a2a" strokeWidth={1.4} />
           </svg>
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#d9c39a]/20 px-2.5 py-1.5 text-[0.58rem] text-[#d9c39a]">
             <span className="flex items-center gap-1"><Flag size={10} /> گام {fas(i)}: {active.place}</span>
