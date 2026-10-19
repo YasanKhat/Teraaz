@@ -203,7 +203,7 @@ export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFi
               {isBookmarked ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}
             </button>
           </div>
-          <div className="mt-2.5 flex items-center gap-2 text-[0.6rem] text-faint">
+          <div className="no-print mt-2.5 flex items-center gap-2 text-[0.6rem] text-faint">
             <span>پیشرفت مطالعه</span>
             <span className="relative h-px flex-1 bg-line"><span className="absolute inset-y-0 start-0 bg-gold" style={{ width: `${readPct}%` }} /></span>
             <span className="tabular-nums text-gold">{fas(readPct)}٪</span>
@@ -295,10 +295,7 @@ export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFi
           <div className="space-y-8">
             {lesson.sections.map((sec, i) => (
               <article key={sec.title}>
-                <h3 className="mb-2.5 flex items-baseline gap-2 text-[1.05rem] font-black">
-                  <span className="text-[0.66rem] tabular-nums text-gold/70">{fas(i + 1)}</span>
-                  {sec.title}
-                </h3>
+                <h3 className="mb-2.5 text-[1.05rem] font-black">{sec.title}</h3>
                 <div className="space-y-4">
                   <Blocks section={sec} accent={lesson.accent} />
                 </div>

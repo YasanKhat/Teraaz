@@ -808,24 +808,55 @@ a:focus-visible {
 }
 
 @media print {
-  .sidebar,
-  .topbar,
-  .mobile-nav,
-  .app-bg {
+  @page {
+    margin: 14mm 13mm;
+  }
+  .rail,
+  .dock,
+  .statusline,
+  .stars,
+  .app-bg,
+  .arch,
+  .btn,
+  .sticky,
+  .no-print {
     display: none !important;
   }
-  .with-sidebar {
-    margin: 0;
+  .with-rail {
+    margin: 0 !important;
   }
+  html,
   body {
-    background: #fff;
-    color: #000;
+    background: #fff !important;
+  }
+  body * {
+    color: #1b1b1b !important;
+  }
+  .kicker {
+    color: #8a6a2a !important;
   }
   .surface,
-  .panel {
-    box-shadow: none;
-    border-color: #ddd;
-    background: #fff;
+  .panel,
+  .scene-note,
+  .scene-quote,
+  .scene-mini {
+    box-shadow: none !important;
+    border-color: #ded6c4 !important;
+    background: #fff !important;
+  }
+  article,
+  .scene-note {
+    break-inside: avoid-page;
+  }
+  h1,
+  h2,
+  h3 {
+    break-after: avoid-page;
+  }
+  .lesson-prose,
+  p,
+  li {
+    line-height: 1.95 !important;
   }
 }
 
