@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Search, CornerDownLeft, X } from 'lucide-react'
 import { searchAll, type SearchHit } from '../lib/search'
+import { searchBook, type BookHit } from '../lib/book'
 import { normalizeFa } from '../lib/utils'
 
 export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => void }) {
@@ -36,6 +37,30 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
   }, [open])
 
   const results = useMemo(() => (q.trim().length >= 2 ? searchAll(q, 10) : []), [q])
+  const [bookHits, setBookHits] = useState<BookHit[]>([])
+  const [bookPending, setBookPending] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    if (q.trim().length < 3) {
+      setBookHits([])
+      return
+    }
+    setBookPending(true)
+    const t = window.setTimeout(() => {
+      searchBook(q, 5)
+        .then((h) => alive && setBookHits(h))
+        .catch(() => alive && setBookHits([]))
+        .finally(() => alive && setBookPending(false))
+    }, 220)
+    return () => {
+      alive = false
+      window.clearTimeout(t)
+    }
+  }, [q])
+
+  const total = results.length + bookHits.length
+  const activeKey = active
 
   useEffect(() => setActive(0), [q])
 
@@ -45,16 +70,23 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (!results.length) return
+    if (!total) return
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setActive((a) => (a + 1) % results.length)
+      setActive((a) => (a + 1) % total)
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setActive((a) => (a - 1 + results.length) % results.length)
+      setActive((a) => (a - 1 + total) % total)
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      go(results[active])
+      if (activeKey < results.length) go(results[activeKey])
+      else {
+        const hit = bookHits[activeKey - results.length]
+        if (hit) {
+          onNavigate(`lesson/${hit.lesson}?read=1&q=${encodeURIComponent(q.trim())}`)
+          setOpen(false)
+        }
+      }
     }
   }
 
@@ -71,7 +103,7 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="جست‌وجو در درس‌ها، چهره‌ها، رویدادها و واژه‌ها…"
+            placeholder="جست‌وجو در درس‌ها و متن کامل کتاب…"
             className="w-full bg-transparent text-sm outline-none placeholder:text-faint"
           />
           <button className="btn btn-ghost btn-sm" onClick={() => setOpen(false)} aria-label="بستن">
@@ -84,9 +116,6 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
               نام یک درس، شخصیت یا رویداد را بنویس…
               <div className="mt-2 text-xs text-faint">مثلاً «چالدران» یا «نظامیه»</div>
             </div>
-          )}
-          {q.trim().length >= 2 && results.length === 0 && (
-            <div className="px-3 py-8 text-center text-sm text-muted">چیزی پیدا نشد. املای دیگری را امتحان کن.</div>
           )}
           {results.map((hit, i) => (
             <button
@@ -108,6 +137,43 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
               {i === active && <CornerDownLeft size={14} className="shrink-0 text-faint" />}
             </button>
           ))}
+          {bookHits.length > 0 && (
+            <div className="mt-1 border-t border-line/70 px-3 pb-1 pt-2 text-[0.58rem] tracking-widest text-faint">
+              در متن کتاب
+            </div>
+          )}
+          {bookHits.map((hit, i) => {
+            const idx = results.length + i
+            return (
+              <button
+                key={`book-${hit.lesson}-${i}`}
+                onMouseEnter={() => setActive(idx)}
+                onClick={() => {
+                  onNavigate(`lesson/${hit.lesson}?read=1&q=${encodeURIComponent(q.trim())}`)
+                  setOpen(false)
+                }}
+                className={`flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-right transition ${
+                  idx === active ? 'bg-gold/10' : 'hover:bg-ink/5'
+                }`}
+              >
+                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border border-gold/25 bg-gold/8 text-[0.7rem] font-bold text-gold">
+                  {hit.lesson}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="line-clamp-2 block text-[0.8rem] leading-6 text-ink/90">{hit.snippet}</span>
+                  <span className="block text-[0.62rem] text-faint">درس {hit.lesson} · متن کتاب</span>
+                </span>
+                {idx === active && <CornerDownLeft size={14} className="mt-1 shrink-0 text-faint" />}
+              </button>
+            )
+          })}
+          {q.trim().length >= 2 && total === 0 && !bookPending && (
+            <div className="px-3 py-8 text-center text-sm text-muted">چیزی پیدا نشد. املای دیگری را امتحان کن.</div>
+          )}
+          {q.trim().length >= 2 && total === 0 && bookPending && (
+            <div className="px-3 py-8 text-center text-sm text-muted">در حال جست‌وجو در متن کتاب…</div>
+          )}
+          
         </div>
         <div className="flex items-center justify-between border-t border-line px-4 py-2 text-[0.68rem] text-faint">
           <span>جست‌وجوی سراسری تبار</span>

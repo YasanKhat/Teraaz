@@ -25,7 +25,7 @@ export default function App() {
       case 'chapter':
         return <Chapter id={route.id} />
       case 'lesson':
-        return <LessonExperience id={route.id} />
+        return <LessonExperience id={route.id} openRead={route.query.get('read') === '1'} initialQuery={route.query.get('q') ?? ''} />
       case 'film':
         return <LessonExperience id={route.id} autoFilm />
       case 'recap':

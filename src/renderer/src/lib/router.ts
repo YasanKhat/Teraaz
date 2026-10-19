@@ -4,12 +4,14 @@ export interface Route {
   page: string
   id?: string
   raw: string
+  query: URLSearchParams
 }
 
 function parse(hash: string): Route {
   const raw = hash.replace(/^#\/?/, '')
-  const [page = '', id] = raw.split('/')
-  return { page: page || 'home', id, raw }
+  const [path, search = ''] = raw.split('?')
+  const [page = '', id] = path.split('/')
+  return { page: page || 'home', id, raw, query: new URLSearchParams(search) }
 }
 
 export function navigate(to: string) {

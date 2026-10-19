@@ -44,7 +44,7 @@ import { Flashcards } from '../components/Flashcards'
 
 type Mode = 'journey' | 'read' | 'bank' | 'exam' | 'cards'
 
-export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFilm?: boolean }) {
+export function LessonExperience({ id, autoFilm = false, openRead = false, initialQuery = '' }: { id?: string; autoFilm?: boolean; openRead?: boolean; initialQuery?: string }) {
   const lesson = lessonById(Number(id))
   const plan = lesson ? planByLesson(lesson.id) : undefined
   const chapter = lesson ? chapterById(lesson.chapter) : undefined
@@ -73,11 +73,20 @@ export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFi
   useEffect(() => {
     if (!lesson) return
     setLastLesson(lesson.id)
-    setMode('journey')
+    setMode(openRead ? 'read' : 'journey')
     setActive(0)
     markQuest('q-read', 20)
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
-  }, [lesson, setLastLesson, markQuest])
+  }, [lesson, setLastLesson, markQuest, openRead])
+
+  useEffect(() => {
+    if (!lesson || !initialQuery) return
+    const t = window.setTimeout(() => {
+      const marked = document.querySelector('mark[data-bookhit]')
+      if (marked) marked.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 700)
+    return () => window.clearTimeout(t)
+  }, [lesson, initialQuery])
 
   useEffect(() => {
     if (!plan) return
@@ -267,7 +276,7 @@ export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFi
 
       {mode === 'read' && (
         <section className="mx-auto max-w-3xl">
-          {readSource === 'book' && <BookText lessonId={lesson.id} title={lesson.title} accent={lesson.accent} />}
+          {readSource === 'book' && <BookText lessonId={lesson.id} title={lesson.title} accent={lesson.accent} query={initialQuery} />}
 
           {readSource === 'digest' && (
           <div className="space-y-8">

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BookOpen, ChevronDown, Loader2, Printer } from 'lucide-react'
-import { cn, fas } from '../lib/utils'
+import { cn, fas, normalizeFa } from '../lib/utils'
+import { bookLesson, loadBook } from '../lib/book'
 
 type Kind = 'h' | 'p' | 'note' | 'chart' | 'table' | 'ex' | 'q' | 'ans'
 interface Block {
@@ -12,27 +13,20 @@ interface BookLesson {
   blocks: Block[]
 }
 
-type Cache = Record<number, BookLesson>
-
-const cache: Cache = {}
-
 function useBookLesson(id: number) {
-  const [data, setData] = useState<BookLesson | null>(cache[id] ?? null)
+  const [data, setData] = useState<BookLesson | null>(bookLesson(id) ?? null)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
-    if (cache[id]) {
-      setData(cache[id])
+    const ready = bookLesson(id)
+    if (ready) {
+      setData(ready)
       return
     }
     let alive = true
     setData(null)
-    import('../data/book/full.json')
-      .then((mod) => {
-        const list = (mod.default ?? mod) as unknown as BookLesson[]
-        list.forEach((l) => (cache[l.id] = l))
-        if (alive) setData(cache[id] ?? null)
-      })
+    loadBook()
+      .then(() => alive && setData(bookLesson(id) ?? null))
       .catch(() => alive && setFailed(true))
     return () => {
       alive = false
@@ -47,20 +41,20 @@ function splitArrows(text: string) {
   return parts.length > 1 ? parts : null
 }
 
-function ChartBlock({ text, accent }: { text: string; accent?: string }) {
+function ChartBlock({ text, accent, query = '' }: { text: string; accent?: string; query?: string }) {
   const parts = splitArrows(text)
-  if (!parts) return <p className="lesson-prose">{text}</p>
+  if (!parts) return <p className="lesson-prose">{highlight(text, query)}</p>
   const [lead, ...rest] = parts
   return (
     <div className="book-chart rounded-xl border border-line/80 bg-surface/30 px-3.5 py-3">
       <div className="mb-1.5 flex items-start gap-2 text-[0.86rem] font-bold">
         <span className="mt-2 size-1.5 shrink-0 rotate-45 rounded-[1px]" style={{ background: accent ?? 'var(--c-gold)' }} />
-        <span>{lead}</span>
+        <span>{highlight(lead, query)}</span>
       </div>
       <ul className="space-y-1 ps-4">
         {rest.map((r, i) => (
           <li key={i} className="relative text-[0.8rem] leading-7 text-muted before:absolute before:-start-3 before:top-[0.85rem] before:h-px before:w-2 before:bg-line">
-            {r}
+            {highlight(r, query)}
           </li>
         ))}
       </ul>
@@ -68,7 +62,35 @@ function ChartBlock({ text, accent }: { text: string; accent?: string }) {
   )
 }
 
-export function BookText({ lessonId, title, accent }: { lessonId: number; title: string; accent?: string }) {
+function highlight(text: string, needle: string) {
+  const q = needle.trim()
+  if (q.length < 2) return text
+  const target = normalizeFa(q)
+  // نگاشت نویسه‌های متن اصلی به متن نرمال‌شده تا نشانه‌گذاری درست بنشیند
+  let normalized = ''
+  const map: number[] = []
+  for (let i = 0; i < text.length; i++) {
+    const n = normalizeFa(text[i])
+    for (let k = 0; k < n.length; k++) {
+      normalized += n[k]
+      map.push(i)
+    }
+  }
+  const at = normalized.indexOf(target)
+  if (at === -1) return text
+  const start = map[at]
+  const last = map[Math.min(at + target.length - 1, map.length - 1)]
+  const end = last + 1
+  return (
+    <>
+      {text.slice(0, start)}
+      <mark data-bookhit className="rounded bg-gold/25 px-0.5 text-ink">{text.slice(start, end)}</mark>
+      {text.slice(end)}
+    </>
+  )
+}
+
+export function BookText({ lessonId, title, accent, query = '' }: { lessonId: number; title: string; accent?: string; query?: string }) {
   const { data, failed } = useBookLesson(lessonId)
   const [openToc, setOpenToc] = useState(false)
   const [collapsed, setCollapsed] = useState<Record<number, boolean>>({})
@@ -146,22 +168,22 @@ export function BookText({ lessonId, title, accent }: { lessonId: number; title:
                   id={`bk-${lessonId}-${i}`}
                   className="scroll-mt-32 border-t border-line/60 pt-5 text-[1.02rem] font-black leading-8 text-ink first:border-t-0 first:pt-0"
                 >
-                  {b.text}
+                  {highlight(b.text, query)}
                 </h3>
               )
             case 'note':
               return (
                 <div key={key} className="rounded-lg border border-gold/25 bg-gold/[0.045] px-3.5 py-2.5 text-[0.8rem] leading-8 text-muted">
                   <span className="me-1 font-bold text-gold">نکته:</span>
-                  {b.text}
+                  {highlight(b.text, query)}
                 </div>
               )
             case 'chart':
-              return <ChartBlock key={key} text={b.text} accent={accent} />
+              return <ChartBlock key={key} text={b.text} accent={accent} query={query} />
             case 'table':
               return (
                 <p key={key} className="rounded-lg border border-line bg-surface/25 px-3.5 py-2.5 text-[0.82rem] leading-8 text-muted">
-                  {b.text}
+                  {highlight(b.text, query)}
                 </p>
               )
             case 'ex':
@@ -173,30 +195,30 @@ export function BookText({ lessonId, title, accent }: { lessonId: number; title:
             case 'q':
               return (
                 <p key={key} className="ps-1 text-[0.82rem] leading-8 text-muted">
-                  {b.text}
+                  {highlight(b.text, query)}
                 </p>
               )
             case 'ans':
               return (
                 <details key={key} className="rounded-lg border border-line/70 px-3 py-1.5">
                   <summary className="cursor-pointer list-none text-[0.68rem] text-gold/85">پاسخ</summary>
-                  <p className="mt-1 text-[0.78rem] leading-7 text-muted">{b.text.replace(/^پاسخ\s*[:：]\s*/, '')}</p>
+                  <p className="mt-1 text-[0.78rem] leading-7 text-muted">{highlight(b.text.replace(/^پاسخ\s*[:：]\s*/, ''), query)}</p>
                 </details>
               )
             default: {
-              if (/->|<-/.test(b.text)) return <ChartBlock key={key} text={b.text} accent={accent} />
+              if (/->|<-/.test(b.text)) return <ChartBlock key={key} text={b.text} accent={accent} query={query} />
               const m = b.text.match(/^([^:：]{2,44}):\s*(.+)$/s)
               if (m && !m[1].includes('->')) {
                 return (
                   <p key={key} className="lesson-prose">
                     <span className="font-bold text-ink/90">{m[1]}: </span>
-                    {m[2]}
+                    {highlight(m[2], query)}
                   </p>
                 )
               }
               return (
                 <p key={key} className="lesson-prose">
-                  {b.text}
+                  {highlight(b.text, query)}
                 </p>
               )
             }

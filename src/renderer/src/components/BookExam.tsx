@@ -1,21 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronDown, Loader2, RotateCcw, X } from 'lucide-react'
 import { cn, fas } from '../lib/utils'
-
-interface TF {
-  lesson: number
-  text: string
-  answer: boolean
-}
-interface QA {
-  lesson: number
-  q: string
-  a: string
-}
-interface Bank {
-  tf: TF[]
-  qa: QA[]
-}
+import { loadExamBank, type BookBank as Bank } from '../lib/book'
 
 let cached: Bank | null = null
 
@@ -24,10 +10,10 @@ export function useExamBank() {
   useEffect(() => {
     if (cached) return
     let alive = true
-    import('../data/book/exam.json')
-      .then((mod) => {
-        cached = (mod.default ?? mod) as unknown as Bank
-        if (alive) setBank(cached)
+    loadExamBank()
+      .then((b) => {
+        cached = b
+        if (alive) setBank(b)
       })
       .catch(() => undefined)
     return () => {
