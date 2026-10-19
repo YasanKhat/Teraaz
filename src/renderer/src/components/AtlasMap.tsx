@@ -148,25 +148,40 @@ function extentOf(spec: MapSpec) {
 }
 
 /** جای خوانا برای برچسب: چهار جهت را امتحان می‌کند و از هم‌پوشانی می‌پرهیزد */
-function placeLabels(items: { x: number; y: number; label: string }[]) {
-  const boxes: { x0: number; y0: number; x1: number; y1: number }[] = []
-  const out: { x: number; y: number; dx: number; dy: number; anchor: 'start' | 'end'; label: string }[] = []
-  const w = (t: string) => t.length * 7.4 + 6
+function placeLabels<T extends { x: number; y: number; label: string }>(
+  items: T[],
+  unit = 1,
+  obstacles: { x: number; y: number; label: string }[] = []
+) {
+  const wOf = (t: string) => (t.length * 7.4 + 6) * unit
+  const boxes: { x0: number; y0: number; x1: number; y1: number }[] = obstacles.map((o) => ({
+    x0: o.x - wOf(o.label) / 2,
+    y0: o.y - 15 * unit,
+    x1: o.x + wOf(o.label) / 2,
+    y1: o.y + 4 * unit
+  }))
+  const out: (T & { dx: number; dy: number; anchor: 'start' | 'end' })[] = []
+  const w = wOf
   for (const it of items) {
     const width = w(it.label)
+    const d = 16 * unit
     const tries = [
-      { dx: 16, dy: 5, anchor: 'start' as const },
-      { dx: -16, dy: 5, anchor: 'end' as const },
-      { dx: 16, dy: -13, anchor: 'start' as const },
-      { dx: -16, dy: -13, anchor: 'end' as const },
-      { dx: 16, dy: 22, anchor: 'start' as const },
-      { dx: -16, dy: 22, anchor: 'end' as const }
+      { dx: d, dy: 5 * unit, anchor: 'start' as const },
+      { dx: -d, dy: 5 * unit, anchor: 'end' as const },
+      { dx: d, dy: -13 * unit, anchor: 'start' as const },
+      { dx: -d, dy: -13 * unit, anchor: 'end' as const },
+      { dx: d, dy: 24 * unit, anchor: 'start' as const },
+      { dx: -d, dy: 24 * unit, anchor: 'end' as const },
+      { dx: d * 2.6, dy: 5 * unit, anchor: 'start' as const },
+      { dx: -d * 2.6, dy: 5 * unit, anchor: 'end' as const },
+      { dx: d * 2.6, dy: -20 * unit, anchor: 'start' as const },
+      { dx: -d * 2.6, dy: -20 * unit, anchor: 'end' as const }
     ]
     let pick = tries[0]
     for (const t of tries) {
       const x0 = t.anchor === 'start' ? it.x + t.dx : it.x + t.dx - width
       const y0 = it.y + t.dy - 14
-      const box = { x0, y0, x1: x0 + width, y1: y0 + 18 }
+      const box = { x0, y0, x1: x0 + width, y1: y0 + 18 * unit }
       const hit = boxes.some((b) => box.x0 < b.x1 && box.x1 > b.x0 && box.y0 < b.y1 && box.y1 > b.y0)
       if (!hit) {
         pick = t
@@ -181,13 +196,54 @@ function placeLabels(items: { x: number; y: number; label: string }[]) {
 
 /** نقشهٔ شهری — طرح خوانا از شهر، با رود، محور، بلوک‌ها و نشانه‌ها */
 function CityPlan({ spec, phase, index }: { spec: MapSpec; phase: MapPhase; index: number }) {
+  const wrapRef = useRef<SVGSVGElement>(null)
+  const [wrapW, setWrapW] = useState(1000)
+  const [wrapH, setWrapH] = useState(620)
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(([entry]) => {
+      setWrapW(entry.contentRect.width || 1000)
+      setWrapH(entry.contentRect.height || 620)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   const isCity = /اصفهان/.test(spec.title)
   const lines = isCity ? phase.planLines ?? BASE_PLAN_LINES : phase.planLines ?? []
   const pins = phase.planPins ?? []
   const uid = `plan-${index}-${index}`
+  /** کادر نقشه با نسبت تصویر قاب هم‌اندازه می‌شود تا هیچ برچسبی از لبه بیرون نزند */
+  const vbW = Math.max(1000, Math.round(620 * (wrapW / Math.max(140, wrapH))))
+  const off = (vbW - 1000) / 2
+  /** هر واحد نقشه چند پیکسل روی صفحه است */
+  const px = wrapW / vbW
+  const unit = Math.min(2.4, Math.max(1, 11 / (12 * Math.max(0.3, px))))
+  /** وقتی نقشه کوچک رندر می‌شود، نام‌ها جای نمی‌گنجند؛ شماره + کلید می‌آید */
+  const narrow = wrapW < 680
+  const compact = px < 0.82
+  const badgeR = compact ? Math.min(30, 13 / Math.max(0.35, px)) : 6.5
+  const badgeFs = Math.min(23, 12 / Math.max(0.35, px))
+  /** برچسب خیابان‌ها و محورها هم جای می‌گیرند و نباید با نام نشانه‌ها تلاقی کنند */
+  const lineLabels = lines
+    .filter((l) => l.label)
+    .map((l) => ({
+      x: (l.from[0] * 10 + l.to[0] * 10) / 2,
+      y: (l.from[1] * 6.2 + l.to[1] * 6.2) / 2 - 9 * unit,
+      label: l.label!
+    }))
+  const marks = [
+    ...(spec.artifacts ?? []).map((a) => ({
+      x: a.x * 10,
+      y: a.y * 6.2,
+      label: a.label,
+      tone: a.kind === 'site' ? TONES.gold : a.kind === 'monument' ? TONES.turq : TONES.rose
+    })),
+    ...pins.map((p) => ({ x: p.x * 10, y: p.y * 6.2, label: p.label, tone: TONES[p.tone ?? 'gold'] }))
+  ]
   return (
     <div className="atlas__frame">
-      <svg viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid slice" className="atlas__svg" role="img" aria-label={`${spec.title} — ${phase.title}`}>
+      <svg ref={wrapRef} viewBox={`${-off} 0 ${vbW} 620`} preserveAspectRatio="xMidYMid meet" className="atlas__svg" role="img" aria-label={`${spec.title} — ${phase.title}`}>
         <defs>
           <linearGradient id={`${uid}-paper`} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#f2e9d2" />
@@ -204,29 +260,64 @@ function CityPlan({ spec, phase, index }: { spec: MapSpec; phase: MapPhase; inde
           </pattern>
         </defs>
 
-        <rect width="1000" height="620" fill={`url(#${uid}-paper)`} />
-        <rect width="1000" height="620" fill={`url(#${uid}-blocks)`} opacity="0.3" />
-        <rect width="1000" height="620" fill={`url(#${uid}-grid)`} />
+        <rect x={-off} width={vbW} height="620" fill={`url(#${uid}-paper)`} />
+        <rect x={-off} width={vbW} height="620" fill={`url(#${uid}-blocks)`} opacity="0.3" />
+        <rect x={-off} width={vbW} height="620" fill={`url(#${uid}-grid)`} />
+
+        {/* حاشیهٔ چپ: یادداشت طرح */}
+        {off > 150 && (
+          <g pointerEvents="none" opacity="0.62" textAnchor="middle">
+            <text x={-off * 0.56} y={96} fontSize={13 * unit} fontWeight={700} fill="#7a6845" style={{ fontFamily: 'Estedad, sans-serif' }}>
+              {isCity ? 'طرح نمادین شهر' : 'طرح نمادینِ نمونه‌ها'}
+            </text>
+            <text x={-off * 0.56} y={96 + 24 * unit} fontSize={11 * unit} fill="#8a7752" style={{ fontFamily: 'Estedad, sans-serif' }}>
+              {isCity ? 'جای بناها تقریبی است؛ برای دیدن نسبتشان' : 'جای هر نشانه تقریبی است؛ برای مقایسهٔ گونه‌ها'}
+            </text>
+            <line
+              x1={-off * 0.56 - 100 * unit} x2={-off * 0.56 + 100 * unit}
+              y1={108 + 24 * unit} y2={108 + 24 * unit}
+              stroke="#b79a63" strokeOpacity="0.5" strokeWidth="1.2"
+            />
+          </g>
+        )}
 
         {/* باغ‌ها */}
-        <ellipse cx="140" cy="150" rx="130" ry="95" fill="#9cae7d" fillOpacity="0.22" />
-        <ellipse cx="880" cy="520" rx="120" ry="80" fill="#9cae7d" fillOpacity="0.18" />
+        <ellipse cx={140 - off * 0.7} cy="150" rx="130" ry="95" fill="#9cae7d" fillOpacity="0.22" />
+        <ellipse cx={880 + off * 0.7} cy="520" rx="120" ry="80" fill="#9cae7d" fillOpacity="0.18" />
+        {off > 0 && (
+          <>
+            <ellipse cx={640 - off * 0.15} cy="90" rx="150" ry="70" fill="#9cae7d" fillOpacity="0.14" />
+            <ellipse cx={300 + off * 0.2} cy="560" rx="170" ry="80" fill="#9cae7d" fillOpacity="0.12" />
+          </>
+        )}
 
         {/* زاینده‌رود — فقط نقشهٔ اصفهان */}
         {isCity && (
-          <>
+          <g transform={`translate(500,0) scale(${vbW / 1000},1) translate(-500,0)`}>
             <path d="M-20 470 C 180 430, 380 505, 560 458 S 860 425, 1020 452" fill="none" stroke="#4f8ba3" strokeOpacity="0.45" strokeWidth="30" strokeLinecap="round" />
             <path d="M-20 470 C 180 430, 380 505, 560 458 S 860 425, 1020 452" fill="none" stroke="#9dcbd8" strokeOpacity="0.75" strokeWidth="12" strokeLinecap="round" />
-            <text x="120" y="452" fontSize="13" fill="#2f6a80" opacity="0.8" style={{ fontFamily: 'Estedad, sans-serif' }}>زاینده‌رود</text>
-          </>
+          </g>
+        )}
+        {isCity && (
+          <text
+            x={180} y={452} textAnchor="middle" fontSize={13 * unit} fill="#2f6a80" opacity="0.85"
+            stroke="#e9e0c6" strokeWidth={4 * unit} paintOrder="stroke"
+            style={{ fontFamily: 'Estedad, sans-serif' }}
+          >زاینده‌رود</text>
         )}
 
         {/* محورها */}
         {lines.map((l, k) => {
-          const x1 = l.from[0] * 10
-          const y1 = l.from[1] * 6.2
-          const x2 = l.to[0] * 10
-          const y2 = l.to[1] * 6.2
+          const bx1 = l.from[0] * 10
+          const by1 = l.from[1] * 6.2
+          const bx2 = l.to[0] * 10
+          const by2 = l.to[1] * 6.2
+          const len = Math.hypot(bx2 - bx1, by2 - by1) || 1
+          const ext = off + 80
+          const x1 = bx1 - ((bx2 - bx1) / len) * ext
+          const y1 = by1 - ((by2 - by1) / len) * ext
+          const x2 = bx2 + ((bx2 - bx1) / len) * ext
+          const y2 = by2 + ((by2 - by1) / len) * ext
           const street = l.kind === 'street'
           return (
             <g key={k}>
@@ -240,8 +331,10 @@ function CityPlan({ spec, phase, index }: { spec: MapSpec; phase: MapPhase; inde
               />
               {l.label && (
                 <text
-                  x={(x1 + x2) / 2} y={(y1 + y2) / 2 - 9} textAnchor="middle" fontSize="13"
-                  fill="#6b5a38" stroke="#f7eed8" strokeWidth="3.6" paintOrder="stroke"
+                  x={bx1 + (bx2 - bx1) * (compact ? 0.22 : 0.5)}
+                  y={by1 + (by2 - by1) * (compact ? 0.22 : 0.5) - 9 * unit}
+                  textAnchor="middle" fontSize={13 * unit}
+                  fill="#6b5a38" stroke="#f7eed8" strokeWidth={3.6 * unit} paintOrder="stroke"
                   style={{ fontFamily: 'Estedad, sans-serif' }}
                 >{l.label}</text>
               )}
@@ -254,51 +347,34 @@ function CityPlan({ spec, phase, index }: { spec: MapSpec; phase: MapPhase; inde
           <>
             <rect x="420" y="238" width="160" height="118" rx="5" fill="#e8d8ad" fillOpacity="0.5" stroke="#a9812f" strokeOpacity="0.8" strokeWidth="3" />
             {index > 0 && !pins.some((p) => p.x > 42 && p.x < 58 && p.y > 40 && p.y < 56) && (
-              <text x="500" y="376" textAnchor="middle" fontSize="12" fill="#6b5a38" opacity="0.75" style={{ fontFamily: 'Estedad, sans-serif' }}>میدان نقش جهان</text>
+              <text x={compact ? 760 : 500} y="376" textAnchor="middle" fontSize={12 * unit} fill="#6b5a38" opacity="0.75" style={{ fontFamily: 'Estedad, sans-serif' }}>میدان نقش جهان</text>
             )}
           </>
         )}
 
-        {/* اشیا و اسناد */}
-        {placeLabels((spec.artifacts ?? []).map((a) => ({ x: a.x * 10, y: a.y * 6.2, label: a.label }))).map((a, k) => {
-          const kind = spec.artifacts![k].kind
-          const tone = kind === 'site' ? TONES.gold : kind === 'monument' ? TONES.turq : TONES.rose
-          return (
-            <g key={`art-${k}`}>
-              <circle cx={a.x} cy={a.y} r="21" fill={tone} fillOpacity="0.12" />
-              <circle cx={a.x} cy={a.y} r="6.5" fill={tone} stroke="#3a2c12" strokeWidth="1.5" />
-              <text
-                x={a.x + a.dx} y={a.y + a.dy} textAnchor={a.anchor} fontSize="15" fontWeight="800" fill="#241a06"
-                stroke="#f9f1dc" strokeWidth="4.4" paintOrder="stroke"
-                style={{ fontFamily: 'Estedad, sans-serif' }}
-              >{a.label}</text>
-            </g>
-          )
-        })}
-
-        {/* عنوان گام و راهنمای نقشه */}
-        <text x="500" y="44" textAnchor="middle" fontSize="20" fontWeight="800" fill="#2a1e08" opacity="0.9" style={{ fontFamily: 'Estedad, sans-serif' }}>
-          {phase.title}
-        </text>
-        <text x="500" y="70" textAnchor="middle" fontSize="12" fill="#7a6845" opacity="0.85" style={{ fontFamily: 'Estedad, sans-serif' }}>
-          {spec.title}
-        </text>
-
-        {/* نشانه‌ها */}
-        {placeLabels(pins.map((p) => ({ x: p.x * 10, y: p.y * 6.2, label: p.label }))).map((p, k) => {
-          const tone = TONES[pins[k].tone ?? 'gold']
-          return (
-            <g key={k}>
-              <circle cx={p.x} cy={p.y} r="20" fill={tone} fillOpacity="0.13" />
-              <circle cx={p.x} cy={p.y} r="6" fill={tone} stroke="#3a2c12" strokeWidth="1.5" />
-              <text
-                x={p.x + p.dx} y={p.y + p.dy} textAnchor={p.anchor} fontSize="15" fontWeight="800" fill="#241a06"
-                stroke="#f9f1dc" strokeWidth="4.4" paintOrder="stroke"
-                style={{ fontFamily: 'Estedad, sans-serif' }}
-              >{p.label}</text>
-            </g>
-          )
-        })}
+        {/* اشیا، نشانه‌ها و برچسب‌ها */}
+        {(compact
+          ? marks.map((m, k) => (
+              <g key={`n-${k}`}>
+                <circle cx={m.x} cy={m.y} r={badgeR * 1.5} fill={m.tone} fillOpacity="0.16" />
+                <circle cx={m.x} cy={m.y} r={badgeR} fill={m.tone} stroke="#3a2c12" strokeWidth={1.6 / Math.max(0.4, px)} />
+                <text
+                  x={m.x} y={m.y + badgeFs * 0.35} textAnchor="middle" fontSize={badgeFs} fontWeight="800" fill="#241a06"
+                  style={{ fontFamily: 'Estedad, sans-serif' }}
+                >{fas(k + 1)}</text>
+              </g>
+            ))
+          : placeLabels(marks, unit, lineLabels).map((m, k) => (
+              <g key={`n-${k}`}>
+                <circle cx={m.x} cy={m.y} r="21" fill={m.tone} fillOpacity="0.12" />
+                <circle cx={m.x} cy={m.y} r="6.5" fill={m.tone} stroke="#3a2c12" strokeWidth="1.5" />
+                <text
+                  x={m.x + m.dx} y={m.y + m.dy} textAnchor={m.anchor} fontSize={15 * unit} fontWeight="800" fill="#241a06"
+                  stroke="#f9f1dc" strokeWidth={4.4 * unit} paintOrder="stroke"
+                  style={{ fontFamily: 'Estedad, sans-serif' }}
+                >{m.label}</text>
+              </g>
+            )))}
 
         {/* راهنما و مقیاس */}
         <g transform="translate(944, 556)" opacity="0.85">
@@ -309,10 +385,20 @@ function CityPlan({ spec, phase, index }: { spec: MapSpec; phase: MapPhase; inde
           <line x1="0" y1="0" x2="118" y2="0" stroke="#8d6d24" strokeWidth="2" />
           <line x1="0" y1="-5" x2="0" y2="5" stroke="#8d6d24" strokeWidth="2" />
           <line x1="118" y1="-5" x2="118" y2="5" stroke="#8d6d24" strokeWidth="2" />
-          <text x="59" y="-9" textAnchor="middle" fontSize="11" fill="#6b5a38" style={{ fontFamily: 'Estedad, sans-serif' }}>۵۰۰ متر</text>
+          <text x="59" y="-9" textAnchor="middle" fontSize={11 * unit} fill="#6b5a38" style={{ fontFamily: 'Estedad, sans-serif' }}>۵۰۰ متر</text>
         </g>
         <rect x="1" y="1" width="998" height="618" fill="none" stroke="#b79a63" strokeOpacity="0.45" />
       </svg>
+      {compact && marks.length > 0 && (
+        <div className="atlas__pinKey">
+          {marks.map((m, k) => (
+            <span key={`k-${k}`}>
+              <b style={{ background: m.tone }}>{fas(k + 1)}</b>
+              {m.label}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="atlas__caption">
         <div className="flex items-center gap-2">
           <span className="atlas__step">{fas(index + 1)} / {fas(spec.phases.length)}</span>
@@ -356,6 +442,17 @@ export function AtlasMap({
   const phase = spec.phases[Math.min(i, spec.phases.length - 1)]
   const palette = PALETTE[spec.palette ?? 'conquest']
   const uid = useMemo(() => `atlas-${Math.random().toString(36).slice(2, 8)}`, [])
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const [wrapW, setWrapW] = useState(1000)
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(([entry]) => setWrapW(entry.contentRect.width || W))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  /** بزرگ‌نمایی متن روی صفحه‌های کوچک تا برچسب‌ها خوانا بمانند */
+  const unit = Math.min(2.1, Math.max(1, (W / Math.max(320, wrapW)) * 0.86))
 
   useEffect(() => {
     setI(0)
@@ -508,7 +605,7 @@ export function AtlasMap({
       {spec.mode === 'plan' ? (
         <CityPlan spec={spec} phase={phase} index={i} />
       ) : (
-      <div className="atlas__frame">
+      <div className="atlas__frame" ref={wrapRef}>
         <svg
           viewBox={`0 0 ${W} ${H}`}
           preserveAspectRatio="xMidYMid slice"
@@ -687,7 +784,7 @@ export function AtlasMap({
                         x={(x0 + x1) / 2 + dx * 0.05}
                         y={(y0 + y1) / 2 + dy * 0.05 - 8}
                         textAnchor="middle"
-                        fontSize={11}
+                        fontSize={11 * unit}
                         fontWeight={700}
                         fill="#f7ecd2"
                         stroke="#0b1b2b"
@@ -722,8 +819,8 @@ export function AtlasMap({
                     <circle cx={x} cy={y} r={4.2} fill={tone} stroke="#0d1f30" strokeWidth="1.1" />
                     <text
                       x={labelX}
-                      y={y + 4.2}
-                      fontSize={12}
+                      y={y + 5 * unit}
+                      fontSize={12 * unit}
                       fontWeight={800}
                       fill="#0f1f2f"
                       stroke="#f6ecd4"
@@ -746,7 +843,7 @@ export function AtlasMap({
                   x={r.x}
                   y={r.y}
                   textAnchor="middle"
-                  fontSize={r.fs}
+                  fontSize={r.fs * unit}
                   fontWeight={800}
                   letterSpacing="0.3"
                   fill={r.ghost ? '#6d5c3d' : r.on ? '#241a06' : '#5a4a2b'}
@@ -770,7 +867,7 @@ export function AtlasMap({
                   x={l.x}
                   y={l.y}
                   textAnchor="middle"
-                  fontSize={l.fs}
+                  fontSize={l.fs * unit}
                   letterSpacing={l.kind === 'sea' ? l.fs * 0.22 : l.fs * 0.06}
                   fill={l.kind === 'sea' ? '#9cc2e2' : '#6a5738'}
                   fillOpacity={l.kind === 'sea' ? 0.5 : 0.55}

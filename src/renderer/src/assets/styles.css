@@ -3115,3 +3115,25 @@ a:focus-visible {
 }
 .atlas__legendInline span { display: inline-flex; align-items: center; gap: 0.3rem; }
 .atlas__legendInline i { width: 0.45rem; height: 0.45rem; border-radius: 999px; opacity: 0.9; }
+
+/* کلید شماره‌دار نقشه در صفحه‌های باریک */
+.atlas__pinKey {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.3rem 0.7rem;
+  padding: 0.55rem 0.7rem 0.1rem;
+  font-size: 0.7rem;
+  color: #efe3c8;
+}
+.atlas__pinKey span { display: inline-flex; align-items: center; gap: 0.35rem; line-height: 1.5; }
+.atlas__pinKey b {
+  flex: none;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.62rem;
+  color: #241a06;
+  border: 1px solid #3a2c12;
+}
