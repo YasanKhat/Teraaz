@@ -845,8 +845,14 @@ a:focus-visible {
     background: #fff !important;
   }
   article,
-  .scene-note {
+  .scene-note,
+  .book-chart {
     break-inside: avoid-page;
+  }
+  .book-chart,
+  .book-chart * {
+    background: #fff !important;
+    border-color: #d8d0bd !important;
   }
   h1,
   h2,

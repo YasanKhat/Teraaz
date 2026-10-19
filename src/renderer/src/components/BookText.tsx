@@ -52,7 +52,7 @@ function ChartBlock({ text, accent }: { text: string; accent?: string }) {
   if (!parts) return <p className="lesson-prose">{text}</p>
   const [lead, ...rest] = parts
   return (
-    <div className="rounded-xl border border-line/80 bg-surface/30 px-3.5 py-3">
+    <div className="book-chart rounded-xl border border-line/80 bg-surface/30 px-3.5 py-3">
       <div className="mb-1.5 flex items-start gap-2 text-[0.86rem] font-bold">
         <span className="mt-2 size-1.5 shrink-0 rotate-45 rounded-[1px]" style={{ background: accent ?? 'var(--c-gold)' }} />
         <span>{lead}</span>
