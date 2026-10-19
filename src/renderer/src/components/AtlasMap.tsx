@@ -44,6 +44,8 @@ export interface MapSpec {
   base?: string[]
   /** نقشهٔ شهری (طرح) به‌جای نقشهٔ جغرافیایی */
   mode?: 'geo' | 'plan'
+  /** مدارک و اشیا روی نقشه: جای نمادینشان در ایران، نه مختصات واقعی */
+  artifacts?: { x: number; y: number; label: string; kind: 'site' | 'monument' | 'object'; note?: string }[]
   phases: MapPhase[]
 }
 
@@ -145,11 +147,44 @@ function extentOf(spec: MapSpec) {
   }
 }
 
+/** جای خوانا برای برچسب: چهار جهت را امتحان می‌کند و از هم‌پوشانی می‌پرهیزد */
+function placeLabels(items: { x: number; y: number; label: string }[]) {
+  const boxes: { x0: number; y0: number; x1: number; y1: number }[] = []
+  const out: { x: number; y: number; dx: number; dy: number; anchor: 'start' | 'end'; label: string }[] = []
+  const w = (t: string) => t.length * 7.4 + 6
+  for (const it of items) {
+    const width = w(it.label)
+    const tries = [
+      { dx: 16, dy: 5, anchor: 'start' as const },
+      { dx: -16, dy: 5, anchor: 'end' as const },
+      { dx: 16, dy: -13, anchor: 'start' as const },
+      { dx: -16, dy: -13, anchor: 'end' as const },
+      { dx: 16, dy: 22, anchor: 'start' as const },
+      { dx: -16, dy: 22, anchor: 'end' as const }
+    ]
+    let pick = tries[0]
+    for (const t of tries) {
+      const x0 = t.anchor === 'start' ? it.x + t.dx : it.x + t.dx - width
+      const y0 = it.y + t.dy - 14
+      const box = { x0, y0, x1: x0 + width, y1: y0 + 18 }
+      const hit = boxes.some((b) => box.x0 < b.x1 && box.x1 > b.x0 && box.y0 < b.y1 && box.y1 > b.y0)
+      if (!hit) {
+        pick = t
+        boxes.push(box)
+        break
+      }
+    }
+    out.push({ ...it, ...pick })
+  }
+  return out
+}
+
 /** نقشهٔ شهری — طرح خوانا از شهر، با رود، محور، بلوک‌ها و نشانه‌ها */
 function CityPlan({ spec, phase, index }: { spec: MapSpec; phase: MapPhase; index: number }) {
-  const lines = phase.planLines ?? BASE_PLAN_LINES
+  const isCity = /اصفهان/.test(spec.title)
+  const lines = isCity ? phase.planLines ?? BASE_PLAN_LINES : phase.planLines ?? []
   const pins = phase.planPins ?? []
-  const uid = `plan-${index}`
+  const uid = `plan-${index}-${index}`
   return (
     <div className="atlas__frame">
       <svg viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid slice" className="atlas__svg" role="img" aria-label={`${spec.title} — ${phase.title}`}>
@@ -177,10 +212,14 @@ function CityPlan({ spec, phase, index }: { spec: MapSpec; phase: MapPhase; inde
         <ellipse cx="140" cy="150" rx="130" ry="95" fill="#9cae7d" fillOpacity="0.22" />
         <ellipse cx="880" cy="520" rx="120" ry="80" fill="#9cae7d" fillOpacity="0.18" />
 
-        {/* زاینده‌رود */}
-        <path d="M-20 470 C 180 430, 380 505, 560 458 S 860 425, 1020 452" fill="none" stroke="#4f8ba3" strokeOpacity="0.45" strokeWidth="30" strokeLinecap="round" />
-        <path d="M-20 470 C 180 430, 380 505, 560 458 S 860 425, 1020 452" fill="none" stroke="#9dcbd8" strokeOpacity="0.75" strokeWidth="12" strokeLinecap="round" />
-        <text x="120" y="452" fontSize="13" fill="#2f6a80" opacity="0.8" style={{ fontFamily: 'Estedad, sans-serif' }}>زاینده‌رود</text>
+        {/* زاینده‌رود — فقط نقشهٔ اصفهان */}
+        {isCity && (
+          <>
+            <path d="M-20 470 C 180 430, 380 505, 560 458 S 860 425, 1020 452" fill="none" stroke="#4f8ba3" strokeOpacity="0.45" strokeWidth="30" strokeLinecap="round" />
+            <path d="M-20 470 C 180 430, 380 505, 560 458 S 860 425, 1020 452" fill="none" stroke="#9dcbd8" strokeOpacity="0.75" strokeWidth="12" strokeLinecap="round" />
+            <text x="120" y="452" fontSize="13" fill="#2f6a80" opacity="0.8" style={{ fontFamily: 'Estedad, sans-serif' }}>زاینده‌رود</text>
+          </>
+        )}
 
         {/* محورها */}
         {lines.map((l, k) => {
@@ -210,24 +249,50 @@ function CityPlan({ spec, phase, index }: { spec: MapSpec; phase: MapPhase; inde
           )
         })}
 
-        {/* میدان، فقط در گام اول برجسته می‌شود */}
-        <rect x="420" y="238" width="160" height="118" rx="5" fill="#e8d8ad" fillOpacity="0.5" stroke="#a9812f" strokeOpacity="0.8" strokeWidth="3" />
-        {index > 0 && !pins.some((p) => p.x > 42 && p.x < 58 && p.y > 40 && p.y < 56) && (
-          <text x="500" y="376" textAnchor="middle" fontSize="12" fill="#6b5a38" opacity="0.75" style={{ fontFamily: 'Estedad, sans-serif' }}>میدان نقش جهان</text>
+        {/* میدان نقش جهان — فقط نقشهٔ اصفهان */}
+        {isCity && (
+          <>
+            <rect x="420" y="238" width="160" height="118" rx="5" fill="#e8d8ad" fillOpacity="0.5" stroke="#a9812f" strokeOpacity="0.8" strokeWidth="3" />
+            {index > 0 && !pins.some((p) => p.x > 42 && p.x < 58 && p.y > 40 && p.y < 56) && (
+              <text x="500" y="376" textAnchor="middle" fontSize="12" fill="#6b5a38" opacity="0.75" style={{ fontFamily: 'Estedad, sans-serif' }}>میدان نقش جهان</text>
+            )}
+          </>
         )}
 
+        {/* اشیا و اسناد */}
+        {placeLabels((spec.artifacts ?? []).map((a) => ({ x: a.x * 10, y: a.y * 6.2, label: a.label }))).map((a, k) => {
+          const kind = spec.artifacts![k].kind
+          const tone = kind === 'site' ? TONES.gold : kind === 'monument' ? TONES.turq : TONES.rose
+          return (
+            <g key={`art-${k}`}>
+              <circle cx={a.x} cy={a.y} r="21" fill={tone} fillOpacity="0.12" />
+              <circle cx={a.x} cy={a.y} r="6.5" fill={tone} stroke="#3a2c12" strokeWidth="1.5" />
+              <text
+                x={a.x + a.dx} y={a.y + a.dy} textAnchor={a.anchor} fontSize="15" fontWeight="800" fill="#241a06"
+                stroke="#f9f1dc" strokeWidth="4.4" paintOrder="stroke"
+                style={{ fontFamily: 'Estedad, sans-serif' }}
+              >{a.label}</text>
+            </g>
+          )
+        })}
+
+        {/* عنوان گام و راهنمای نقشه */}
+        <text x="500" y="44" textAnchor="middle" fontSize="20" fontWeight="800" fill="#2a1e08" opacity="0.9" style={{ fontFamily: 'Estedad, sans-serif' }}>
+          {phase.title}
+        </text>
+        <text x="500" y="70" textAnchor="middle" fontSize="12" fill="#7a6845" opacity="0.85" style={{ fontFamily: 'Estedad, sans-serif' }}>
+          {spec.title}
+        </text>
+
         {/* نشانه‌ها */}
-        {pins.map((p, k) => {
-          const x = p.x * 10
-          const y = p.y * 6.2
-          const tone = TONES[p.tone ?? 'gold']
-          const right = x < 700
+        {placeLabels(pins.map((p) => ({ x: p.x * 10, y: p.y * 6.2, label: p.label }))).map((p, k) => {
+          const tone = TONES[pins[k].tone ?? 'gold']
           return (
             <g key={k}>
-              <circle cx={x} cy={y} r="20" fill={tone} fillOpacity="0.13" />
-              <circle cx={x} cy={y} r="6" fill={tone} stroke="#3a2c12" strokeWidth="1.5" />
+              <circle cx={p.x} cy={p.y} r="20" fill={tone} fillOpacity="0.13" />
+              <circle cx={p.x} cy={p.y} r="6" fill={tone} stroke="#3a2c12" strokeWidth="1.5" />
               <text
-                x={right ? x + 15 : x - 15} y={y + 5} textAnchor={right ? 'start' : 'end'} fontSize="15" fontWeight="800" fill="#241a06"
+                x={p.x + p.dx} y={p.y + p.dy} textAnchor={p.anchor} fontSize="15" fontWeight="800" fill="#241a06"
                 stroke="#f9f1dc" strokeWidth="4.4" paintOrder="stroke"
                 style={{ fontFamily: 'Estedad, sans-serif' }}
               >{p.label}</text>
@@ -254,6 +319,13 @@ function CityPlan({ spec, phase, index }: { spec: MapSpec; phase: MapPhase; inde
           <span className="atlas__stepTitle">{phase.title}</span>
         </div>
         <p className="atlas__captionText">{phase.caption}</p>
+        {spec.artifacts && (
+          <div className="atlas__legendInline">
+            <span><i style={{ background: TONES.gold }} /> مکان رویداد</span>
+            <span><i style={{ background: TONES.turq }} /> بنا و اثر</span>
+            <span><i style={{ background: TONES.rose }} /> شیء و دست‌ساخته</span>
+          </div>
+        )}
       </div>
     </div>
   )

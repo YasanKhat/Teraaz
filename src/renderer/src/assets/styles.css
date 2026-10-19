@@ -3104,3 +3104,14 @@ a:focus-visible {
 }
 
 .film__search span { opacity: 0.6; margin-inline-start: 0.2rem; }
+
+.atlas__legendInline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.9rem;
+  margin-top: 0.35rem;
+  font-size: 0.6rem;
+  color: #c9c0ad;
+}
+.atlas__legendInline span { display: inline-flex; align-items: center; gap: 0.3rem; }
+.atlas__legendInline i { width: 0.45rem; height: 0.45rem; border-radius: 999px; opacity: 0.9; }

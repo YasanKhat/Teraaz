@@ -20,23 +20,19 @@ const P = (regions: string[], pins: MapPhase['pins'] = [], extra: Patch = {}): P
 export const MAP_FIXES: Record<string, Patch[]> = {
   /* ── درس ۱: سندگردی در ایران ─────────────────────────────────────────── */
   '1:سندگردی در ایران': [
-    P(['jibal', 'fars', 'iraq'], [
-      { lon: 48.4, lat: 34.4, label: 'گنج‌نامهٔ همدان', tone: 'gold' },
-      { lon: 48.4, lat: 38.4, label: 'دشت چالدران', tone: 'turq' },
-      { lon: 39.6, lat: 24.5, label: 'کوه اُحُد', tone: 'turq' },
-      { lon: 39.8, lat: 21.3, label: 'غار حرا', tone: 'turq' }
-    ]),
-    P(['fars', 'jibal'], [
-      { lon: 51.6, lat: 32.6, label: 'نقش جهان', tone: 'gold' },
-      { lon: 59.6, lat: 36.3, label: 'گوهرشاد', tone: 'gold' },
-      { lon: 52.9, lat: 29.9, label: 'تخت جمشید', tone: 'rose' },
-      { lon: 48.5, lat: 32.0, label: 'چغازنبیل', tone: 'rose' }
-    ]),
-    P(['jibal', 'khurasan', 'azerbaijan'], [
-      { lon: 51.4, lat: 35.6, label: 'ری', tone: 'gold' },
-      { lon: 58.8, lat: 36.2, label: 'نیشابور', tone: 'gold' },
-      { lon: 46.3, lat: 38.1, label: 'تبریز', tone: 'gold' }
-    ])
+    {
+      planPins: [],
+      planLines: [
+        { from: [22, 26], to: [74, 30], kind: 'street', label: 'جادهٔ خراسان' },
+        { from: [30, 70], to: [78, 44], kind: 'street', label: 'راه فارس' }
+      ],
+      regions: [],
+      pins: [],
+      arrows: [],
+      ghost: []
+    },
+    { planPins: [] },
+    { planPins: [] }
   ],
 
   /* ── درس ۳: عربستان پیش از اسلام ─────────────────────────────────────── */
@@ -427,6 +423,21 @@ export const MAP_FIXES: Record<string, Patch[]> = {
   ]
 }
 
+/** اشیای درس ۱: جای نمادینشان روی طرح ایران */
+const ARTIFACTS: Record<string, MapSpec['artifacts']> = {
+  '1:سندگردی در ایران': [
+    { x: 24, y: 46, label: 'دشت چالدران', kind: 'site' },
+    { x: 33, y: 55, label: 'کوه اُحُد', kind: 'site' },
+    { x: 41, y: 63, label: 'غار حرا', kind: 'site' },
+    { x: 55, y: 42, label: 'نقش جهان', kind: 'monument' },
+    { x: 68, y: 33, label: 'مسجد گوهرشاد', kind: 'monument' },
+    { x: 60, y: 58, label: 'تخت جمشید', kind: 'monument' },
+    { x: 47, y: 36, label: 'سکهٔ ساسانی', kind: 'object' },
+    { x: 63, y: 48, label: 'سفال نیشابور', kind: 'object' },
+    { x: 37, y: 40, label: 'کتیبهٔ سنگی', kind: 'object' }
+  ]
+}
+
 /** نقشه‌های درس را با لایهٔ اصلاح برمی‌گرداند */
 export function fixSpec(lesson: number, spec: MapSpec): MapSpec {
   const patches = MAP_FIXES[`${lesson}:${spec.title}`]
@@ -434,6 +445,7 @@ export function fixSpec(lesson: number, spec: MapSpec): MapSpec {
   return {
     ...spec,
     ...(patches[0]?.planPins ? { mode: 'plan' as const } : {}),
+    ...(ARTIFACTS[`${lesson}:${spec.title}`] ? { mode: 'plan' as const, artifacts: ARTIFACTS[`${lesson}:${spec.title}`] } : {}),
     phases: spec.phases.map((phase, i) => {
       const patch = patches[i]
       if (!patch) return phase
