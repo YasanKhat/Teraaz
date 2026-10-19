@@ -2680,7 +2680,14 @@ a:focus-visible {
 }
 
 .film-frame--map { padding: 0.85rem; gap: 0.5rem; }
-.film-frame--scroll { overflow-y: auto; justify-content: flex-start; }
+.film-frame--scroll {
+  overflow-y: auto;
+  justify-content: flex-start;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--c-gold) 40%, transparent) transparent;
+}
+.film-frame--scroll::-webkit-scrollbar { width: 5px; }
+.film-frame--scroll::-webkit-scrollbar-thumb { background: color-mix(in oklab, var(--c-gold) 35%, transparent); border-radius: 99px; }
 
 .film-center { align-items: center; text-align: center; }
 
@@ -3016,3 +3023,45 @@ a:focus-visible {
 .atlas__dots { display: flex; gap: 0.25rem; margin-inline-start: auto; align-self: center; }
 .atlas__dot { width: 0.4rem; height: 0.4rem; border-radius: 999px; background: rgba(230, 197, 121, 0.28); transition: 0.2s ease; }
 .atlas__dot--on { background: #e6c579; width: 1rem; border-radius: 999px; }
+
+/* پانوشت واژه‌های تازه در دل قاب — بدون واژه‌نامهٔ جدا */
+.film-gloss {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.1rem;
+  padding: 0.5rem clamp(1rem, 3vw, 2.2rem);
+  background: linear-gradient(0deg, color-mix(in oklab, var(--c-bg) 92%, transparent), transparent);
+  border-top: 1px solid color-mix(in oklab, var(--c-gold) 14%, transparent);
+  font-size: 0.7rem;
+  line-height: 1.95;
+  color: var(--c-muted);
+  pointer-events: none;
+}
+
+.film-gloss__item { max-width: 44rem; }
+.film-gloss__item b { color: var(--c-gold); font-weight: 800; }
+
+/* قاب‌های کم‌محتوا: وسط‌چین و با وقار، نه خالیِ ترسناک */
+.film-stage { position: relative; height: 100%; display: flex; flex-direction: column; }
+.film-stage:has(.film-gloss) > .film-frame { padding-bottom: clamp(2.6rem, 4vw, 3.4rem); }
+.film-stage > .film-frame { flex: 1; }
+.film-frame > .film-body { margin-block: auto; }
+.film-frame.film-center > * { margin-block: auto; }
+.film-frame .film-quote, .film-frame .film-note, .film-frame .film-take, .film-frame .film-echo { margin-block: auto; }
+.film-frame[data-kind] { justify-content: center; }
+
+/* نشانهٔ ادامهٔ محتوا در قاب‌های بلند */
+.film-frame--scroll::after {
+  content: '';
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1.6rem;
+  margin-top: -1.6rem;
+  background: linear-gradient(0deg, color-mix(in oklab, var(--c-bg) 92%, transparent), transparent);
+  pointer-events: none;
+}

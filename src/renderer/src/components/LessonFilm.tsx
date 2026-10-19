@@ -36,6 +36,7 @@ import { LessonSignature } from './signature'
 
 type Frame =
   | { kind: 'cover'; art: string }
+  | { kind: 'why'; title: string; text: string }
   | { kind: 'scene'; n: number; total: number; title: string; kicker?: string; beat: string; art: string }
   | { kind: 'head'; kicker: string; title: string }
   | { kind: 'text'; kicker?: string; title?: string; body: string }
@@ -128,6 +129,7 @@ function sectionFrames(section: Section, kicker: string): Frame[] {
 
 export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<typeof storyByLesson>): Frame[] {
   const frames: Frame[] = [{ kind: 'cover', art: art[plan.art] }]
+  if (lesson.why) frames.push({ kind: 'why', title: 'چرا این درس را می‌خوانیم؟', text: lesson.why })
   const scenes = plan.scenes
   const total = scenes.length
 
@@ -198,7 +200,35 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
 
 /* ── قاب‌ها ────────────────────────────────────────────────────────────── */
 
+/** واژه‌های تازه‌ای که در همین قاب به کار رفته‌اند — پانوشتِ کوتاه، نه واژه‌نامه */
+function glossOf(frame: Frame, lesson: Lesson): { term: string; def: string }[] {
+  const text = JSON.stringify(frame)
+  return lesson.terms
+    .filter((t) => t.term.length > 2 && text.includes(t.term))
+    .slice(0, 2)
+    .map((t) => ({ term: t.term, def: t.def }))
+}
+
 function Stage({ frame, lesson, accent }: { frame: Frame; lesson: Lesson; accent: string }) {
+  const gloss = glossOf(frame, lesson)
+  const body = renderStage(frame, lesson, accent)
+  return (
+    <div className="film-stage" data-kind={frame.kind}>
+      {body}
+      {gloss.length > 0 && (
+        <div className="film-gloss">
+          {gloss.map((g) => (
+            <span key={g.term} className="film-gloss__item">
+              <b>{g.term}:</b> {g.def}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function renderStage(frame: Frame, lesson: Lesson, accent: string) {
   switch (frame.kind) {
     case 'cover':
       return (
@@ -214,6 +244,20 @@ function Stage({ frame, lesson, accent }: { frame: Frame; lesson: Lesson; accent
             <div className="film-cover__hint">
               <ChevronLeft size={15} /> با دکمه‌های جهت‌دار جلو برو؛ هر قاب یک قدم از درس است
             </div>
+          </div>
+        </div>
+      )
+
+    case 'why':
+      return (
+        <div className="film-frame">
+          <div className="film-body">
+            <div className="film-kicker">
+              <Compass size={12} /> راهنمای آغاز
+            </div>
+            <h3 className="film-h3">{frame.title}</h3>
+            <p className="film-prose">{frame.text}</p>
+            <div className="film-faint">در قاب‌های بعد، همین درس را قدم‌به‌قدم با هم می‌خوانیم؛ هیچ پیش‌زمینه‌ای لازم نیست.</div>
           </div>
         </div>
       )
@@ -256,7 +300,7 @@ function Stage({ frame, lesson, accent }: { frame: Frame; lesson: Lesson; accent
 
     case 'list':
       return (
-        <div className="film-frame">
+        <div className="film-frame film-frame--scroll">
           <div className="film-body">
             {frame.kicker && <div className="film-kicker">{frame.kicker}</div>}
             {frame.title && <h3 className="film-h3">{frame.title}</h3>}
@@ -274,7 +318,7 @@ function Stage({ frame, lesson, accent }: { frame: Frame; lesson: Lesson; accent
 
     case 'table':
       return (
-        <div className="film-frame">
+        <div className="film-frame film-frame--scroll">
           <div className="film-body film-body--wide">
             {frame.kicker && <div className="film-kicker">{frame.kicker}</div>}
             {frame.title && <h3 className="film-h3">{frame.title}</h3>}
@@ -299,7 +343,7 @@ function Stage({ frame, lesson, accent }: { frame: Frame; lesson: Lesson; accent
 
     case 'cards':
       return (
-        <div className="film-frame">
+        <div className="film-frame film-frame--scroll">
           <div className="film-body film-body--wide">
             {frame.kicker && <div className="film-kicker">{frame.kicker}</div>}
             {frame.title && <h3 className="film-h3">{frame.title}</h3>}
@@ -317,7 +361,7 @@ function Stage({ frame, lesson, accent }: { frame: Frame; lesson: Lesson; accent
 
     case 'steps':
       return (
-        <div className="film-frame">
+        <div className="film-frame film-frame--scroll">
           <div className="film-body">
             {frame.kicker && <div className="film-kicker">{frame.kicker}</div>}
             {frame.title && <h3 className="film-h3">{frame.title}</h3>}
@@ -384,7 +428,7 @@ function Stage({ frame, lesson, accent }: { frame: Frame; lesson: Lesson; accent
 
     case 'panel':
       return (
-        <div className="film-frame">
+        <div className="film-frame film-frame--scroll">
           <div className="film-body film-body--wide">
             <PanelView panel={frame.panel} accent={accent} />
           </div>
@@ -416,7 +460,7 @@ function Stage({ frame, lesson, accent }: { frame: Frame; lesson: Lesson; accent
 
     case 'keypoints':
       return (
-        <div className="film-frame">
+        <div className="film-frame film-frame--scroll">
           <div className="film-body">
             <div className="film-kicker">
               <Layers size={12} /> آنچه باید در ذهن بماند {frame.parts > 1 ? `(${fas(frame.part)} از ${fas(frame.parts)})` : ''}
@@ -435,7 +479,7 @@ function Stage({ frame, lesson, accent }: { frame: Frame; lesson: Lesson; accent
 
     case 'exam':
       return (
-        <div className="film-frame">
+        <div className="film-frame film-frame--scroll">
           <div className="film-body">
             <div className="film-kicker">
               <CircleHelp size={12} /> آنچه ممتحن می‌پرسد
@@ -458,7 +502,7 @@ function Stage({ frame, lesson, accent }: { frame: Frame; lesson: Lesson; accent
 
     case 'danger':
       return (
-        <div className="film-frame">
+        <div className="film-frame film-frame--scroll">
           <div className="film-body film-body--wide">
             <div className="film-kicker">
               <TriangleAlert size={12} /> دام‌های رایج
