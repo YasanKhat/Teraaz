@@ -2925,14 +2925,14 @@ a:focus-visible {
 .film-exam__item p { margin-top: 0.5rem; border-inline-start: 2px solid color-mix(in oklab, var(--c-gold) 35%, transparent); padding-inline-start: 0.6rem; font-size: 0.82rem; line-height: 2.05; color: var(--c-muted); }
 
 /* جملهٔ پایانی */
-.film-echo { max-width: 44rem; padding: 1rem; }
+.film-echo { max-width: 44rem; padding: 1rem; text-align: center; }
+.film-echo__mark { display: block; font-size: 2.2rem; line-height: 1; margin-bottom: 0.5rem; color: color-mix(in oklab, var(--c-gold) 55%, transparent); }
 .film-echo p {
   font-family: 'Noto Nastaliq Urdu', 'Estedad', serif;
   font-size: clamp(1.15rem, 2.3vw, 1.7rem);
   line-height: 2.7;
   color: color-mix(in oklab, var(--c-gold) 85%, white 8%);
 }
-.film-echo__mark { font-size: 2rem; color: color-mix(in oklab, var(--c-gold) 45%, transparent); line-height: 0; }
 
 /* پایان */
 .film-end { max-width: 34rem; }
@@ -3206,11 +3206,12 @@ a:focus-visible {
 .film-frame--why::before {
   content: '';
   position: absolute;
-  inset-inline-start: 50%;
+  inset-inline: 0;
   inset-block-start: 50%;
+  margin-inline: auto;
   width: min(78vw, 46rem);
   height: min(56vh, 26rem);
-  transform: translate(-50%, -50%);
+  transform: translateY(-50%);
   border-radius: 50% 50% 42% 42% / 46% 46% 54% 54%;
   background: radial-gradient(closest-side, color-mix(in oklab, var(--c-gold) 12%, transparent), transparent 72%);
   pointer-events: none;
@@ -3221,8 +3222,8 @@ a:focus-visible {
 .film-why__ornament {
   position: absolute;
   inset-block-start: clamp(1.1rem, 3vw, 2rem);
-  inset-inline-start: 50%;
-  transform: translateX(-50%);
+  inset-inline: 0;
+  margin-inline: auto;
   width: 2.6rem;
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--c-gold), transparent);
@@ -3278,4 +3279,51 @@ a:focus-visible {
 @media (max-width: 640px) {
   .film-why__step { font-size: 0.62rem; }
   .film-why__outline { gap: 0.3rem; }
+}
+
+/* ── قاب‌های کم‌متن، مثل یک «کارت عنوان» ──────────────────────────────── */
+.film-frame--stage { position: relative; isolation: isolate; }
+.film-frame--stage::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 50%;
+  margin-inline: auto;
+  width: min(78vw, 44rem);
+  height: min(40vh, 18rem);
+  transform: translateY(-50%);
+  border-radius: 50% 50% 44% 44% / 42% 42% 58% 58%;
+  border: 1px solid color-mix(in oklab, var(--c-gold) 16%, transparent);
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--c-gold) 10%, transparent), transparent 74%);
+  pointer-events: none;
+  z-index: -1;
+}
+.film-frame--stage::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 12%;
+  margin-inline: auto;
+  width: 3.2rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--c-gold) 60%, transparent), transparent);
+  pointer-events: none;
+}
+.film-frame--stage .film-take { border-inline-start-color: color-mix(in oklab, var(--c-gold) 45%, transparent); }
+.film-frame--stage .film-take p { font-size: clamp(1.2rem, 2.3vw, 1.7rem); line-height: 2.05; }
+.film-frame--stage .film-take__label { font-size: 0.68rem; }
+.film-frame--stage .film-quote p { font-size: clamp(1.2rem, 2.3vw, 1.68rem); line-height: 2.05; }
+.film-frame--stage .film-quote cite { font-size: 0.76rem; }
+.film-frame--stage .film-echo p { font-size: clamp(1.15rem, 2.1vw, 1.55rem); }
+.film-frame--stage .film-echo__mark { font-size: clamp(2.2rem, 5vw, 3.6rem); }
+
+/* کارت‌های «دام‌های رایج»: خوانا و هم‌اندازه */
+.film-stage[data-kind='danger'] .film-card { padding: 1.1rem 1.2rem; }
+.film-stage[data-kind='danger'] .film-card p { font-size: 0.88rem; line-height: 2.05; }
+@media (max-width: 640px) {
+  .film-frame--stage .film-take p,
+  .film-frame--stage .film-quote p { font-size: 1rem; line-height: 2.05; }
+  .film-frame--stage .film-echo__mark { font-size: 2rem; }
+  .film-frame--stage::before { width: 94vw; height: 34vh; }
+  .film-stage[data-kind='danger'] .film-card p { font-size: 0.8rem; }
 }

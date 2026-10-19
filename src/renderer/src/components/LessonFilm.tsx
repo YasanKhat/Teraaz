@@ -447,7 +447,7 @@ function renderStage(
 
     case 'quote':
       return (
-        <div className="film-frame film-center">
+        <div className="film-frame film-center film-frame--stage">
           <blockquote className="film-quote">
             <QuoteIcon size={22} className="mx-auto mb-3 text-gold/70" />
             <p>{frame.text}</p>
@@ -503,7 +503,7 @@ function renderStage(
 
     case 'takeaway':
       return (
-        <div className="film-frame film-center">
+        <div className="film-frame film-center film-frame--stage">
           <div className="film-take">
             <div className="film-take__label">
               <Sparkles size={13} /> جمع‌بندی · {frame.scene}
@@ -527,7 +527,7 @@ function renderStage(
     case 'keypoints':
       return (
         <div className="film-frame film-frame--scroll">
-          <div className="film-body">
+          <div className="film-body film-body--wide">
             <div className="film-kicker">
               <Layers size={12} /> آنچه باید در ذهن بماند {frame.parts > 1 ? `(${fas(frame.part)} از ${fas(frame.parts)})` : ''}
             </div>
@@ -587,11 +587,10 @@ function renderStage(
 
     case 'echo':
       return (
-        <div className="film-frame film-center">
+        <div className="film-frame film-center film-frame--stage">
           <div className="film-echo">
-            <span className="film-echo__mark">«</span>
+            <span className="film-echo__mark" aria-hidden="true">❝</span>
             <p>{frame.text}</p>
-            <span className="film-echo__mark">»</span>
           </div>
         </div>
       )
