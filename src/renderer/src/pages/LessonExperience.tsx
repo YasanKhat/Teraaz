@@ -28,6 +28,7 @@ import type { Panel } from '../data/plans/types'
 import { art } from '../art'
 import { navigate } from '../lib/router'
 import { cn, fas, readingTime } from '../lib/utils'
+import { LessonHero } from '../components/LessonHero'
 import { useProgress } from '../store/useProgress'
 import { HistoricMap } from '../components/HistoricMap'
 import { TimelineStrip } from '../components/scene/TimelineStrip'
@@ -161,65 +162,23 @@ export function LessonExperience({ id, autoFilm = false }: { id?: string; autoFi
   return (
     <div className="space-y-6">
       <FilmMode lesson={lesson} plan={plan} open={film} onClose={() => setFilm(false)} />
-      {/* ── صفحهٔ آغاز درس ─────────────────────────────────────── */}
-      <header className="grid items-end gap-6 pb-2 md:grid-cols-[1fr_260px]">
-        <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2 text-[0.6rem] text-faint">
-            <button className="hover:text-gold" onClick={() => navigate('chapters')}>فهرست کتاب</button>
-            <ChevronLeft size={10} className="rotate-180" />
-            <button className="hover:text-gold" onClick={() => navigate(`chapter/${chapter.id}`)}>پردهٔ {fas(chapter.id)}: {chapter.title}</button>
-            <ChevronLeft size={10} className="rotate-180" />
-            <span className="text-gold">درس {fas(lesson.id)}</span>
-          </div>
-
-          <div className="flex items-start gap-3">
-            <span className="bignum hidden shrink-0 leading-none sm:block">{fas(lesson.id)}</span>
-            <div className="min-w-0 pt-1">
-              <div className="flex flex-wrap items-center gap-2 text-[0.56rem] text-faint">
-                <span className="text-gold">درس {fas(idxInChapter + 1)} از {fas(chapterPlan.lessons.length)}</span>
-                <span>·</span>
-                <span>{lesson.span}</span>
-                <span>·</span>
-                <span className="flex items-center gap-0.5"><Clock3 size={10} /> {readingTime(lesson.minutes)}</span>
-                {lesson.baram.final && <span className="text-turq">· بارم نهایی {lesson.baram.final}</span>}
-                {completed && <span className="text-turq">· خوانده‌شده</span>}
-              </div>
-              <h1 className="mt-1 text-[1.7rem] font-black leading-[1.7] md:text-[2.15rem]">{lesson.title}</h1>
-            </div>
-          </div>
-
-          <p className="mt-2 max-w-2xl border-s-2 border-gold/40 ps-3 text-[0.88rem] leading-8 text-muted">{plan.question}</p>
-
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button className="btn btn-gold flex-1 sm:flex-none" onClick={() => { setMode('journey'); refs.current[0]?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}>
-              <Sparkles size={14} /> {readPct > 40 ? 'ادامهٔ صحنه‌ها' : 'آغاز درس'} · {fas(scenes.length)} صحنه
-            </button>
-            <button className="btn btn-sm" onClick={() => setFilm(true)}><Play size={13} /> تماشای درس</button>
-            <button className="btn btn-sm" onClick={() => setMode('exam')}><Target size={13} /> آزمون درس</button>
-            <button className="btn btn-ghost btn-sm" onClick={speak} aria-label="شنیدن خلاصه">
-              {speaking ? <VolumeX size={15} /> : <Volume2 size={15} />}
-            </button>
-            <button className={cn('btn btn-ghost btn-sm', isBookmarked ? 'text-gold' : '')} onClick={() => toggleBookmark(`lesson-${lesson.id}`)} aria-label="نشان‌کردن">
-              {isBookmarked ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}
-            </button>
-          </div>
-          <div className="no-print mt-2.5 flex items-center gap-2 text-[0.6rem] text-faint">
-            <span>پیشرفت مطالعه</span>
-            <span className="relative h-px flex-1 bg-line"><span className="absolute inset-y-0 start-0 bg-gold" style={{ width: `${readPct}%` }} /></span>
-            <span className="tabular-nums text-gold">{fas(readPct)}٪</span>
-          </div>
-        </div>
-
-        <div className="arch order-first aspect-[16/9] w-full max-h-[190px] md:order-last md:aspect-[3/4] md:max-h-[260px] md:w-auto">
-          <img src={art[plan.art]} alt="" />
-          <div className="arch__veil" />
-          <div className="arch__frame" />
-          <div className="absolute inset-x-0 bottom-0 p-3">
-            <div className="text-[0.52rem] tracking-[0.18em] text-gold">پردهٔ {fas(chapter.id)}</div>
-            <div className="display mt-0.5 text-[1rem] leading-7 text-white">{chapter.title}</div>
-          </div>
-        </div>
-      </header>
+      <LessonHero
+        lesson={lesson}
+        plan={plan}
+        chapter={chapter}
+        chapterPlan={chapterPlan}
+        idxInChapter={idxInChapter}
+        sceneCount={scenes.length}
+        readPct={readPct}
+        completed={completed}
+        isBookmarked={isBookmarked}
+        speaking={speaking}
+        onStart={() => { setMode('journey'); refs.current[0]?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
+        onFilm={() => setFilm(true)}
+        onExam={() => setMode('exam')}
+        onSpeak={speak}
+        onBookmark={() => toggleBookmark(`lesson-${lesson.id}`)}
+      />
 
       {/* ── ناوبری صحنه ───────────────────────────────────────── */}
       <div className="sticky top-[57px] z-20 -mx-4 border-b border-line bg-bg/80 px-4 py-2 backdrop-blur-xl md:-mx-0 md:rounded-xl md:border md:px-3">
