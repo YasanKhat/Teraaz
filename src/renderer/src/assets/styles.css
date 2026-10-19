@@ -2333,3 +2333,20 @@ a:focus-visible {
     margin-bottom: 8px;
   }
 }
+
+.route-dash {
+  animation: dashMove 1.6s linear infinite;
+}
+
+@keyframes dashMove {
+  to {
+    stroke-dashoffset: -56;
+  }
+}
+
+/* برند با خط نستعلیق، بدون ارتفاع اضافی */
+.display-tight {
+  font-family: 'Noto Nastaliq Urdu', 'Estedad', serif;
+  line-height: 1.55;
+  padding-block: 0.12em;
+}
