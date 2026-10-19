@@ -176,7 +176,7 @@ export function Flashcards({ lessons, title }: { lessons: Lesson[]; title: strin
                     className="pointer-events-none absolute -top-16 left-1/2 size-48 -translate-x-1/2 rounded-full opacity-20 blur-3xl"
                     style={{ background: card.accent }}
                   />
-                  <span className="tag">درس {fas(card.lessonId)} · واژه‌نامه</span>
+                  <span className="tag">درس {fas(card.lessonId)} · کارت مرور</span>
                   <h3 className="text-2xl font-extrabold leading-relaxed md:text-3xl">{card.term}</h3>
                   <p className="text-[0.72rem] text-faint">برای دیدن تعریف، کارت را بزن یا Space را فشار بده</p>
                   <div className="absolute inset-x-6 bottom-5 flex items-center justify-between text-[0.65rem] text-faint">

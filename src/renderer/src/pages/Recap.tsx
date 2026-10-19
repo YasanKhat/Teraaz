@@ -134,7 +134,7 @@ export function Recap({ id }: { id?: string }) {
               <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-turq/30 bg-turq/10 text-turq"><Layers size={15} /></span>
               <span className="min-w-0">
                 <span className="block text-[0.82rem] font-bold">کارت‌های پرده</span>
-                <span className="block text-[0.66rem] text-muted">همهٔ واژه‌های کلیدی، در یک دست</span>
+                <span className="block text-[0.66rem] text-muted">همهٔ نکته‌های کلیدی، در یک دست</span>
               </span>
             </button>
           </section>

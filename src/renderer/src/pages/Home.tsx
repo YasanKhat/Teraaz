@@ -219,7 +219,7 @@ export function Home() {
           <h2 className="text-[1rem] font-black">تاریخ را ببین، نه فقط بخوان</h2>
           <div className="mt-3 space-y-0">
             {[
-              { t: 'نقشه‌های گام‌به‌گام', s: 'فتح‌ها و لشکرکشی‌ها، مرحله‌به‌مرحله', r: 'archive/map', n: '۲۱' },
+              { t: 'درس‌ها', s: 'شانزده فیلم درس، قاب‌به‌قاب', r: 'chapters', n: '۱۶' },
               { t: 'خط زمان', s: 'هشتاد و چهار رویداد، در یک خط', r: 'archive/timeline', n: '۸۴' },
               { t: 'چهره‌ها', s: 'پنجاه‌وسه شخصیت پشت رویدادها', r: 'archive/figures', n: '۵۳' }
             ].map((x) => (

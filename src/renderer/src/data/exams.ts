@@ -112,7 +112,7 @@ export const badges: BadgeDef[] = [
   { id: 'b9', title: 'کارت‌شناس', desc: 'همهٔ کارت‌های یک درس را بلد شو', icon: '🃏', rule: 'all-cards' },
   { id: 'b10', title: 'امتحان‌باز', desc: 'در یک آزمون جامع بالای ۸۰٪ بگیر', icon: '🎯', rule: 'exam-80' },
   { id: 'b11', title: 'خط‌زمان‌خوان', desc: 'خط زمان را باز کن و کشف کن', icon: '🕰️', rule: 'timeline' },
-  { id: 'b12', title: 'نقشه‌گرد', desc: 'نقشهٔ تاریخی را بگرد', icon: '🗺️', rule: 'map' },
+  { id: 'b12', title: 'قاب‌گرد', desc: 'یک درس را تا آخرین قاب ببین', icon: '🎞️', rule: 'map' },
   { id: 'b13', title: 'چهره‌شناس', desc: 'چهره‌های تاریخی را ببین', icon: '👤', rule: 'figures' },
   { id: 'b14', title: 'فاتح نهایی', desc: 'آزمون نهایی را بالای ۸۰٪ بده', icon: '👑', rule: 'final-exam' }
 ]
