@@ -32,7 +32,8 @@ import { LessonHero } from '../components/LessonHero'
 import { BookText } from '../components/BookText'
 import { BookExam } from '../components/BookExam'
 import { BookSummaryView } from '../components/BookSummary'
-import { ClipboardList } from 'lucide-react'
+import { BookLines } from '../components/BookLines'
+import { ClipboardList, ListChecks } from 'lucide-react'
 import { useProgress } from '../store/useProgress'
 import { HistoricMap } from '../components/HistoricMap'
 import { TimelineStrip } from '../components/scene/TimelineStrip'
@@ -43,7 +44,7 @@ import { Bar, ProgressRing } from '../components/ui'
 import { QuizRunner } from '../components/QuizRunner'
 import { Flashcards } from '../components/Flashcards'
 
-type Mode = 'journey' | 'read' | 'bank' | 'exam' | 'cards'
+type Mode = 'journey' | 'read' | 'bank' | 'lines' | 'exam' | 'cards'
 
 export function LessonExperience({ id, autoFilm = false, openRead = false, initialQuery = '' }: { id?: string; autoFilm?: boolean; openRead?: boolean; initialQuery?: string }) {
   const lesson = lessonById(Number(id))
@@ -235,6 +236,12 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
               <ClipboardList size={11} /> پرسش‌ها
             </button>
             <button
+              onClick={() => setMode('lines')}
+              className={cn('flex items-center gap-1 rounded-md px-2 py-1 text-[0.66rem] transition', mode === 'lines' ? 'bg-gold/15 text-gold' : 'text-muted hover:text-ink')}
+            >
+              <ListChecks size={11} /> خط‌به‌خط
+            </button>
+            <button
               onClick={() => setMode('cards')}
               className={cn('flex items-center gap-1 rounded-md px-2 py-1 text-[0.66rem] transition', mode === 'cards' ? 'bg-gold/15 text-gold' : 'text-muted hover:text-ink')}
             >
@@ -293,7 +300,15 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
           )}
           {mode !== 'journey' && (
             <span className="ms-auto shrink-0 text-[0.56rem] text-faint">
-              {mode === 'read' ? 'همان متن کتاب، کامل' : mode === 'bank' ? 'پرسش‌های خود کتاب' : mode === 'cards' ? 'برای مرور سریع' : 'خودآزمایی درس'}
+              {mode === 'read'
+                ? 'همان متن کتاب، کامل'
+                : mode === 'bank'
+                  ? 'پرسش‌های خود کتاب'
+                  : mode === 'lines'
+                    ? 'جمله‌های کتاب؛ درست یا نادرست؟'
+                    : mode === 'cards'
+                      ? 'برای مرور سریع'
+                      : 'خودآزمایی درس'}
             </span>
           )}
         </div>
@@ -377,6 +392,12 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
       {mode === 'bank' && (
         <section>
           <BookExam lessonId={lesson.id} />
+        </section>
+      )}
+
+      {mode === 'lines' && (
+        <section>
+          <BookLines lessonId={lesson.id} accent={lesson.accent} />
         </section>
       )}
 

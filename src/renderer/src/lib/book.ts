@@ -14,6 +14,14 @@ export interface BookSummary {
   items: string[]
 }
 
+export interface BookLine {
+  lesson: number
+  n: number
+  text: string
+  ok: boolean
+  why: string
+}
+
 export interface PaperAnswer {
   n: string
   text: string
@@ -69,6 +77,26 @@ export function loadSummary(): Promise<BookSummary[]> {
 
 export function bookSummary(id: number): BookSummary | undefined {
   return summaryById[id]
+}
+
+let linesPromise: Promise<BookLine[]> | null = null
+const linesIndex: Record<number, BookLine[]> = {}
+
+export function loadLines(): Promise<BookLine[]> {
+  if (!linesPromise) {
+    linesPromise = import('../data/book/lines.json').then((mod) => {
+      const list = (mod.default ?? mod) as unknown as BookLine[]
+      list.forEach((l) => {
+        ;(linesIndex[l.lesson] ||= []).push(l)
+      })
+      return list
+    })
+  }
+  return linesPromise
+}
+
+export function linesByLesson(id: number): BookLine[] | undefined {
+  return linesIndex[id]
 }
 
 let papersPromise: Promise<Paper[]> | null = null
