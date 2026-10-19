@@ -31,6 +31,7 @@ import { cn, fas, readingTime } from '../lib/utils'
 import { LessonHero } from '../components/LessonHero'
 import { BookText } from '../components/BookText'
 import { BookExam } from '../components/BookExam'
+import { BookSummaryView } from '../components/BookSummary'
 import { ClipboardList } from 'lucide-react'
 import { useProgress } from '../store/useProgress'
 import { HistoricMap } from '../components/HistoricMap'
@@ -52,7 +53,7 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
 
   const [active, setActive] = useState(0)
   const [mode, setMode] = useState<Mode>('journey')
-  const [readSource, setReadSource] = useState<'book' | 'digest'>('book')
+  const [readSource, setReadSource] = useState<'book' | 'summary' | 'digest'>('book')
   const [speaking, setSpeaking] = useState(false)
   const [showAll, setShowAll] = useState(false)
   const [film, setFilm] = useState(false)
@@ -259,6 +260,12 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
                 کتاب کامل
               </button>
               <button
+                onClick={() => setReadSource('summary')}
+                className={cn('rounded-md px-2 py-1 text-[0.64rem] transition', readSource === 'summary' ? 'bg-ink/10 text-ink' : 'text-faint hover:text-ink')}
+              >
+                خلاصهٔ کتاب
+              </button>
+              <button
                 onClick={() => setReadSource('digest')}
                 className={cn('rounded-md px-2 py-1 text-[0.64rem] transition', readSource === 'digest' ? 'bg-ink/10 text-ink' : 'text-faint hover:text-ink')}
               >
@@ -277,6 +284,7 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
       {mode === 'read' && (
         <section className="mx-auto max-w-3xl">
           {readSource === 'book' && <BookText lessonId={lesson.id} title={lesson.title} accent={lesson.accent} query={initialQuery} />}
+          {readSource === 'summary' && <BookSummaryView lessonId={lesson.id} />}
 
           {readSource === 'digest' && (
           <div className="space-y-8">
@@ -333,7 +341,7 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
           )}
 
           <div className="no-print mt-8 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-[0.6rem] text-faint">
-            <span>{readSource === 'book' ? 'همان متن کتاب درسی؛ کامل و بی‌کم‌وکاست' : 'چکیده، واژه‌نامه و نکته‌های امتحانی'}</span>
+            <span>{readSource === 'book' ? 'همان متن کتاب درسی؛ کامل و بی‌کم‌وکاست' : readSource === 'summary' ? 'خلاصهٔ رسمی پایان کتاب' : 'چکیده، واژه‌نامه و نکته‌های امتحانی'}</span>
             <button className="btn btn-sm" onClick={() => window.print()}><Printer size={12} /> چاپ این درس</button>
           </div>
         </section>

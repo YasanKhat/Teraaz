@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, ArrowLeft, Clock3, Layers, Sparkles, Target, Trophy } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Clock3, FileText, Layers, Sparkles, Target, Trophy } from 'lucide-react'
 import { exams } from '../data/exams'
+import { papersMeta } from '../data/papersMeta'
 import { allQuestions, lessons } from '../data/lessons'
 import { questionById } from '../data/lessons'
 import { navigate } from '../lib/router'
@@ -155,6 +156,42 @@ export function Quiz({ examId }: { examId?: string }) {
             </button>
           )
         })}
+      </div>
+
+      <div className="mt-8">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2 border-b border-line pb-2">
+          <div>
+            <div className="kicker mb-1 flex items-center gap-1.5"><FileText size={12} /> از خود کتاب</div>
+            <h2 className="text-lg font-black">آزمون‌های رسمی کتاب</h2>
+          </div>
+          <p className="text-[0.66rem] text-faint">
+            {papersMeta.length} برگهٔ واقعی با پاسخنامهٔ تشریحی؛ همان‌هایی که در پایان کتاب آمده است.
+          </p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {papersMeta.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => navigate(`paper/${p.id}`)}
+              className="group flex flex-col rounded-xl border border-line bg-surface/50 p-3.5 text-right transition hover:border-turq/40 hover:bg-surface/80"
+            >
+              <div className="flex items-center justify-between">
+                <span className="tag">{p.term}</span>
+                <span className="grid size-7 place-items-center rounded-lg bg-turq/10 text-[0.66rem] font-black text-turq">
+                  {fas(p.num)}
+                </span>
+              </div>
+              <span className="mt-2 block text-[0.8rem] font-bold leading-6">{p.title}</span>
+              <span className="mt-auto flex items-center gap-2.5 pt-2 text-[0.6rem] text-faint">
+                <span className="flex items-center gap-1"><Clock3 size={11} /> {fas(p.minutes || 90)} دقیقه</span>
+                <span>{fas(p.count)} سؤال</span>
+                <span className="ms-auto flex items-center gap-1 text-turq opacity-0 transition group-hover:opacity-100">
+                  دیدن برگه <ArrowLeft size={11} />
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-[1.3fr_1fr]">

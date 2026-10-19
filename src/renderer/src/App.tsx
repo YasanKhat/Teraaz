@@ -9,6 +9,7 @@ import { LessonExperience } from './pages/LessonExperience'
 import { Recap } from './pages/Recap'
 import { Archive } from './pages/Archive'
 import { Quiz } from './pages/Quiz'
+import { PaperPage } from './pages/Paper'
 import { Progress } from './pages/Progress'
 import { Settings } from './pages/Settings'
 
@@ -43,6 +44,8 @@ export default function App() {
       case 'progress':
       case 'me':
         return <Progress />
+      case 'paper':
+        return <PaperPage id={route.id} />
       case 'settings':
         return <Settings />
       default:

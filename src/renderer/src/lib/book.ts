@@ -9,6 +9,26 @@ export interface BookLesson {
   id: number
   blocks: BookBlock[]
 }
+export interface BookSummary {
+  lesson: number
+  items: string[]
+}
+
+export interface PaperAnswer {
+  n: string
+  text: string
+}
+
+export interface Paper {
+  id: string
+  num: number
+  term: string
+  title: string
+  minutes: number
+  questions: string[]
+  answers: PaperAnswer[]
+}
+
 export interface BookBank {
   tf: { lesson: number; text: string; answer: boolean }[]
   qa: { lesson: number; q: string; a: string }[]
@@ -31,6 +51,42 @@ export function loadBook(): Promise<BookLesson[]> {
 
 export function bookLesson(id: number): BookLesson | undefined {
   return byId[id]
+}
+
+let summaryPromise: Promise<BookSummary[]> | null = null
+const summaryById: Record<number, BookSummary> = {}
+
+export function loadSummary(): Promise<BookSummary[]> {
+  if (!summaryPromise) {
+    summaryPromise = import('../data/book/summary.json').then((mod) => {
+      const list = (mod.default ?? mod) as unknown as BookSummary[]
+      list.forEach((l) => (summaryById[l.lesson] = l))
+      return list
+    })
+  }
+  return summaryPromise
+}
+
+export function bookSummary(id: number): BookSummary | undefined {
+  return summaryById[id]
+}
+
+let papersPromise: Promise<Paper[]> | null = null
+const paperIndex: Record<string, Paper> = {}
+
+export function loadPapers(): Promise<Paper[]> {
+  if (!papersPromise) {
+    papersPromise = import('../data/book/papers.json').then((mod) => {
+      const list = (mod.default ?? mod) as unknown as Paper[]
+      list.forEach((p) => (paperIndex[p.id] = p))
+      return list
+    })
+  }
+  return papersPromise
+}
+
+export function paperById(id: string | undefined): Paper | undefined {
+  return id ? paperIndex[id] : undefined
 }
 
 export function loadExamBank(): Promise<BookBank> {
