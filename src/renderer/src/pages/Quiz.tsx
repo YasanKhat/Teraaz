@@ -12,7 +12,9 @@ import { QuizRunner } from '../components/QuizRunner'
 
 export function Quiz({ examId }: { examId?: string }) {
   const [active, setActive] = useState<string | null>(examId ?? null)
-  const [lesson, setLesson] = useState<number | 'all'>('all')
+  const [lesson, setLesson] = useState<number | 'all'>(() =>
+    examId?.startsWith('lesson-') ? Number(examId.slice(7)) || 'all' : 'all'
+  )
   const [mixed, setMixed] = useState<typeof allQuestions | null>(null)
   const records = useProgress((s) => s.exams)
   const quizzes = useProgress((s) => s.quizzes)

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { BookOpen, ChevronDown, Loader2, Printer } from 'lucide-react'
 import { cn, fas, normalizeFa } from '../lib/utils'
 import { bookLesson, loadBook } from '../lib/book'
@@ -90,10 +90,63 @@ function highlight(text: string, needle: string) {
   )
 }
 
-export function BookText({ lessonId, title, accent, query = '' }: { lessonId: number; title: string; accent?: string; query?: string }) {
+export function BookText({
+  lessonId,
+  title,
+  accent,
+  query = '',
+  resume,
+  onRead
+}: {
+  lessonId: number
+  title: string
+  accent?: string
+  query?: string
+  resume?: number
+  onRead?: (fraction: number) => void
+}) {
   const { data, failed } = useBookLesson(lessonId)
   const [openToc, setOpenToc] = useState(false)
   const [collapsed, setCollapsed] = useState<Record<number, boolean>>({})
+  const bodyRef = useRef<HTMLElement | null>(null)
+
+  // ادامهٔ خواندن از همان‌جایی که رها کرده بودی
+  useEffect(() => {
+    if (!data || query || !resume || resume <= 0.02) return
+    const t = window.setTimeout(() => {
+      const el = bodyRef.current
+      if (!el) return
+      const top = el.getBoundingClientRect().top + window.scrollY
+      const room = el.offsetHeight - window.innerHeight
+      if (room <= 0) return
+      window.scrollTo({ top: top + room * resume, behavior: 'instant' as ScrollBehavior })
+    }, 340)
+    return () => window.clearTimeout(t)
+  }, [data, resume, query, lessonId])
+
+  // ثبت پیشرفت خواندن از روی جای اسکرول
+  useEffect(() => {
+    if (!onRead || !data) return
+    let raf = 0
+    const calc = () => {
+      const el = bodyRef.current
+      if (!el) return
+      const top = el.getBoundingClientRect().top + window.scrollY
+      const room = el.offsetHeight - window.innerHeight
+      if (room <= 0) return
+      const f = (window.scrollY - top) / room
+      onRead(Math.min(1, Math.max(0, f)))
+    }
+    const onScroll = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(calc)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      cancelAnimationFrame(raf)
+    }
+  }, [onRead, data])
 
   const headings = useMemo(() => {
     if (!data) return []
@@ -157,7 +210,7 @@ export function BookText({ lessonId, title, accent, query = '' }: { lessonId: nu
         </ol>
       )}
 
-      <article className="space-y-3.5" aria-label={`متن کامل ${title}`}>
+      <article ref={bodyRef} className="space-y-3.5" aria-label={`متن کامل ${title}`}>
         {data.blocks.map((b, i) => {
           const key = i
           switch (b.t) {

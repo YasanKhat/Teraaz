@@ -42,6 +42,7 @@ interface State {
   cards: Record<string, CardState>
   bookmarks: string[]
   notes: Record<number, string>
+  readPos: Record<number, number>
   days: string[]
   dailyXp: Record<string, number>
   quests: Record<string, string[]>
@@ -57,6 +58,7 @@ interface State {
   reviewCard: (id: string, grade: 0 | 1 | 2 | 3) => void
   toggleBookmark: (id: string) => void
   saveNote: (lesson: number, text: string) => void
+  saveReadPos: (lesson: number, fraction: number) => void
   setSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void
   visit: (key: 'timeline' | 'map' | 'figures') => void
   setLastLesson: (id: number) => void
@@ -73,6 +75,7 @@ const initial = {
   cards: {},
   bookmarks: [],
   notes: {},
+  readPos: {},
   days: [],
   dailyXp: {},
   quests: {},
@@ -192,6 +195,14 @@ export const useProgress = create<State>()(
           bookmarks: s.bookmarks.includes(id) ? s.bookmarks.filter((b) => b !== id) : [...s.bookmarks, id]
         })),
       saveNote: (lesson, text) => set((s) => ({ notes: { ...s.notes, [lesson]: text } })),
+      saveReadPos: (lesson, fraction) =>
+        set((s) => {
+          const prev = s.readPos[lesson] ?? 0
+          const next = Math.min(1, Math.max(0, fraction))
+          // از لرزش اعداد جلوگیری کن و فقط تغییرهای محسوس را ذخیره کن
+          if (Math.abs(next - prev) < 0.01) return {}
+          return { readPos: { ...s.readPos, [lesson]: Number(next.toFixed(3)) } }
+        }),
       setSetting: (key, value) => set((s) => ({ settings: { ...s.settings, [key]: value } })),
       visit: (key) => set((s) => (s.visited[key] ? {} : { visited: { ...s.visited, [key]: true } })),
       setLastLesson: (id) => set({ lastLesson: id }),
@@ -229,6 +240,7 @@ export const useProgress = create<State>()(
         cards: s.cards,
         bookmarks: s.bookmarks,
         notes: s.notes,
+        readPos: s.readPos,
         days: s.days,
         dailyXp: s.dailyXp,
         quests: s.quests,

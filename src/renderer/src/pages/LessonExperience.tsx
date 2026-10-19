@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -61,8 +61,25 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
 
   const completed = useProgress((s) => (lesson ? s.completed.includes(lesson.id) : false))
   const readPct = useProgress((s) => (lesson ? s.lessonProgress[lesson.id] ?? 0 : 0))
+  const readPos = useProgress((s) => (lesson ? s.readPos[lesson.id] ?? 0 : 0))
+  const saveReadPos = useProgress((s) => s.saveReadPos)
+  const doneRef = useRef<number>(-1)
   const bookmarks = useProgress((s) => s.bookmarks)
   const setProgress = useProgress((s) => s.setLessonProgress)
+
+  const onBookRead = useCallback(
+    (fraction: number) => {
+      if (!lesson) return
+      saveReadPos(lesson.id, fraction)
+      const rounded = Math.round((8 + fraction * 84) / 2) * 2
+      if (rounded === doneRef.current) return
+      doneRef.current = rounded
+      const state = useProgress.getState()
+      if (state.completed.includes(lesson.id)) return
+      setProgress(lesson.id, Math.max(state.lessonProgress[lesson.id] ?? 0, rounded))
+    },
+    [lesson, saveReadPos, setProgress]
+  )
   const completeLesson = useProgress((s) => s.completeLesson)
   const toggleBookmark = useProgress((s) => s.toggleBookmark)
   const setLastLesson = useProgress((s) => s.setLastLesson)
@@ -74,6 +91,7 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
   useEffect(() => {
     if (!lesson) return
     setLastLesson(lesson.id)
+    doneRef.current = -1
     setMode(openRead ? 'read' : 'journey')
     setActive(0)
     markQuest('q-read', 20)
@@ -283,7 +301,16 @@ export function LessonExperience({ id, autoFilm = false, openRead = false, initi
 
       {mode === 'read' && (
         <section className="mx-auto max-w-3xl">
-          {readSource === 'book' && <BookText lessonId={lesson.id} title={lesson.title} accent={lesson.accent} query={initialQuery} />}
+          {readSource === 'book' && (
+            <BookText
+              lessonId={lesson.id}
+              title={lesson.title}
+              accent={lesson.accent}
+              query={initialQuery}
+              resume={readPos}
+              onRead={onBookRead}
+            />
+          )}
           {readSource === 'summary' && <BookSummaryView lessonId={lesson.id} />}
 
           {readSource === 'digest' && (
