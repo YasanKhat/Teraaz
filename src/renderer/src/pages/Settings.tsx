@@ -146,8 +146,16 @@ export function Settings() {
               type="date"
               value={settings.examDate}
               onChange={(e) => setSetting('examDate', e.target.value)}
-              className="w-full rounded-xl border border-line bg-surface2/40 px-3 py-2.5 text-[0.82rem] outline-none focus:border-gold/40 [color-scheme:dark]"
+              dir="ltr"
+              className="w-full rounded-xl border border-line bg-surface2/40 px-3 py-2.5 text-left text-[0.82rem] tabular-nums outline-none focus:border-gold/40 [color-scheme:dark] [direction:ltr]"
             />
+            <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[0.6rem] text-faint">
+              <span>تاریخ میلادی · نمایش در برنامه به شمسی است</span>
+              <div className="flex items-center gap-1.5">
+                <button className="rounded-md border border-line px-2 py-0.5 hover:border-gold/40 hover:text-gold" onClick={() => setSetting('examDate', new Date().toISOString().slice(0, 10))}>امروز</button>
+                <button className="rounded-md border border-line px-2 py-0.5 hover:border-gold/40 hover:text-gold" onClick={() => setSetting('examDate', new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10))}>یک هفته بعد</button>
+              </div>
+            </div>
           </label>
           <div className="mt-3 rounded-xl border border-gold/25 bg-gold/8 p-3 text-[0.72rem] leading-6 text-muted">
             <span className="font-bold text-gold">{fas(daysUntil(settings.examDate))} روز</span> تا {settings.examTitle}
