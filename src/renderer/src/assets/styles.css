@@ -3054,6 +3054,8 @@ a:focus-visible {
 @media (max-width: 640px) {
   /* واژه‌نما در موبایل از روی متن برداشته می‌شود و به‌صورت نوار پایینِ قاب می‌آید */
   .film-stage:has(.film-gloss) > .film-frame { padding-bottom: 0.9rem; }
+  /* جدول‌ها در موبایل فشرده نمی‌شوند؛ داخل کادر خودشان افقی می‌لغزند */
+  .film-table { min-width: 24rem; }
   .film-card { padding: 0.55rem 0.7rem; }
   .film-card__title { font-size: 0.82rem; margin-bottom: 0.15rem; }
   .film-card p { font-size: 0.78rem; line-height: 1.8; }
@@ -3077,7 +3079,7 @@ a:focus-visible {
 .film, .film__stage, .film-stage, .film-frame, .film-gloss { max-width: 100%; min-width: 0; }
 .film-gloss { overflow: hidden; }
 .film-gloss__item { min-width: 0; overflow-wrap: anywhere; }
-.film-frame { overflow-wrap: anywhere; }
+.film-frame { overflow-wrap: break-word; }
 .film-stage > .film-frame { flex: 1; }
 .film-frame > .film-body { margin-block: auto; }
 .film-frame.film-center > * { margin-block: auto; }
