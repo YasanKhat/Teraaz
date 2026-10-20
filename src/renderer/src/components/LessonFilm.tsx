@@ -11,6 +11,8 @@ import {
   Layers,
   Pause,
   ListChecks,
+  Maximize2,
+  Minimize2,
   Play,
   Quote as QuoteIcon,
   Search,
@@ -32,6 +34,7 @@ import { AtlasMap } from './AtlasMap'
 import { TimelineStrip } from './scene/TimelineStrip'
 import { PanelView } from './scene/Panels'
 import { LessonSignature } from './signature'
+import { MindMap, type MindBranch } from './scene/MindMap'
 
 /* ────────────────────────────────────────────────────────────────────────
    «فیلم درس» — تنها چیزی که دانش‌آموز پس از ورود به درس می‌بیند.
@@ -56,6 +59,7 @@ type Frame =
   | { kind: 'takeaway'; text: string; scene: string }
   | { kind: 'signature' }
   | { kind: 'keypoints'; items: string[]; part: number; parts: number }
+  | { kind: 'mind'; title: string; core: string; branches: MindBranch[] }
   | { kind: 'exam'; items: { q: string; a: string }[] }
   | { kind: 'danger'; items: { title: string; text: string }[] }
   | { kind: 'echo'; text: string }
@@ -281,6 +285,17 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
   }
 
   frames.push({ kind: 'signature' })
+
+  // جمع‌بندی تصویری: کل درس در یک قاب
+  frames.push({
+    kind: 'mind',
+    title: lesson.title,
+    core: plan.essence,
+    branches: scenes.map((sc) => ({
+      title: sc.title,
+      note: sc.takeaway ?? lesson.keyPoints[0] ?? ''
+    }))
+  })
 
   chunk(lesson.keyPoints, 5).forEach((items, i, all) => {
     frames.push({ kind: 'keypoints', items, part: i + 1, parts: all.length })
@@ -629,6 +644,21 @@ function renderStage(
         </div>
       )
 
+    case 'mind':
+      return (
+        <div className="film-frame film-frame--scroll">
+          <div className="film-body film-body--wide">
+            <div className="film-kicker">
+              <Layers size={12} /> نقشهٔ ذهنِ درس · یک نگاه، تمام مسیر
+            </div>
+            <MindMap core={frame.core} title={frame.title} branches={frame.branches} />
+            <p className="film-faint" style={{ textAlign: 'center', marginTop: '0.4rem' }}>
+              اگر می‌توانی این نقشه را با جمله‌های خودت بازگو کنی، درس را فهمیده‌ای.
+            </p>
+          </div>
+        </div>
+      )
+
     case 'exam':
       return (
         <div className="film-frame film-frame--scroll">
@@ -736,6 +766,10 @@ export function LessonFilm({
   const [playing, setPlaying] = useState(false)
   const [voice, setVoice] = useState(false)
   const [searchHit, setSearchHit] = useState<string | null>(null)
+  /** تمام‌صفحه: قاب درس کل پنجره را می‌گیرد تا چشم فقط روی درس باشد */
+  const [full, setFull] = useState(() => {
+    try { return localStorage.getItem('tabar:filmFull') === '1' } catch { return false }
+  })
   const frame = frames[Math.min(i, frames.length - 1)]
   const accent = lesson.accent
   const done = useProgress((s) => s.completed.includes(lesson.id))
@@ -751,6 +785,12 @@ export function LessonFilm({
     const guess = Math.round(fraction * frames.length) - 1
     savedAt.current = guess > 1 && guess < frames.length - 2 ? guess : 0
   }
+
+  useEffect(() => {
+    document.documentElement.dataset.filmFull = full ? 'on' : 'off'
+    try { localStorage.setItem('tabar:filmFull', full ? '1' : '0') } catch { /* بی‌اهمیت */ }
+    return () => { document.documentElement.dataset.filmFull = 'off' }
+  }, [full])
 
   useEffect(() => {
     setLastLesson(lesson.id)
@@ -805,11 +845,15 @@ export function LessonFilm({
       if (e.key === 'ArrowLeft') { e.preventDefault(); next() }
       if (e.key === 'ArrowRight') { e.preventDefault(); prev() }
       if (e.key === ' ') { e.preventDefault(); setPlaying((p) => !p) }
-      if (e.key === 'Escape') navigate(`chapter/${lesson.chapter}`)
+      if (e.key === 'Escape') {
+        if (full) { setFull(false); return }
+        navigate(`chapter/${lesson.chapter}`)
+      }
+      if (e.key.toLowerCase() === 'f') setFull((v) => !v)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [next, prev, lesson.chapter])
+  }, [next, prev, lesson.chapter, full])
 
   /* پخش خودکار: هر قاب به اندازهٔ متنش می‌ماند؛ با روایت صوتی، هم‌قدم با خواندن */
   const dwell = useMemo(() => {
@@ -903,6 +947,14 @@ export function LessonFilm({
               <span>×</span>
             </button>
           )}
+          <button
+            className={cn('film__back', full && 'is-on')}
+            onClick={() => setFull((v) => !v)}
+            aria-label={full ? 'خروج از تمام‌صفحه' : 'تمام‌صفحه'}
+            title={full ? 'خروج از تمام‌صفحه (Esc)' : 'تمام‌صفحهٔ درس (F)'}
+          >
+            {full ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+          </button>
           <div className="film__counter">
             {fas(i + 1)} <span>/</span> {fas(frames.length)}
           </div>

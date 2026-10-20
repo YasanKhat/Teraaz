@@ -20,19 +20,26 @@ const P = (regions: string[], pins: MapPhase['pins'] = [], extra: Patch = {}): P
 export const MAP_FIXES: Record<string, Patch[]> = {
   /* ── درس ۱: سندگردی در ایران ─────────────────────────────────────────── */
   '1:سندگردی در ایران': [
-    {
-      planPins: [],
-      planLines: [
-        { from: [22, 26], to: [74, 30], kind: 'street', label: 'جادهٔ خراسان' },
-        { from: [30, 70], to: [78, 44], kind: 'street', label: 'راه فارس' }
-      ],
-      regions: [],
-      pins: [],
-      arrows: [],
-      ghost: []
-    },
-    { planPins: [] },
-    { planPins: [] }
+    // گام ۱: مکان‌های رویداد — با مختصات واقعی روی نقشهٔ جغرافیایی
+    P(['jibal', 'fars', 'khurasan', 'azerbaijan', 'khuzestan'], [
+      { lon: 44.9, lat: 39.1, label: 'دشت چالدران', tone: 'gold' },
+      { lon: 39.61, lat: 24.47, label: 'کوه اُحُد', tone: 'gold' },
+      { lon: 39.86, lat: 21.46, label: 'غار حرا', tone: 'gold' },
+      { lon: 48.5, lat: 32.0, label: 'چغازنبیل', tone: 'gold' }
+    ]),
+    // گام ۲: بناها و آثار
+    P(['jibal', 'fars', 'khurasan', 'azerbaijan'], [
+      { lon: 51.677, lat: 32.657, label: 'میدان نقش جهان', tone: 'turq' },
+      { lon: 59.606, lat: 36.288, label: 'مسجد گوهرشاد', tone: 'turq' },
+      { lon: 52.891, lat: 29.935, label: 'تخت جمشید', tone: 'turq' },
+      { lon: 46.3, lat: 38.08, label: 'مسجد کبود', tone: 'turq' }
+    ]),
+    // گام ۳: اشیا و دست‌ساخته‌ها
+    P(['jibal', 'khurasan', 'fars', 'iraq'], [
+      { lon: 51.43, lat: 35.59, label: 'سکهٔ ساسانی — ری', tone: 'rose' },
+      { lon: 58.8, lat: 36.21, label: 'سفال نیشابور', tone: 'rose' },
+      { lon: 48.51, lat: 34.8, label: 'کتیبهٔ سنگی — همدان', tone: 'rose' }
+    ])
   ],
 
   /* ── درس ۳: عربستان پیش از اسلام ─────────────────────────────────────── */
@@ -423,20 +430,8 @@ export const MAP_FIXES: Record<string, Patch[]> = {
   ]
 }
 
-/** اشیای درس ۱: جای نمادینشان روی طرح ایران */
-const ARTIFACTS: Record<string, MapSpec['artifacts']> = {
-  '1:سندگردی در ایران': [
-    { x: 24, y: 46, label: 'دشت چالدران', kind: 'site' },
-    { x: 33, y: 55, label: 'کوه اُحُد', kind: 'site' },
-    { x: 41, y: 63, label: 'غار حرا', kind: 'site' },
-    { x: 55, y: 42, label: 'نقش جهان', kind: 'monument' },
-    { x: 68, y: 33, label: 'مسجد گوهرشاد', kind: 'monument' },
-    { x: 60, y: 58, label: 'تخت جمشید', kind: 'monument' },
-    { x: 47, y: 36, label: 'سکهٔ ساسانی', kind: 'object' },
-    { x: 63, y: 48, label: 'سفال نیشابور', kind: 'object' },
-    { x: 37, y: 40, label: 'کتیبهٔ سنگی', kind: 'object' }
-  ]
-}
+/** اشیای درس ۱: حالا با مختصات واقعی روی نقشهٔ جغرافیایی نشان داده می‌شوند */
+const ARTIFACTS: Record<string, MapSpec['artifacts']> = {}
 
 /** نقشه‌های درس را با لایهٔ اصلاح برمی‌گرداند */
 export function fixSpec(lesson: number, spec: MapSpec): MapSpec {

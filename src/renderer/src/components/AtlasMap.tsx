@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Pause, Play, RotateCcw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Compass, Minus, Pause, Play, Plus, RotateCcw, Move } from 'lucide-react'
 import { geoBounds, geoCentroid, geoGraticule, geoMercator, geoPath } from 'd3-geo'
 import { feature, mesh } from 'topojson-client'
 import world from 'world-atlas/countries-50m.json'
@@ -259,7 +259,8 @@ export const ATLAS_FRAME = { W, H, PAD, extentOf }
 function placeLabels<T extends { x: number; y: number; label: string }>(
   items: T[],
   unit = 1,
-  obstacles: { x: number; y: number; label: string }[] = []
+  obstacles: { x: number; y: number; label: string }[] = [],
+  avoid: { x: number; y: number }[] = []
 ) {
   const wOf = (t: string) => (t.length * 7.4 + 6) * unit
   const boxes: { x0: number; y0: number; x1: number; y1: number }[] = obstacles.map((o) => ({
@@ -268,36 +269,59 @@ function placeLabels<T extends { x: number; y: number; label: string }>(
     x1: o.x + wOf(o.label) / 2,
     y1: o.y + 4 * unit
   }))
-  const out: (T & { dx: number; dy: number; anchor: 'start' | 'end' })[] = []
-  const w = wOf
+  // خودِ نشانه‌ها هم نباید زیر متن‌ها پنهان شوند
+  for (const a of avoid) {
+    boxes.push({ x0: a.x - 9 * unit, y0: a.y - 9 * unit, x1: a.x + 9 * unit, y1: a.y + 9 * unit })
+  }
+  const out: (T & { dx: number; dy: number; anchor: 'start' | 'end' | 'middle' })[] = []
+  const widthOf = (t: string) => wOf(t)
+  const d = 15 * unit
+  // چند جهت و چند فاصله؛ اولویت با کنارِ نشانه، بعد بالا/پایین
+  const dirs: { dx: number; dy: number; anchor: 'start' | 'end' | 'middle' }[] = [
+    { dx: d, dy: 4.5 * unit, anchor: 'start' },
+    { dx: -d, dy: 4.5 * unit, anchor: 'end' },
+    { dx: d, dy: -10 * unit, anchor: 'start' },
+    { dx: -d, dy: -10 * unit, anchor: 'end' },
+    { dx: d, dy: 20 * unit, anchor: 'start' },
+    { dx: -d, dy: 20 * unit, anchor: 'end' },
+    { dx: 2.2 * d, dy: 4.5 * unit, anchor: 'start' },
+    { dx: -2.2 * d, dy: 4.5 * unit, anchor: 'end' },
+    { dx: 2.2 * d, dy: -16 * unit, anchor: 'start' },
+    { dx: -2.2 * d, dy: -16 * unit, anchor: 'end' },
+    { dx: 2.2 * d, dy: 26 * unit, anchor: 'start' },
+    { dx: -2.2 * d, dy: 26 * unit, anchor: 'end' },
+    { dx: 3.4 * d, dy: 4.5 * unit, anchor: 'start' },
+    { dx: -3.4 * d, dy: 4.5 * unit, anchor: 'end' },
+    { dx: 3.4 * d, dy: -22 * unit, anchor: 'start' },
+    { dx: -3.4 * d, dy: -22 * unit, anchor: 'end' },
+    { dx: 3.4 * d, dy: 32 * unit, anchor: 'start' },
+    { dx: -3.4 * d, dy: 32 * unit, anchor: 'end' },
+    { dx: 0.6 * d, dy: -30 * unit, anchor: 'middle' },
+    { dx: 0.6 * d, dy: 38 * unit, anchor: 'middle' }
+  ]
   for (const it of items) {
-    const width = w(it.label)
-    const d = 16 * unit
-    const tries = [
-      { dx: d, dy: 5 * unit, anchor: 'start' as const },
-      { dx: -d, dy: 5 * unit, anchor: 'end' as const },
-      { dx: d, dy: -13 * unit, anchor: 'start' as const },
-      { dx: -d, dy: -13 * unit, anchor: 'end' as const },
-      { dx: d, dy: 24 * unit, anchor: 'start' as const },
-      { dx: -d, dy: 24 * unit, anchor: 'end' as const },
-      { dx: d * 2.6, dy: 5 * unit, anchor: 'start' as const },
-      { dx: -d * 2.6, dy: 5 * unit, anchor: 'end' as const },
-      { dx: d * 2.6, dy: -20 * unit, anchor: 'start' as const },
-      { dx: -d * 2.6, dy: -20 * unit, anchor: 'end' as const }
-    ]
-    let pick = tries[0]
-    for (const t of tries) {
-      const x0 = t.anchor === 'start' ? it.x + t.dx : it.x + t.dx - width
-      const y0 = it.y + t.dy - 14
+    const width = widthOf(it.label)
+    let pick: { dx: number; dy: number; anchor: 'start' | 'end' | 'middle' } | null = null
+    let leastOverlap = Number.POSITIVE_INFINITY
+    for (const t of dirs) {
+      const x0 = t.anchor === 'start' ? it.x + t.dx : t.anchor === 'middle' ? it.x + t.dx - width / 2 : it.x + t.dx - width
+      const y0 = it.y + t.dy - 14 * unit
       const box = { x0, y0, x1: x0 + width, y1: y0 + 18 * unit }
-      const hit = boxes.some((b) => box.x0 < b.x1 && box.x1 > b.x0 && box.y0 < b.y1 && box.y1 > b.y0)
-      if (!hit) {
+      const overlap = boxes.reduce((sum, b) => {
+        const ox = Math.max(0, Math.min(box.x1, b.x1) - Math.max(box.x0, b.x0))
+        const oy = Math.max(0, Math.min(box.y1, b.y1) - Math.max(box.y0, b.y0))
+        return sum + ox * oy
+      }, 0)
+      if (overlap < leastOverlap) {
+        leastOverlap = overlap
         pick = t
-        boxes.push(box)
-        break
       }
+      if (overlap === 0) break
     }
-    out.push({ ...it, ...pick })
+    const chosen = pick ?? dirs[0]
+    const x0 = chosen.anchor === 'start' ? it.x + chosen.dx : chosen.anchor === 'middle' ? it.x + chosen.dx - width / 2 : it.x + chosen.dx - width
+    boxes.push({ x0, y0: it.y + chosen.dy - 14 * unit, x1: x0 + width, y1: it.y + chosen.dy + 4 * unit })
+    out.push({ ...it, ...chosen })
   }
   return out
 }
@@ -674,6 +698,73 @@ export function AtlasMap({
     [phase, projection, wrapW]
   )
 
+  /* ── کاربر هم می‌تواند نقشه را بکشد و زوم کند (روی دوربینِ گام) ──── */
+  const [user, setUser] = useState({ x: 0, y: 0, k: 1 })
+  const [dragging, setDragging] = useState(false)
+  const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null)
+
+  useEffect(() => {
+    setUser({ x: 0, y: 0, k: 1 })
+  }, [i, spec])
+
+  /** ترکیب دوربین گام با زوم/کشش کاربر */
+  const view = useMemo(
+    () => ({
+      k: camera.k * user.k,
+      x: camera.x * user.k + user.x,
+      y: camera.y * user.k + user.y
+    }),
+    [camera, user]
+  )
+
+  const clampUser = (u: { x: number; y: number; k: number }) => {
+    const k = Math.max(0.7, Math.min(6, u.k))
+    // اجازه نده نقشه کامل از قاب بیرون برود
+    const spanX = W * k
+    const spanY = H * k
+    const x = Math.min(0.55 * W, Math.max(W - spanX - 0.55 * W, u.x))
+    const y = Math.min(0.55 * H, Math.max(H - spanY - 0.55 * H, u.y))
+    return { x, y, k }
+  }
+
+  /** زوم روی نشانگر ماوس: نقطهٔ زیر ماوس ثابت می‌ماند */
+  const zoomAt = (sx: number, sy: number, factor: number) => {
+    setUser((u) => {
+      const k = Math.max(0.7, Math.min(6, u.k * factor))
+      const f = k / u.k
+      return clampUser({ k, x: sx - (sx - u.x) * f, y: sy - (sy - u.y) * f })
+    })
+  }
+
+  const zoomCenter = (factor: number) => zoomAt(W / 2, H / 2, factor)
+
+  const toSvg = (e: { clientX: number; clientY: number }) => {
+    const el = wrapRef.current?.querySelector('svg')
+    if (!el) return null
+    const r = el.getBoundingClientRect()
+    // با preserveAspectRatio="slice" قاب بزرگ‌تر از قاب دید است؛ مقیاس بر پایهٔ همان
+    const scale = Math.max(r.width / W, r.height / H)
+    const offX = (r.width - W * scale) / 2
+    const offY = (r.height - H * scale) / 2
+    return { x: (e.clientX - r.left - offX) / scale, y: (e.clientY - r.top - offY) / scale }
+  }
+
+  useEffect(() => {
+    const el = wrapRef.current?.querySelector('svg')
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (spec.mode === 'plan') return
+      e.preventDefault()
+      const p = toSvg(e)
+      if (!p) return
+      const factor = Math.exp(-e.deltaY * 0.0016)
+      zoomAt(p.x, p.y, factor)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wrapW, i, spec])
+
   /* متن‌ها با زوم کم‌تر بزرگ می‌شوند تا از حد خوانا نگذرند */
   const lk = Math.pow(camera.k, -0.78)
 
@@ -728,10 +819,10 @@ export function AtlasMap({
 
   /** برچسبی که با دوربینِ گام از قاب بیرون می‌زند، نیمه‌بریده دیده می‌شود؛ پس کنارش می‌گذاریم */
   const inFrame = (box: { x: number; y: number; w: number; h: number }) => {
-    const x0 = box.x * camera.k + camera.x
-    const y0 = box.y * camera.k + camera.y
-    const x1 = x0 + box.w * camera.k
-    const y1 = y0 + box.h * camera.k
+    const x0 = box.x * view.k + view.x
+    const y0 = box.y * view.k + view.y
+    const x1 = x0 + box.w * view.k
+    const y1 = y0 + box.h * view.k
     return x0 >= 3 && y0 >= 3 && x1 <= W - 3 && y1 <= H - 3
   }
 
@@ -743,8 +834,9 @@ export function AtlasMap({
         return p ? { ...pin, x: p[0], y: p[1] } : null
       })
       .filter((v): v is typeof v & { x: number; y: number } => !!v)
-    return placeLabels(items as ({ label: string; x: number; y: number } & typeof items[number])[], unit, [])
-  }, [phase, projection, unit])
+    const others = items.map((v) => ({ x: v.x, y: v.y }))
+    return placeLabels(items as ({ label: string; x: number; y: number } & typeof items[number])[], unit * lk, [], others)
+  }, [phase, projection, unit, lk])
 
   /** کادر برچسب نشانه‌ها؛ مانعِ چیدن برچسب نواحی و کشورها */
   const pinBoxes = useMemo(
@@ -780,14 +872,37 @@ export function AtlasMap({
       const fs = (r.on ? 14 : 12) * lk
       const w = labelWidth(r.label, fs) * 1.14 + 8
       const h = fs * 2.1 + 6
-      const box = { x: r.x - w / 2, y: r.y - h / 2, w, h }
-      if (!inFrame(box)) continue
-      if (boxes.some((b) => box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y)) continue
-      boxes.push(box)
-      out.push({ ...r, fs })
+      // اگر مرکز ناحیه شلوغ بود، کمی این‌سو و آن‌سو را امتحان کن تا نام قلمرو حذف نشود
+      const offsets: [number, number][] = [
+        [0, 0],
+        [0, 34],
+        [0, -34],
+        [34, 0],
+        [-34, 0],
+        [26, 26],
+        [-26, 26],
+        [26, -26],
+        [-26, -26],
+        [0, 62],
+        [0, -62]
+      ]
+      let placed = false
+      for (const [ox, oy] of offsets) {
+        const box = { x: r.x + ox - w / 2, y: r.y + oy - h / 2, w, h }
+        if (!inFrame(box)) continue
+        if (boxes.some((b) => box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y)) continue
+        boxes.push(box)
+        out.push({ ...r, x: r.x + ox, y: r.y + oy, fs })
+        placed = true
+        break
+      }
+      if (!placed && r.on) {
+        // قلمرو این گام هر جا باشد باید نامش دیده شود
+        out.push({ ...r, fs })
+      }
     }
     return out
-  }, [regionLabels, pinBoxes, camera, lk])
+  }, [regionLabels, pinBoxes, view, lk])
 
   const geoLabels = useMemo(() => {
     const placed: { text: string; x: number; y: number; fs: number; kind: 'country' | 'sea'; rotate?: number }[] = []
@@ -816,7 +931,7 @@ export function AtlasMap({
       push(c.label, p[0], p[1], 10 * lk, 'country')
     }
     return placed
-  }, [projection, seaLabels, zoomedIn, pinBoxes, placedRegionLabels, camera, lk])
+  }, [projection, seaLabels, zoomedIn, pinBoxes, placedRegionLabels, view, lk])
 
   const fs = clampFs(W / 62)
   const stepCount = spec.phases.length
@@ -851,9 +966,37 @@ export function AtlasMap({
         <svg
           viewBox={`0 0 ${W} ${H}`}
           preserveAspectRatio="xMidYMid slice"
-          className="atlas__svg"
+          className={cn('atlas__svg', dragging ? 'is-dragging' : 'is-grabbable')}
           role="img"
           aria-label={`${spec.title} — ${phase.title}`}
+          onPointerDown={(e) => {
+            if ((e.target as Element)?.closest('.atlas-ui')) return
+            ;(e.currentTarget as SVGSVGElement).setPointerCapture?.(e.pointerId)
+            drag.current = { x: e.clientX, y: e.clientY, moved: false }
+            setDragging(true)
+          }}
+          onPointerMove={(e) => {
+            const d = drag.current
+            if (!d) return
+            const dx = e.clientX - d.x
+            const dy = e.clientY - d.y
+            if (!d.moved && Math.hypot(dx, dy) < 3) return
+            d.moved = true
+            const r = e.currentTarget.getBoundingClientRect()
+            const scale = Math.max(r.width / W, r.height / H)
+            setUser((u) => clampUser({ k: u.k, x: u.x + dx / scale, y: u.y + dy / scale }))
+            drag.current = { x: e.clientX, y: e.clientY, moved: true }
+          }}
+          onPointerUp={(e) => {
+            drag.current = null
+            setDragging(false)
+            ;(e.currentTarget as SVGSVGElement).releasePointerCapture?.(e.pointerId)
+          }}
+          onPointerCancel={() => { drag.current = null; setDragging(false) }}
+          onDoubleClick={(e) => {
+            const p = toSvg(e)
+            if (p) zoomAt(p.x, p.y, 1.55)
+          }}
         >
           <defs>
             <linearGradient id={`${uid}-sea`} x1="0" y1="0" x2="0.15" y2="1">
@@ -871,9 +1014,9 @@ export function AtlasMap({
               <stop offset="100%" stopColor={palette.land[2]} />
             </linearGradient>
             <linearGradient id={`${uid}-terr`} x1="0.1" y1="0" x2="0.8" y2="1">
-              <stop offset="0%" stopColor={palette.wash} stopOpacity="0.34" />
-              <stop offset="55%" stopColor={palette.wash} stopOpacity="0.3" />
-              <stop offset="100%" stopColor={palette.wash} stopOpacity="0.26" />
+              <stop offset="0%" stopColor={palette.wash} stopOpacity="0.46" />
+              <stop offset="55%" stopColor={palette.wash} stopOpacity="0.4" />
+              <stop offset="100%" stopColor={palette.wash} stopOpacity="0.34" />
             </linearGradient>
             <radialGradient id={`${uid}-vig`} cx="50%" cy="44%" r="78%">
               <stop offset="62%" stopColor="#03121e" stopOpacity="0" />
@@ -888,6 +1031,25 @@ export function AtlasMap({
             <pattern id={`${uid}-hatch`} width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
               <line x1="0" y1="0" x2="0" y2="7" stroke={palette.main} strokeWidth="0.9" strokeOpacity="0.16" />
             </pattern>
+            {/* بافت کاغذی خشکی: نقطه‌های ریز، تا نقشه تخت نباشد */}
+            <pattern id={`${uid}-grain`} width="26" height="26" patternUnits="userSpaceOnUse">
+              <circle cx="3" cy="4" r="0.7" fill="#6b5634" fillOpacity="0.16" />
+              <circle cx="14" cy="11" r="0.55" fill="#6b5634" fillOpacity="0.13" />
+              <circle cx="21" cy="20" r="0.8" fill="#6b5634" fillOpacity="0.12" />
+              <circle cx="8" cy="21" r="0.5" fill="#6b5634" fillOpacity="0.1" />
+            </pattern>
+            {/* موج‌های کم‌رنگ دریا */}
+            <pattern id={`${uid}-waves`} width="96" height="26" patternUnits="userSpaceOnUse">
+              <path d="M0,13 C16,7 32,7 48,13 C64,19 80,19 96,13" fill="none" stroke="#9fd0e8" strokeOpacity="0.055" strokeWidth="1.1" />
+              <path d="M0,24 C16,18 32,18 48,24 C64,30 80,30 96,24" fill="none" stroke="#9fd0e8" strokeOpacity="0.035" strokeWidth="1" />
+            </pattern>
+            {/* سایهٔ نرم خشکی روی دریا */}
+            <filter id={`${uid}-landsink`} x="-15%" y="-15%" width="130%" height="130%">
+              <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="#03121e" floodOpacity="0.55" />
+            </filter>
+            <filter id={`${uid}-soft`} x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="1.1" />
+            </filter>
             <filter id={`${uid}-glow`} x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="3.6" result="b" />
               <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
@@ -909,15 +1071,16 @@ export function AtlasMap({
             </marker>
           </defs>
 
-          {/* دریا: دو لایه، عمق و بازتاب نور */}
+          {/* دریا: عمق، بازتاب نور و موج‌های کم‌رنگ */}
           <rect x="0" y="0" width={W} height={H} fill={`url(#${uid}-sea)`} />
+          <rect x="0" y="0" width={W} height={H} fill={`url(#${uid}-waves)`} />
           <rect x="0" y="0" width={W} height={H} fill={`url(#${uid}-seagl)`} />
 
           <g clipPath={`url(#${uid}-framelip)`}>
             <motion.g
               initial={false}
-              animate={{ x: camera.x, y: camera.y, scale: camera.k }}
-              transition={reduced ? { duration: 0 } : { duration: 1.15, ease: [0.33, 1, 0.36, 1] }}
+              animate={{ x: view.x, y: view.y, scale: view.k }}
+              transition={reduced || dragging ? { duration: 0 } : { duration: 1.15, ease: [0.33, 1, 0.36, 1] }}
               style={{ originX: 0, originY: 0, transformBox: 'view-box', transformOrigin: '0px 0px' }}
             >
               {/* شبکهٔ مختصات: خطوط فرعی و اصلی */}
@@ -925,8 +1088,12 @@ export function AtlasMap({
               <path d={graticuleMajor} fill="none" stroke="#9dc0dd" strokeOpacity="0.13" strokeWidth="0.7" />
 
               {/* خشکی: لبهٔ روشن از سمت دریا، سایهٔ نرم به سمت داخل */}
-              <path d={landPath} fill="#061522" fillOpacity="0.55" transform="translate(1.4,2.2)" stroke="none" />
-              <path d={landPath} fill={`url(#${uid}-land)`} stroke="#6d5734" strokeOpacity="0.65" strokeWidth="0.95" />
+              <g filter={`url(#${uid}-landsink)`}>
+                <path d={landPath} fill={`url(#${uid}-land)`} stroke="#6d5734" strokeOpacity="0.7" strokeWidth="0.9" />
+              </g>
+              <g clipPath={`url(#${uid}-landclip)`} pointerEvents="none">
+                <path d={landPath} fill={`url(#${uid}-grain)`} />
+              </g>
               <g clipPath={`url(#${uid}-landclip)`} pointerEvents="none">
                 <path d={landPath} fill="none" stroke="#fff6e2" strokeOpacity="0.34" strokeWidth="1.6" />
                 <path d={landPath} fill="none" stroke="#5b4527" strokeOpacity="0.14" strokeWidth="5" />
@@ -999,7 +1166,8 @@ export function AtlasMap({
                     return (
                       <g key={`r-${id}`}>
                         <path d={d} fill={`url(#${uid}-terr)`} style={{ mixBlendMode: 'multiply' }} />
-                        <path d={d} fill={`url(#${uid}-hatch)`} opacity="0.55" />
+                        <path d={d} fill={`url(#${uid}-hatch)`} opacity="0.5" />
+                        <path d={d} fill="none" stroke={palette.soft} strokeOpacity="0.5" strokeWidth="4.5" filter={`url(#${uid}-soft)`} />
                         <motion.path
                           d={d}
                           fill="none"
@@ -1117,6 +1285,17 @@ export function AtlasMap({
                       <circle cx={x} cy={y} r={13} fill={tone} fillOpacity="0.14" />
                       <circle cx={x} cy={y} r={8} fill="none" stroke={tone} strokeOpacity="0.5" strokeWidth="1.2" className="atlas-pin__ring" />
                       <circle cx={x} cy={y} r={4} fill={tone} stroke="#0b1b2b" strokeWidth="1.3" />
+                      {Math.hypot(pin.dx, pin.dy) > 40 * unit * lk && (
+                        <line
+                          x1={x}
+                          y1={y}
+                          x2={pin.anchor === 'start' ? x + pin.dx - 4 : pin.anchor === 'middle' ? x + pin.dx : x + pin.dx + 4}
+                          y2={y + pin.dy - 4 * unit * lk}
+                          stroke={tone}
+                          strokeOpacity="0.55"
+                          strokeWidth={0.9 * unit}
+                        />
+                      )}
                       <text
                         x={x + pin.dx}
                         y={y + pin.dy}
@@ -1171,8 +1350,8 @@ export function AtlasMap({
                     fontSize={l.fs * unit}
                     letterSpacing={l.kind === 'sea' ? l.fs * 0.24 : l.fs * 0.08}
                     fontStyle={l.kind === 'sea' ? 'italic' : undefined}
-                    fill={l.kind === 'sea' ? '#9cc2e2' : '#6a5738'}
-                    fillOpacity={l.kind === 'sea' ? 0.62 : 0.6}
+                    fill={l.kind === 'sea' ? '#b6d6ea' : '#6a5738'}
+                    fillOpacity={l.kind === 'sea' ? 0.78 : 0.62}
                     transform={l.rotate ? `rotate(${l.rotate} ${l.x} ${l.y})` : undefined}
                     style={{ fontFamily: 'Estedad, sans-serif' }}
                   >
@@ -1254,13 +1433,47 @@ export function AtlasMap({
         </svg>
 
 
+        {/* ابزارهای نقشه: زوم، بازگشت به قاب گام */}
+        <div className="atlas-ui atlas__tools">
+          <button className="atlas__tool" onClick={() => zoomCenter(1.35)} aria-label="بزرگ‌نمایی" title="بزرگ‌نمایی">
+            <Plus size={15} />
+          </button>
+          <button className="atlas__tool" onClick={() => zoomCenter(1 / 1.35)} aria-label="کوچک‌نمایی" title="کوچک‌نمایی">
+            <Minus size={15} />
+          </button>
+          <button
+            className="atlas__tool"
+            onClick={() => setUser({ x: 0, y: 0, k: 1 })}
+            aria-label="بازگشت به نمای گام"
+            title="بازگشت به نمای گام"
+            data-off={user.k === 1 && user.x === 0 && user.y === 0}
+          >
+            <Compass size={15} />
+          </button>
+        </div>
+        <div className="atlas-ui atlas__hint">
+          <Move size={12} /> بکشید و زوم کنید · دوبار کلیک: نزدیک‌تر
+        </div>
+
         {/* پانوشت گام */}
         <div className="atlas__caption">
-          <div className="flex items-center gap-2">
-            <span className="atlas__step">{fas(i + 1)} / {fas(stepCount)}</span>
-            <span className="atlas__stepTitle">{phase.title}</span>
+          {stepCount > 1 && (
+            <button
+              className="atlas__nav"
+              onClick={() => { setPlaying(false); setI(Math.max(0, i - 1)) }}
+              disabled={i === 0}
+              aria-label="گام قبل"
+            >
+              <ChevronRight size={16} />
+            </button>
+          )}
+          <div className="atlas__captionMain">
+            <div className="flex items-center gap-2">
+              <span className="atlas__step">{fas(i + 1)} / {fas(stepCount)}</span>
+              <span className="atlas__stepTitle">{phase.title}</span>
+            </div>
+            <p className="atlas__captionText">{phase.caption}</p>
           </div>
-          <p className="atlas__captionText">{phase.caption}</p>
           {stepCount > 1 && (
             <div className="atlas__dots">
               {spec.phases.map((p, k) => (
@@ -1272,6 +1485,16 @@ export function AtlasMap({
                 />
               ))}
             </div>
+          )}
+          {stepCount > 1 && (
+            <button
+              className="atlas__nav"
+              onClick={() => { setPlaying(false); setI(Math.min(stepCount - 1, i + 1)) }}
+              disabled={i === stepCount - 1}
+              aria-label="گام بعد"
+            >
+              <ChevronLeft size={16} />
+            </button>
           )}
         </div>
       </div>
