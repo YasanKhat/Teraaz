@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { ArrowLeft, Award, BookOpen, Check, Flame, Layers, NotebookPen, Target, Zap } from 'lucide-react'
+import { ArrowLeft, Award, BookOpen, Check, Flame, Layers, ListChecks, NotebookPen, Target, Zap } from 'lucide-react'
 import { chapterPlans } from '../data/plans'
 import { lessonById, allQuestions } from '../data/lessons'
 import { badges, exams } from '../data/exams'
@@ -7,9 +7,12 @@ import { earnedBadges } from '../lib/badges'
 import { navigate } from '../lib/router'
 import { cn, daysAgoKey, fas, jalali, pct, timeAgo, todayKey } from '../lib/utils'
 import { streakLength, useLevel, useProgress } from '../store/useProgress'
+import { bankCounts } from '../data/bank'
 
 export function Progress() {
   const s = useProgress()
+  const bankDone = Object.keys(s.bank).length
+  const bankTotal = bankCounts.total
   const level = useLevel()
   const streak = streakLength(s.days)
   const totalLessons = chapterPlans.reduce((n, c) => n + c.lessons.length, 0)
@@ -138,6 +141,7 @@ export function Progress() {
               { icon: <Layers size={12} />, label: 'کارت مرورشده', value: fas(Object.keys(s.cards).length) },
               { icon: <BookOpen size={12} />, label: 'نشان‌گذاری‌شده', value: fas(bookmarked.length) },
               { icon: <NotebookPen size={12} />, label: 'درس با یادداشت', value: fas(notes.length) },
+              { icon: <ListChecks size={12} />, label: 'از بانک سؤال', value: `${fas(bankDone)} از ${fas(bankTotal)}` },
               { icon: <Flame size={12} />, label: 'زنجیرهٔ فعلی', value: `${fas(streak)} روز` }
             ].map((row) => (
               <div key={row.label} className="flex items-center gap-2 py-2">
@@ -149,6 +153,7 @@ export function Progress() {
           </div>
           <div className="mt-4 flex flex-wrap gap-1.5">
             <button className="btn btn-gold btn-sm" onClick={() => navigate('exams')}><Target size={12} /> آزمون تازه</button>
+            <button className="btn btn-sm" onClick={() => navigate('bank')}><ListChecks size={12} /> بانک سؤال</button>
             <button className="btn btn-sm" onClick={() => navigate('chapters')}>ادامهٔ مطالعه <ArrowLeft size={12} /></button>
           </div>
         </div>

@@ -2,10 +2,11 @@ import { lessons } from '../data/lessons'
 import { figures } from '../data/figures'
 import { timeline } from '../data/timeline'
 import { chapters } from '../data/chapters'
+import { bankItems, kindLabel } from '../data/bank'
 import { normalizeFa } from './utils'
 
 export interface SearchHit {
-  type: 'درس' | 'چهره' | 'رویداد' | 'واژه' | 'بخش'
+  type: 'درس' | 'چهره' | 'رویداد' | 'واژه' | 'بخش' | 'پرسش'
   title: string
   sub: string
   route: string
@@ -39,6 +40,18 @@ function build() {
     rows.push({
       text: normalizeFa(`${e.title} ${e.desc} ${e.date} ${e.place ?? ''}`),
       hit: { type: 'رویداد', title: e.title, sub: `${e.date} · ${e.cat}`, route: `archive/timeline/${e.id}`, icon: '🕰️' }
+    })
+  })
+  bankItems.forEach((item) => {
+    rows.push({
+      text: normalizeFa(`${item.q} ${item.options?.join(' ') ?? ''} ${item.answer}`),
+      hit: {
+        type: 'پرسش',
+        title: item.q.length > 78 ? `${item.q.slice(0, 76)}…` : item.q,
+        sub: `درس ${item.lesson} · ${kindLabel(item.kind)}`,
+        route: `bank/${item.lesson}?q=${encodeURIComponent(item.q.slice(0, 40))}`,
+        icon: '❓'
+      }
     })
   })
   chapters.forEach((c) => {

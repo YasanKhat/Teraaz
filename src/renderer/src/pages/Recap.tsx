@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowLeft, ArrowUpLeft, Check, Layers, Moon, Sparkles, Target } from 'lucide-react'
+import { ArrowLeft, ArrowUpLeft, Check, Layers, ListChecks, Moon, Sparkles, Target } from 'lucide-react'
 import { chapterPlans } from '../data/plans'
 import { lessonById } from '../data/lessons'
 import { art } from '../art'
@@ -49,6 +49,12 @@ export function Recap({ id }: { id?: string }) {
               {t === 'map' ? 'زنجیره و شب امتحان' : t === 'quiz' ? `آزمون پرده (${fas(questions.length)})` : 'کارت‌های پرده'}
             </button>
           ))}
+          <button
+            className="flex items-center gap-1.5 rounded-lg border border-gold/35 bg-gold/[0.06] px-3 py-1.5 text-[0.72rem] text-gold transition hover:bg-gold/12"
+            onClick={() => navigate(`bank/ch${ch.chapter}`)}
+          >
+            <ListChecks size={13} /> همهٔ سؤال‌های این پرده
+          </button>
         </div>
       </header>
 

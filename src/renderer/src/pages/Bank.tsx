@@ -16,9 +16,12 @@ import {
 } from 'lucide-react'
 import { bankItems, bankCounts, kindLabel, type BankItem, type BankKind } from '../data/bank'
 import { lessonById } from '../data/lessons'
+import { chapterById } from '../data/chapters'
 import { useProgress } from '../store/useProgress'
 import { navigate } from '../lib/router'
 import { cn, fas, normalizeFa } from '../lib/utils'
+
+const chapterTitle = (n: number) => chapterById(n)?.title ?? `پردهٔ ${fas(n)}`
 
 const KINDS: { id: BankKind | 'all'; label: string }[] = [
   { id: 'all', label: 'همه' },
@@ -161,11 +164,13 @@ function QuestionCard({
   )
 }
 
-export function Bank({ id }: { id?: string }) {
-  const initialLesson = id ? Number(id) : 0
+export function Bank({ id, initialQuery = '' }: { id?: string; initialQuery?: string }) {
+  const initialChapter = id?.startsWith('ch') ? Number(id.slice(2)) : 0
+  const [chapter, setChapter] = useState<number>(Number.isFinite(initialChapter) ? initialChapter : 0)
+  const initialLesson = id && !id.startsWith('ch') ? Number(id) : 0
   const [lesson, setLesson] = useState<number>(Number.isFinite(initialLesson) ? initialLesson : 0)
   const [kind, setKind] = useState<BankKind | 'all'>('all')
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(initialQuery)
   const [session, setSession] = useState(false)
   const [sessionOrder, setSessionOrder] = useState<BankItem[]>([])
   const [step, setStep] = useState(0)
@@ -175,18 +180,27 @@ export function Bank({ id }: { id?: string }) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (id) setLesson(Number(id))
+    setQuery(initialQuery)
+  }, [initialQuery])
+
+  useEffect(() => {
+    if (!id) return
+    if (id.startsWith('ch')) {
+      setChapter(Number(id.slice(2)))
+      setLesson(0)
+    } else setLesson(Number(id))
   }, [id])
 
   const pool = useMemo(() => {
     const q = normalizeFa(query.trim())
     return bankItems.filter((item) => {
       if (lesson && item.lesson !== lesson) return false
+      if (!lesson && chapter && lessonById(item.lesson)?.chapter !== chapter) return false
       if (kind !== 'all' && item.kind !== kind) return false
       if (!q) return true
       return normalizeFa(item.q + ' ' + item.answer + ' ' + (item.options?.join(' ') ?? '')).includes(q)
     })
-  }, [lesson, kind, query])
+  }, [lesson, chapter, kind, query])
 
   const answered = useMemo(() => pool.filter((i) => bank[i.id] !== undefined).length, [pool, bank])
   const correct = useMemo(() => pool.filter((i) => bank[i.id] === 1).length, [pool, bank])
@@ -268,9 +282,19 @@ export function Bank({ id }: { id?: string }) {
 
       <div className="space-y-2">
         <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1">
-          <button className="chip" data-active={lesson === 0} onClick={() => setLesson(0)}>
+          <button className="chip" data-active={lesson === 0 && chapter === 0} onClick={() => { setLesson(0); setChapter(0) }}>
             همهٔ درس‌ها
           </button>
+          {[1, 2, 3, 4].map((c) => (
+            <button
+              key={`c${c}`}
+              className="chip"
+              data-active={chapter === c && lesson === 0}
+              onClick={() => { setChapter(chapter === c ? 0 : c); setLesson(0) }}
+            >
+              پردهٔ {fas(c)}
+            </button>
+          ))}
           {Array.from({ length: 16 }, (_, i) => i + 1).map((l) => (
             <button key={l} className="chip" data-active={lesson === l} onClick={() => setLesson(l)}>
               درس {fas(l)}
@@ -296,6 +320,17 @@ export function Bank({ id }: { id?: string }) {
           </label>
         </div>
       </div>
+
+      {lesson === 0 && chapter > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gold/20 bg-gold/[0.04] px-3 py-2 text-[0.72rem] text-muted">
+          <span>
+            همهٔ سؤال‌های پردهٔ {fas(chapter)}: <b className="text-ink">{chapterTitle(chapter)}</b>
+          </span>
+          <button className="chip ms-auto" onClick={() => navigate(`chapter/${chapter}`)}>
+            <ChevronLeft size={12} /> رفتن به پرده
+          </button>
+        </div>
+      )}
 
       {lesson > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gold/20 bg-gold/[0.04] px-3 py-2 text-[0.72rem] text-muted">

@@ -33,7 +33,7 @@ export default function App() {
       case 'recap':
         return <Recap id={route.id} />
       case 'bank':
-        return <Bank id={route.id} />
+        return <Bank id={route.id} initialQuery={route.query.get('q') ?? ''} />
       case 'archive':
         return <Archive tab={route.id} />
       case 'timeline':
