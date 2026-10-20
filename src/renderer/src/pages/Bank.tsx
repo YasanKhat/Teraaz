@@ -24,7 +24,7 @@ import { cn, fas, normalizeFa } from '../lib/utils'
 const chapterTitle = (n: number) => chapterById(n)?.title ?? `پردهٔ ${fas(n)}`
 
 const KINDS: { id: BankKind | 'all'; label: string }[] = [
-  { id: 'all', label: 'همه' },
+  { id: 'all', label: 'همهٔ گونه‌ها' },
   { id: 'tf', label: 'درست / نادرست' },
   { id: 'mcq', label: 'چهارگزینه‌ای' },
   { id: 'term', label: 'تعریف اصطلاح' },
@@ -170,6 +170,7 @@ export function Bank({ id, initialQuery = '' }: { id?: string; initialQuery?: st
   const initialLesson = id && !id.startsWith('ch') ? Number(id) : 0
   const [lesson, setLesson] = useState<number>(Number.isFinite(initialLesson) ? initialLesson : 0)
   const [kind, setKind] = useState<BankKind | 'all'>('all')
+  const [status, setStatus] = useState<'all' | 'todo' | 'wrong' | 'done'>('all')
   const [query, setQuery] = useState(initialQuery)
   const [session, setSession] = useState(false)
   const [sessionOrder, setSessionOrder] = useState<BankItem[]>([])
@@ -197,10 +198,18 @@ export function Bank({ id, initialQuery = '' }: { id?: string; initialQuery?: st
       if (lesson && item.lesson !== lesson) return false
       if (!lesson && chapter && lessonById(item.lesson)?.chapter !== chapter) return false
       if (kind !== 'all' && item.kind !== kind) return false
+      // کارتی که همین حالا باز شده از فهرست نپرد، تا پاسخ جلوی چشم بماند
+      const busy = !!openIds[item.id] || chosen[item.id] !== undefined
+      if (status !== 'all' && !busy) {
+        const mark = bank[item.id]
+        if (status === 'todo' && mark !== undefined) return false
+        if (status === 'wrong' && mark !== 0) return false
+        if (status === 'done' && mark !== 1) return false
+      }
       if (!q) return true
       return normalizeFa(item.q + ' ' + item.answer + ' ' + (item.options?.join(' ') ?? '')).includes(q)
     })
-  }, [lesson, chapter, kind, query])
+  }, [lesson, chapter, kind, status, query, bank, openIds, chosen])
 
   const answered = useMemo(() => pool.filter((i) => bank[i.id] !== undefined).length, [pool, bank])
   const correct = useMemo(() => pool.filter((i) => bank[i.id] === 1).length, [pool, bank])
@@ -303,6 +312,19 @@ export function Bank({ id, initialQuery = '' }: { id?: string; initialQuery?: st
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
+          {(
+            [
+              { id: 'all', label: 'همه' },
+              { id: 'todo', label: 'بی‌پاسخ' },
+              { id: 'wrong', label: 'نیازمند مرور' },
+              { id: 'done', label: 'درست‌شده' }
+            ] as const
+          ).map((st) => (
+            <button key={st.id} className="chip" data-active={status === st.id} onClick={() => setStatus(st.id)}>
+              {st.label}
+            </button>
+          ))}
+          <span className="mx-1 hidden h-4 w-px bg-line sm:block" />
           {KINDS.map((k) => (
             <button key={k.id} className="chip" data-active={kind === k.id} onClick={() => setKind(k.id)}>
               {k.label}
