@@ -8,6 +8,8 @@ import { cn, fas } from '../lib/utils'
 import { useProgress } from '../store/useProgress'
 import { ChapterSignature } from '../components/ChapterSignature'
 import { ChapterHero } from '../components/ChapterHero'
+import { ChapterTimeline } from '../components/ChapterTimeline'
+import { baramTable } from '../data/chapters'
 
 export function Chapter({ id }: { id?: string }) {
   const ch = chapterPlans.find((c) => c.chapter === Number(id)) ?? chapterPlans[0]
@@ -244,6 +246,35 @@ export function Chapter({ id }: { id?: string }) {
               </article>
             )
           })}
+        </div>
+      </section>
+
+      {/* ── سالشمار و بارم این پرده ────────────────────────────── */}
+      <section className="grid gap-5 md:grid-cols-[1.35fr_1fr]">
+        <ChapterTimeline lessons={ids} accent={accent} />
+        <div className="rounded-xl border border-line bg-surface/35 p-4">
+          <div className="kicker mb-2">بارم‌بندی این پرده</div>
+          <div className="space-y-1.5">
+            {ids.map((lid) => {
+              const row = baramTable.find((b) => b.lesson === lid)
+              const l = lessonById(lid)
+              if (!l) return null
+              return (
+                <div key={lid} className="flex items-center justify-between gap-2 text-[0.7rem]">
+                  <button className="min-w-0 truncate text-start text-ink/85 hover:text-gold" onClick={() => navigate(`lesson/${lid}`)}>
+                    {fas(lid)}. {l.title}
+                  </button>
+                  <span className="flex shrink-0 items-center gap-2 text-[0.58rem]">
+                    {row?.mid && <span className="text-turq">نوبت اول {row.mid}</span>}
+                    {row?.final && <span className="text-gold">نهایی {row.final}</span>}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+          <button className="mt-3 flex items-center gap-1 text-[0.66rem] text-gold" onClick={() => navigate(`recap/${ch.chapter}`)}>
+            شب امتحان این پرده <ArrowUpLeft size={11} />
+          </button>
         </div>
       </section>
 

@@ -31,6 +31,7 @@ import type { Chapter } from '../data/types'
 import { storyByLesson } from '../data/story'
 import { bookQuote } from '../data/book/sections'
 import { bookQuestionsOf, type BookQuestion } from '../data/book/examQuestions'
+import { timeline } from '../data/timeline'
 import { QuestionCards } from './BookQuestions'
 import { art } from '../art'
 import { navigate } from '../lib/router'
@@ -69,6 +70,7 @@ type FrameBody =
     }
   | { kind: 'roadmap'; items: { n: number; title: string; goal: string }[] }
   | { kind: 'legend' }
+  | { kind: 'dates'; items: { date: string; title: string }[] }
   | { kind: 'terms'; items: { term: string; def: string }[]; part: number; parts: number }
   | { kind: 'qbank'; items: BookQuestion[]; scene?: string }
   | { kind: 'head'; kicker: string; title: string }
@@ -462,6 +464,14 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
       note: sc.takeaway ?? lesson.keyPoints[0] ?? ''
     }))
   })
+
+  const lessonDates = timeline
+    .filter((e) => e.lessons.includes(lesson.id))
+    .sort((a, b) => a.year - b.year)
+    .map((e) => ({ date: e.date, title: e.title }))
+  if (lessonDates.length >= 4) {
+    chunk(lessonDates, 8).forEach((items) => frames.push({ kind: 'dates', src: 'book', items }))
+  }
 
   chunk(lesson.terms, 3).forEach((items, i, all) => {
     frames.push({ kind: 'terms', src: 'book', items, part: i + 1, parts: all.length })
@@ -921,6 +931,26 @@ function renderStage(
         <div className="film-frame film-frame--scroll">
           <div className="film-body film-body--wide">
             <PanelView panel={frame.panel} accent={accent} />
+          </div>
+        </div>
+      )
+
+    case 'dates':
+      return (
+        <div className="film-frame film-frame--scroll film-frame--copy">
+          <div className="film-body">
+            <div className="film-kicker">سالشمار</div>
+            <h3 className="film-h3">تاریخ‌ها را به ترتیب به یاد بسپار</h3>
+            <ol className="film-dates">
+              {frame.items.map((d, i) => (
+                <li key={`${d.date}-${i}`}>
+                  <span className="film-dates__date">{d.date}</span>
+                  <span className="film-dates__line" aria-hidden />
+                  <span className="film-dates__title">{d.title}</span>
+                </li>
+              ))}
+            </ol>
+            <p className="film-faint">این‌ها همان گره‌هایی است که در «زنجیرهٔ» پرده هم می‌بینی.</p>
           </div>
         </div>
       )

@@ -4675,3 +4675,108 @@ html[data-film-full='on'] body { overflow: hidden; }
 .film[data-read='sm'] .film-h3 { font-size: 1.12rem; }
 .film[data-read='sm'] .film-qbank__q { font-size: 0.74rem; }
 .film[data-read='sm'] .film-quote__text { font-size: 0.72rem; }
+
+/* سالشمار درس */
+.film-dates { display: flex; flex-direction: column; gap: 0.1rem; margin-top: 0.7rem; }
+
+.film-dates li {
+  display: grid;
+  grid-template-columns: 5.6rem 1rem 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.2rem;
+}
+
+.film-dates__date {
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--c-gold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.film-dates__line {
+  position: relative;
+  justify-self: center;
+  width: 1px;
+  height: 1.7rem;
+  background: color-mix(in oklab, var(--c-gold) 30%, transparent);
+}
+
+.film-dates__line::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c-gold);
+  transform: translate(-50%, -50%);
+}
+
+.film-dates__title {
+  font-size: 0.82rem;
+  line-height: 1.85;
+  color: color-mix(in oklab, var(--c-ink) 88%, transparent);
+}
+
+@media (max-width: 520px) {
+  .film-dates li { grid-template-columns: 4.4rem 0.8rem 1fr; gap: 0.35rem; }
+  .film-dates__date { font-size: 0.66rem; }
+  .film-dates__title { font-size: 0.75rem; }
+}
+
+/* ══ سالشمار پرده ═══════════════════════════════════════════════════════ */
+
+.ct { border: 1px solid var(--c-line); border-radius: 1rem; background: color-mix(in oklab, var(--c-surface) 42%, transparent); padding: 0.85rem 0.9rem; }
+
+.ct__head { display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.6rem; }
+.ct__title { font-size: 0.78rem; font-weight: 800; }
+.ct__count { margin-inline-start: auto; font-size: 0.58rem; color: var(--c-faint); }
+
+.ct__list { position: relative; display: flex; flex-direction: column; }
+
+.ct__list::before {
+  content: '';
+  position: absolute;
+  inset-block: 0.4rem;
+  inset-inline-start: calc(5.1rem + 0.5rem);
+  width: 1px;
+  background: color-mix(in oklab, var(--c-line) 90%, transparent);
+}
+
+.ct__row {
+  display: grid;
+  grid-template-columns: 4.6rem 0.7rem 1fr auto;
+  align-items: start;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+}
+
+.ct__date { font-size: 0.68rem; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 0.1rem; }
+
+.ct__dot {
+  width: 7px;
+  height: 7px;
+  margin-top: 0.42rem;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--c-bg) 90%, transparent);
+}
+
+.ct__body { text-align: start; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.ct__name { font-size: 0.76rem; font-weight: 700; color: var(--c-ink); line-height: 1.75; }
+.ct__desc { font-size: 0.68rem; line-height: 1.85; color: var(--c-muted); }
+.ct__body:hover .ct__name { color: var(--c-gold); }
+
+.ct__place { display: inline-flex; align-items: center; gap: 0.2rem; font-size: 0.56rem; color: var(--c-faint); padding-top: 0.2rem; }
+
+.ct__list.is-compact .ct__row { grid-template-columns: 4.2rem 0.6rem 1fr; padding: 0.22rem 0; }
+.ct__list.is-compact .ct__name { font-size: 0.7rem; }
+
+@media (max-width: 560px) {
+  .ct__list::before { inset-inline-start: calc(3.9rem + 0.4rem); }
+  .ct__row { grid-template-columns: 3.6rem 0.6rem 1fr; gap: 0.35rem; }
+  .ct__date { font-size: 0.6rem; }
+  .ct__place { display: none; }
+}

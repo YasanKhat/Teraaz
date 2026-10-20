@@ -6,6 +6,7 @@ import { lessonById, allQuestions } from '../data/lessons'
 import { chapterById, baramTable } from '../data/chapters'
 import { bookQuestionsOf } from '../data/book/examQuestions'
 import { QuestionCards } from '../components/BookQuestions'
+import { ChapterTimeline } from '../components/ChapterTimeline'
 import { art } from '../art'
 import { navigate } from '../lib/router'
 import { cn, fas } from '../lib/utils'
@@ -105,6 +106,10 @@ export function Recap({ id }: { id?: string }) {
                 </div>
               ))}
             </div>
+          </section>
+
+          <section>
+            <ChapterTimeline lessons={lessons.map((l) => l.id)} accent={chapterById(ch.chapter).accent} />
           </section>
 
           {/* درس به درس: اصلِ کاری که باید در هر درس بدانی */}
