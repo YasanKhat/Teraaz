@@ -198,7 +198,7 @@ const l3: LessonPlan = {
   scenes: [
     {
       title: 'شبه‌جزیره پیش از طلوع',
-      sections: [3],
+      sections: [0, 3],
       maps: [
         {
           spec: {
@@ -226,7 +226,7 @@ const l3: LessonPlan = {
     },
     {
       title: 'نظام قبیله‌ای و مقام زن',
-      sections: [4],
+      sections: [1],
       panels: [
         { kind: 'cards', title: 'پنج ارزش قبیله', items: [
           { title: 'حسب و نسب', text: 'افتخار به تبار و نیاکان.' },
@@ -242,9 +242,9 @@ const l3: LessonPlan = {
     },
     {
       title: 'اقتصاد و معیشت',
+      sections: [2],
       takeaway:
         'مکه از تجارت و کاروان زنده بود و یثرب از کشاورزی؛ همین تفاوت معیشت، تفاوت رفتار سیاسی و سرعت پذیرش دعوت را هم توضیح می‌دهد.',
-      sections: [5],
       panels: [
         { kind: 'cards', title: 'سه معیشت', items: [
           { title: 'صحرا', text: 'پرورش شتر و گوسفند و راهزنی.' },
