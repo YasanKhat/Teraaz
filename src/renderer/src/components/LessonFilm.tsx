@@ -11,6 +11,7 @@ import {
   Compass,
   Layers,
   Pause,
+  List,
   ListChecks,
   Maximize2,
   Minimize2,
@@ -20,6 +21,7 @@ import {
   Sparkles,
   Target,
   TriangleAlert,
+  Type,
   Volume2,
   VolumeX
 } from 'lucide-react'
@@ -1124,6 +1126,16 @@ export function LessonFilm({
   const [searchHit, setSearchHit] = useState<string | null>(null)
   /** صافی منبع: همه / آنچه از کتاب است / توضیح‌های ما */
   const [scope, setScope] = useState<'all' | 'book' | 'guide'>('all')
+  /** اندازهٔ خواندن: کوچک، معمولی، درشت */
+  const [read, setRead] = useState<'sm' | 'md' | 'lg'>(() => {
+    try {
+      const v = localStorage.getItem('tabar:filmRead')
+      return v === 'sm' || v === 'lg' ? v : 'md'
+    } catch {
+      return 'md'
+    }
+  })
+  const [menu, setMenu] = useState(false)
   /** تمام‌صفحه: قاب درس کل پنجره را می‌گیرد تا چشم فقط روی درس باشد */
   const [full, setFull] = useState(() => {
     try { return localStorage.getItem('tabar:filmFull') === '1' } catch { return false }
@@ -1167,6 +1179,27 @@ export function LessonFilm({
     document.addEventListener('fullscreenchange', onFs)
     return () => document.removeEventListener('fullscreenchange', onFs)
   }, [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('tabar:filmRead', read)
+    } catch {
+      /* بی‌اهمیت */
+    }
+  }, [read])
+
+  const cycleRead = () => setRead((v) => (v === 'md' ? 'lg' : v === 'lg' ? 'sm' : 'md'))
+
+  /* بستن فهرست صحنه‌ها با Esc یا کلیک بیرون */
+  useEffect(() => {
+    if (!menu) return
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as HTMLElement
+      if (!t.closest('.film-menu') && !t.closest('[data-menu-toggle]')) setMenu(false)
+    }
+    window.addEventListener('mousedown', onDown)
+    return () => window.removeEventListener('mousedown', onDown)
+  }, [menu])
 
   const toggleFull = useCallback(() => {
     setFull((v) => {
@@ -1334,6 +1367,7 @@ export function LessonFilm({
     <div
       ref={shellRef}
       className={cn('film', full && 'is-full')}
+      data-read={read}
       style={{ ['--film-accent' as string]: accent }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
@@ -1372,6 +1406,55 @@ export function LessonFilm({
               <span>×</span>
             </button>
           )}
+          <button
+            className="film__back"
+            onClick={cycleRead}
+            aria-label="اندازهٔ خواندن"
+            title={`اندازهٔ متن: ${read === 'sm' ? 'کوچک' : read === 'lg' ? 'درشت' : 'معمولی'}`}
+          >
+            <Type size={15} />
+          </button>
+          <div className="relative">
+            <button
+              className={cn('film__back', menu && 'is-on')}
+              onClick={() => setMenu((v) => !v)}
+              aria-label="فهرست صحنه‌ها"
+              title="فهرست صحنه‌ها"
+              data-menu-toggle
+            >
+              <List size={15} />
+            </button>
+            {menu && (
+              <div className="film-menu">
+                <div className="film-menu__head">فهرست درس</div>
+                <div className="film-menu__list">
+                  {segments.map((seg) => {
+                    const percent = Math.round(((Math.min(Math.max(i - seg.start + 1, 0), seg.end - seg.start + 1)) / (seg.end - seg.start + 1)) * 100)
+                    return (
+                      <button
+                        key={seg.start}
+                        className={cn('film-menu__item', i >= seg.start && i <= seg.end && 'is-now')}
+                        onClick={() => {
+                          go(seg.start)
+                          setMenu(false)
+                        }}
+                      >
+                        <span className="film-menu__n">{seg.n ? fas(seg.n) : '·'}</span>
+                        <span className="film-menu__title">{seg.title}</span>
+                        <span className="film-menu__bar">
+                          <span style={{ width: `${percent}%` }} />
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="film-menu__foot">
+                  <button onClick={() => { go(frames.length - 1); setMenu(false) }}>پایان درس</button>
+                  <span>{fas(segments.length)} صحنه · {fas(frames.length)} قاب</span>
+                </div>
+              </div>
+            )}
+          </div>
           <button
             className={cn('film__back', full && 'is-on')}
             onClick={toggleFull}
