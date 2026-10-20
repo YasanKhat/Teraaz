@@ -126,8 +126,13 @@ function QuestionCard({
 
       {interactive && chosen !== undefined && (
         <div className={cn('bank-note mt-2', correct ? 'bank-note--ok' : 'bank-note--bad')}>
-          <b>{correct ? 'درست است.' : `پاسخ درست: گزینهٔ ${fas((item.correct ?? 0) + 1)}`}</b>
-          {item.note && <span className="ms-1 text-muted">{item.note}</span>}
+          <b>{correct ? 'درست است.' : `پاسخ درست: ${item.answer}`}</b>
+          {item.note && (
+            <span className="ms-1 text-muted">
+              {item.kind === 'tf' ? 'تصحیح: ' : ''}
+              {item.note}
+            </span>
+          )}
         </div>
       )}
 
@@ -175,6 +180,7 @@ export function Bank({ id, initialQuery = '' }: { id?: string; initialQuery?: st
   const [session, setSession] = useState(false)
   const [sessionOrder, setSessionOrder] = useState<BankItem[]>([])
   const [step, setStep] = useState(0)
+  const [summary, setSummary] = useState(false)
   const [openIds, setOpenIds] = useState<Record<string, boolean>>({})
   const [chosen, setChosen] = useState<Record<string, number>>({})
   const bank = useProgress((s) => s.bank)
@@ -220,6 +226,7 @@ export function Bank({ id, initialQuery = '' }: { id?: string; initialQuery?: st
     if (!pool.length) return
     setSessionOrder(shuffle ? shuffleList(pool) : pool)
     setStep(0)
+    setSummary(false)
     setSession(true)
   }, [pool])
 
@@ -244,6 +251,24 @@ export function Bank({ id, initialQuery = '' }: { id?: string; initialQuery?: st
 
   const current = sessionOrder[step]
   const progress = sessionOrder.length ? ((step + 1) / sessionOrder.length) * 100 : 0
+  const stats = useMemo(() => {
+    const marks = sessionOrder.map((i) => bank[i.id]).filter((v) => v !== undefined) as number[]
+    return {
+      total: sessionOrder.length,
+      answered: marks.length,
+      right: marks.filter((v) => v === 1).length,
+      wrong: marks.filter((v) => v === 0).length
+    }
+  }, [sessionOrder, bank])
+
+  const reviewWrong = () => {
+    const bad = bankItems.filter((i) => bank[i.id] === 0)
+    if (!bad.length) return
+    setSessionOrder(bad)
+    setStep(0)
+    setSummary(false)
+    setSession(true)
+  }
 
   return (
     <div className="space-y-4">
@@ -391,7 +416,46 @@ export function Bank({ id, initialQuery = '' }: { id?: string; initialQuery?: st
         </div>
       )}
 
-      {session && current && (
+      {session && summary && (
+        <div className="panel space-y-3 px-4 py-6 text-center">
+          <div className="kicker">جمع‌بندی مرور</div>
+          <h2 className="text-xl font-black">این دور از مرور تمام شد</h2>
+          <div className="mx-auto grid max-w-md grid-cols-3 gap-2 pt-1">
+            {[
+              { l: 'دیده‌شده', v: stats.answered },
+              { l: 'درست', v: stats.right },
+              { l: 'نیازمند مرور', v: stats.wrong }
+            ].map((x) => (
+              <div key={x.l} className="rounded-xl border border-line px-2 py-2">
+                <div className="text-[0.6rem] text-faint">{x.l}</div>
+                <div className="text-lg font-black tabular-nums text-gold">{fas(x.v)}</div>
+              </div>
+            ))}
+          </div>
+          <p className="mx-auto max-w-lg text-[0.74rem] leading-7 text-muted">
+            {stats.wrong > 0
+              ? 'بهتر است همین حالا فقط سؤال‌هایی را که نشان دادی نیاز به مرور دارند، یک‌بار دیگر ببینی؛ یادگیری با تکرار فاصله‌دار ماندگار می‌شود.'
+              : stats.answered < stats.total
+                ? 'هنوز همهٔ سؤال‌ها را ندیده‌ای؛ یک دور کامل بزن تا تصویر درس در ذهنت کامل شود.'
+                : 'همهٔ سؤال‌های این دور را درست جواب دادی. حالا سراغ درس بعدی برو.'}
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {stats.wrong > 0 && (
+              <button className="btn btn-gold btn-sm" onClick={reviewWrong}>
+                <RotateCcw size={13} /> مرور نادرست‌ها
+              </button>
+            )}
+            <button className="btn btn-ghost btn-sm" onClick={() => startSession(true)}>
+              <Shuffle size={13} /> یک دور تازه
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => { setSession(false); setSummary(false) }}>
+              <ListChecks size={13} /> بازگشت به فهرست
+            </button>
+          </div>
+        </div>
+      )}
+
+      {session && !summary && current && (
         <div className="space-y-3">
           <div className="panel flex items-center gap-3 px-3.5 py-2.5">
             <span className="text-[0.7rem] tabular-nums text-muted">
@@ -400,7 +464,7 @@ export function Bank({ id, initialQuery = '' }: { id?: string; initialQuery?: st
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
               <div className="h-full rounded-full bg-gold transition-all" style={{ width: `${progress}%` }} />
             </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => setSession(false)}>
+            <button className="btn btn-ghost btn-sm" onClick={() => setSummary(true)}>
               <X size={13} /> پایان مرور
             </button>
           </div>
@@ -417,9 +481,15 @@ export function Bank({ id, initialQuery = '' }: { id?: string; initialQuery?: st
           </div>
 
           <div className="flex items-center justify-between gap-2">
-            <button className="btn btn-ghost" onClick={() => go(1)} disabled={step >= sessionOrder.length - 1}>
-              <ArrowLeft size={15} /> سؤال بعد
-            </button>
+            {step >= sessionOrder.length - 1 ? (
+              <button className="btn btn-gold" onClick={() => setSummary(true)}>
+                <Check size={15} /> پایان و جمع‌بندی
+              </button>
+            ) : (
+              <button className="btn btn-ghost" onClick={() => go(1)}>
+                <ArrowLeft size={15} /> سؤال بعد
+              </button>
+            )}
             <span className="text-[0.62rem] text-faint">کلیدهای ← → برای جابه‌جایی</span>
             <button className="btn btn-ghost" onClick={() => go(-1)} disabled={step === 0}>
               سؤال قبل <ArrowRight size={15} />
