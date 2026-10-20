@@ -3056,6 +3056,29 @@ a:focus-visible {
   .film-stage:has(.film-gloss) > .film-frame { padding-bottom: 0.9rem; }
   /* جدول‌ها در موبایل فشرده نمی‌شوند؛ داخل کادر خودشان افقی می‌لغزند */
   .film-table { min-width: 24rem; }
+  .film-list { gap: 0.4rem; }
+  .film-list li { font-size: 0.76rem; line-height: 1.8; }
+  /* چهره‌های پرشمار: در موبایل دو ستون، تا همه در یک قاب جا شوند */
+  .figure-grid--dense { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem; }
+  .figure-grid--dense .figure-card { padding: 0.45rem; gap: 0.35rem; border-radius: 0.75rem; }
+  .figure-grid--dense .figure-card__mono { width: 1.7rem; height: 1.7rem; font-size: 0.78rem; border-radius: 0.5rem; }
+  .figure-grid--dense .figure-card p { font-size: 0.56rem; line-height: 1.6; margin-top: 0.25rem; padding-top: 0.25rem; }
+  .film-table td { padding: 0.45rem 0.6rem; line-height: 1.8; }
+  .film-table th { padding: 0.45rem 0.6rem; }
+  /* خط زمان در موبایل به‌جای نوار افقی، شبکه‌ای می‌شود تا همهٔ ایستگاه‌ها دیده شوند */
+  .timeline-strip { padding: 0.65rem 0.6rem 0.5rem; }
+  .timeline-strip .absolute.inset-x-0 { display: none; }
+  .timeline-strip .no-scrollbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem; overflow: visible; padding-bottom: 0; }
+  .timeline-strip .tm-card { width: auto; padding: 1.35rem 0.6rem 0.6rem; border-radius: 0.7rem; }
+  .timeline-strip .tm-card .tm-year { font-size: 0.72rem; }
+  .timeline-strip .tm-card .tm-title { font-size: 0.78rem; line-height: 1.65; }
+  .timeline-strip .tm-card .tm-place { font-size: 0.62rem; }
+  .timeline-strip .tm-dot { top: 0.5rem; }
+  .scene-mini { padding: 0.5rem 0.6rem; }
+  .scene-mini p { font-size: 0.76rem; line-height: 1.75; }
+  .figure-card { padding: 0.6rem; gap: 0.5rem; }
+  .figure-card__mono { width: 2rem; height: 2rem; font-size: 0.85rem; }
+  .figure-card p { font-size: 0.64rem; line-height: 1.7; margin-top: 0.35rem; padding-top: 0.35rem; }
   .film-card { padding: 0.55rem 0.7rem; }
   .film-card__title { font-size: 0.82rem; margin-bottom: 0.15rem; }
   .film-card p { font-size: 0.78rem; line-height: 1.8; }

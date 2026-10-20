@@ -182,6 +182,7 @@ const l9: LessonPlan = {
   scenes: [
     {
       title: 'زمینه‌ها و خاستگاه سلسله‌ها',
+      timeline: { title: 'شش سلسلهٔ ایرانی در دو سده', items: ['t-taheriyan', 't-alaviyan', 't-saffariyan', 't-samanian', 't-ziyariyan', 't-buyeh'] },
       sections: [0],
       maps: [
         {
@@ -329,6 +330,7 @@ const l10: LessonPlan = {
   scenes: [
     {
       title: 'غزنویان؛ از غزنه تا دندانقان',
+      timeline: { title: 'از غزنه تا ملازگرد', items: ['t-ghaznavi', 't-shahname', 't-seljuk', 't-dandan', 't-khayyam', 't-nezamiye', 't-malazgert'] },
       sections: [0],
       maps: [
         {
@@ -452,6 +454,7 @@ const l11: LessonPlan = {
   scenes: [
     {
       title: 'دو موج حمله',
+      timeline: { title: 'دو موج، پنج نقطهٔ عطف', items: ['t-mongol', 't-ilkhani', 't-baghdad-fall', 't-timur', 't-timur-iran'] },
       sections: [0],
       maps: [
         {
@@ -672,6 +675,7 @@ const l12: LessonPlan = {
     },
     {
       title: 'ادبیات و تاریخ‌نگاری',
+      timeline: { title: 'از مولانا تا گوهرشاد', items: ['t-molavi', 't-ghazan', 't-ibnbatuta', 't-hafez', 't-goharshad'] },
       sections: [4],
       panels: [
         { kind: 'table', title: 'سه تاریخ مهم', head: ['کتاب', 'نویسنده', 'زمان'], rows: [
@@ -748,6 +752,7 @@ const l13: LessonPlan = {
   scenes: [
     {
       title: 'از طریقت تا حکومت',
+      timeline: { title: 'دو سدهٔ صفوی در پنج تاریخ', items: ['t-safavi', 't-chaldoran', 't-shahabbas', 't-isfahan', 't-safavi-fall'] },
       sections: [0],
       maps: [
         {

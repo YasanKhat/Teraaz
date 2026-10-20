@@ -62,7 +62,7 @@ const l1: LessonPlan = {
       title: 'سفرنامه، جغرافیا و اندرز؛ چشم‌های دیگر',
       sections: [2],
       panels: [
-        { kind: 'figures', heading: 'کسانی که با قلمشان زمانه را ثبت کردند', ids: ['ferdowsi', 'saadi', 'hafez', 'nezamolmok'] },
+        { kind: 'figures', heading: 'کسانی که با قلمشان زمانه را ثبت کردند', ids: ['ferdowsi', 'saadi', 'hafez', 'nezamolmolk'] },
         { kind: 'quote', text: 'نوشته‌های روی سکه‌ها اطلاعات مفیدی دربارهٔ اوضاع سیاسی، اجتماعی، مذهبی، اقتصادی و هنری سلسله‌ها و نام پادشاهان می‌دهد.', source: 'درس ۱ — منابع نوشتاری' },
         { kind: 'recipe', title: 'پاسخ سه‌خطی برای سؤال «منابع تاریخ را دسته‌بندی کنید»', rows: [
           { q: 'دستهٔ اول', a: 'غیرنوشتاری: محوطه‌ها و بناها (بستر رویداد / خودِ سند)، ابزار و دست‌ساخته، آثار شفاهی.' },
@@ -832,6 +832,7 @@ const l6: LessonPlan = {
     },
     {
       title: 'کربلا، قیام‌ها و امامان شیعه',
+      timeline: { title: 'از صلح حسن تا پایان پیشروی در اروپا', items: ['t-shahadat', 't-karbala', 't-mokhtar', 't-andalus', 't-poitiers'] },
       sections: [5],
       panels: [
         { kind: 'figures', heading: 'چهره‌های این دوره', ids: ['moaviye', 'imam-hossein', 'imam-sajjad', 'imam-bagher'] },

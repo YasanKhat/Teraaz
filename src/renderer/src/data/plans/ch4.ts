@@ -10,6 +10,7 @@ const l15: LessonPlan = {
   scenes: [
     {
       title: 'روم، بیزانس و آغاز قرون وسطی',
+      timeline: { title: 'هزار سال قرون وسطا در پنج تاریخ', items: ['t-rome', 't-charlemagne', 't-crusade', 't-crusade-end', 't-constantinople'] },
       sections: [0],
       maps: [
         {
@@ -214,6 +215,7 @@ const l16: LessonPlan = {
   scenes: [
     {
       title: 'رنسانس؛ نوزایی از ایتالیا',
+      timeline: { title: 'عصر جدید در شش تاریخ', items: ['t-gutenberg', 't-constantinople', 't-columbus', 't-gama', 't-luther', 't-copernicus'] },
       sections: [0],
       panels: [
         { kind: 'image', art: 'renaissance', caption: 'کارگاه رنسانس: چاپ، ابزار علمی و بوم نقاشی در یک فضا.' },

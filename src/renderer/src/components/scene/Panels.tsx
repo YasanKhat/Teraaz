@@ -157,7 +157,7 @@ export function PanelView({ panel, accent }: { panel: Panel; accent: string }) {
       return (
         <div>
           {panel.heading && <div className="kicker mb-2">{panel.heading}</div>}
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={cn('grid gap-2 sm:grid-cols-2 lg:grid-cols-3', panel.ids.length >= 4 && 'figure-grid--dense')}>
             {panel.ids.map((id, i) => {
               const f = figureById(id)
               if (!f) return null
