@@ -3636,3 +3636,23 @@ html[data-film-full='on'] .film-frame { border-radius: 1.05rem; }
   .mind__svg { min-width: 640px; }
   .mind { overflow-x: auto; }
 }
+
+.atlas__pinInline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.7rem;
+  margin-top: 0.25rem;
+  font-size: 0.62rem;
+  color: #e8dcc2;
+}
+.atlas__pinInline span { display: inline-flex; align-items: center; gap: 0.28rem; }
+.atlas__pinInline b {
+  display: grid;
+  place-items: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 99px;
+  color: #10202e;
+  font-size: 0.55rem;
+  font-weight: 800;
+}

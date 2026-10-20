@@ -831,11 +831,46 @@ export function AtlasMap({
     const items = (phase.pins ?? [])
       .map((pin) => {
         const p = projection([pin.lon, pin.lat])
-        return p ? { ...pin, x: p[0], y: p[1] } : null
+        return p ? { ...pin, x: p[0], y: p[1], mx: p[0], my: p[1] } : null
       })
-      .filter((v): v is typeof v & { x: number; y: number } => !!v)
-    const others = items.map((v) => ({ x: v.x, y: v.y }))
-    return placeLabels(items as ({ label: string; x: number; y: number } & typeof items[number])[], unit * lk, [], others)
+      .filter((v): v is NonNullable<typeof v> & { x: number; y: number; mx: number; my: number } => !!v)
+
+    // نشانه‌های بسیار نزدیک (مثلاً مکه و طائف) روی هم می‌افتند؛ کمی از هم بازشان می‌کنیم
+    const gap = 26
+    for (let pass = 0; pass < 26; pass++) {
+      let moved = false
+      for (let a = 0; a < items.length; a++) {
+        for (let b = a + 1; b < items.length; b++) {
+          const A = items[a]
+          const B = items[b]
+          let dx = B.mx - A.mx
+          let dy = B.my - A.my
+          let d = Math.hypot(dx, dy)
+          if (d >= gap) continue
+          if (d < 0.001) {
+            dx = Math.cos(a * 2.1)
+            dy = Math.sin(a * 2.1)
+            d = 1
+          }
+          const push = (gap - d) / 2 + 0.4
+          const ux = dx / d
+          const uy = dy / d
+          A.mx -= ux * push
+          A.my -= uy * push
+          B.mx += ux * push
+          B.my += uy * push
+          moved = true
+        }
+      }
+      if (!moved) break
+    }
+
+    const others = items.map((v) => ({ x: v.mx, y: v.my }))
+    return placeLabels(items as any, unit * lk, [], others) as (typeof items[number] & {
+      dx: number
+      dy: number
+      anchor: 'start' | 'end' | 'middle'
+    })[]
   }, [phase, projection, unit, lk])
 
   /** کادر برچسب نشانه‌ها؛ مانعِ چیدن برچسب نواحی و کشورها */
@@ -843,11 +878,26 @@ export function AtlasMap({
     () =>
       placedPins.map((p) => {
         const w = (p.label.length * 7.4 + 6) * unit * lk
-        const x0 = p.anchor === 'start' ? p.x + p.dx : p.x + p.dx - w
-        return { x: x0 - 4, y: p.y + p.dy - 14 * unit * lk - 3, w: w + 8, h: 18 * unit * lk + 6 }
+        const x0 = p.anchor === 'start' ? p.mx + p.dx : p.anchor === 'middle' ? p.mx + p.dx - w / 2 : p.mx + p.dx - w
+        return { x: x0 - 4, y: p.my + p.dy - 14 * unit * lk - 3, w: w + 8, h: 18 * unit * lk + 6 }
       }),
-    [placedPins, unit]
+    [placedPins, unit, lk]
   )
+
+  /** اگر برچسب نشانه‌ها در قاب کوچک جا نشود، شماره + کلید می‌آید تا هیچ نامی روی نام دیگر نیفتد */
+  const pinsCrowded = useMemo(() => {
+    const boxes = pinBoxes
+    for (let a = 0; a < boxes.length; a++) {
+      for (let b = a + 1; b < boxes.length; b++) {
+        const A = boxes[a]
+        const B = boxes[b]
+        const overlapX = Math.min(A.x + A.w, B.x + B.w) - Math.max(A.x, B.x)
+        const overlapY = Math.min(A.y + A.h, B.y + B.h) - Math.max(A.y, B.y)
+        if (overlapX > 4 && overlapY > 4) return true
+      }
+    }
+    return false
+  }, [pinBoxes])
 
   const seaLabels = useMemo(
     () => seas.filter((s) => inView(s.lon, s.lat)).map((s) => ({ ...s, p: projection([s.lon, s.lat])! })),
@@ -1269,48 +1319,85 @@ export function AtlasMap({
                 })}
               </g>
 
-              {/* شهرها و نشانه‌ها */}
+              {/* شهرها و نشانه‌ها: اول نقطه‌ها، بعد نام‌ها تا اسم‌ها زیر هم نیفتند */}
               <g>
-                {placedPins.map((pin, k) => {
-                  const { x, y } = pin
+                {!pinsCrowded && placedPins.map((pin, k) => {
                   const tone = TONES[pin.tone ?? 'gold']
+                  const shifted = Math.hypot(pin.mx - pin.x, pin.my - pin.y) > 0.6
                   return (
                     <motion.g
-                      key={`p-${k}`}
+                      key={`pm-${k}`}
                       initial={{ opacity: 0, scale: 0.85 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.09 * k, duration: 0.4 }}
+                      transition={{ delay: 0.07 * k, duration: 0.4 }}
                       style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
                     >
-                      <circle cx={x} cy={y} r={13} fill={tone} fillOpacity="0.14" />
-                      <circle cx={x} cy={y} r={8} fill="none" stroke={tone} strokeOpacity="0.5" strokeWidth="1.2" className="atlas-pin__ring" />
-                      <circle cx={x} cy={y} r={4} fill={tone} stroke="#0b1b2b" strokeWidth="1.3" />
-                      {Math.hypot(pin.dx, pin.dy) > 40 * unit * lk && (
-                        <line
-                          x1={x}
-                          y1={y}
-                          x2={pin.anchor === 'start' ? x + pin.dx - 4 : pin.anchor === 'middle' ? x + pin.dx : x + pin.dx + 4}
-                          y2={y + pin.dy - 4 * unit * lk}
-                          stroke={tone}
-                          strokeOpacity="0.55"
-                          strokeWidth={0.9 * unit}
-                        />
+                      {shifted && (
+                        <line x1={pin.x} y1={pin.y} x2={pin.mx} y2={pin.my} stroke={tone} strokeOpacity="0.55" strokeWidth={0.9 * unit} />
                       )}
-                      <text
-                        x={x + pin.dx}
-                        y={y + pin.dy}
-                        textAnchor={pin.anchor}
-                        fontSize={12 * unit * lk}
-                        fontWeight={800}
-                        fill="#15202c"
-                        stroke="#f9efd8"
-                        strokeWidth={4 * lk * unit}
-                        paintOrder="stroke"
-                        style={{ fontFamily: 'Estedad, sans-serif' }}
-                      >
-                        {pin.label}
-                      </text>
+                      <circle cx={pin.mx} cy={pin.my} r={12} fill={tone} fillOpacity="0.16" />
+                      <circle cx={pin.mx} cy={pin.my} r={7.5} fill="none" stroke={tone} strokeOpacity="0.55" strokeWidth="1.1" className="atlas-pin__ring" />
+                      <circle cx={pin.mx} cy={pin.my} r={3.6} fill={tone} stroke="#0b1b2b" strokeWidth="1.2" />
                     </motion.g>
+                  )
+                })}
+              </g>
+              <g pointerEvents="none">
+                {pinsCrowded
+                  ? placedPins.map((pin, k) => {
+                      const tone = TONES[pin.tone ?? 'gold']
+                      const r = 9.5
+                      // نشانه‌های نزدیک: به‌جای نام، شماره روی خودِ نشانه؛ کلید در پانوشت
+                      const bx = pin.mx
+                      const by = pin.my
+                      return (
+                        <g key={`pn-${k}`}>
+                          <line x1={pin.x} y1={pin.y} x2={bx} y2={by} stroke={tone} strokeOpacity="0.55" strokeWidth="1" />
+                          <circle cx={bx} cy={by} r={r + 2.4} fill={tone} fillOpacity="0.18" />
+                          <circle cx={bx} cy={by} r={r} fill={tone} stroke="#0b1b2b" strokeWidth="1.2" />
+                          <text
+                            x={bx}
+                            y={by + r * 0.36}
+                            textAnchor="middle"
+                            fontSize={r * 1.15}
+                            fontWeight={800}
+                            fill="#10202e"
+                            style={{ fontFamily: 'Estedad, sans-serif' }}
+                          >
+                            {fas(k + 1)}
+                          </text>
+                        </g>
+                      )
+                    })
+                  : placedPins.map((pin, k) => {
+                  const tone = TONES[pin.tone ?? 'gold']
+                  const labelW = pin.label.length * 7.4 * unit * lk
+                  const rawX = pin.mx + pin.dx
+                  const labelX =
+                    pin.anchor === 'start'
+                      ? Math.min(rawX, W - 10 - labelW)
+                      : pin.anchor === 'middle'
+                        ? Math.min(Math.max(rawX, 10 + labelW / 2), W - 10 - labelW / 2)
+                        : Math.max(rawX, 10 + labelW)
+                  return (
+                    <motion.text
+                      key={`pl-${k}`}
+                      x={labelX}
+                      y={pin.my + pin.dy}
+                      textAnchor={pin.anchor}
+                      fontSize={12 * unit * lk}
+                      fontWeight={800}
+                      fill="#15202c"
+                      stroke="#f9efd8"
+                      strokeWidth={4 * lk * unit}
+                      paintOrder="stroke"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.12 + 0.05 * k, duration: 0.35 }}
+                      style={{ fontFamily: 'Estedad, sans-serif' }}
+                    >
+                      {pin.label}
+                    </motion.text>
                   )
                 })}
               </g>
@@ -1473,6 +1560,16 @@ export function AtlasMap({
               <span className="atlas__stepTitle">{phase.title}</span>
             </div>
             <p className="atlas__captionText">{phase.caption}</p>
+            {pinsCrowded && placedPins.length > 0 && (
+              <div className="atlas__pinInline">
+                {placedPins.map((pin, k) => (
+                  <span key={`ki-${k}`}>
+                    <b style={{ background: TONES[pin.tone ?? 'gold'] }}>{fas(k + 1)}</b>
+                    {pin.label}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           {stepCount > 1 && (
             <div className="atlas__dots">
