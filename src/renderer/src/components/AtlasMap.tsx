@@ -953,8 +953,8 @@ export function AtlasMap({
                     if (!d) return null
                     return (
                       <g key={`base-${id}`}>
-                        <path d={d} fill={palette.main} fillOpacity="0.09" />
-                        <path d={d} fill="none" stroke={palette.line} strokeOpacity="0.4" strokeWidth="0.9" strokeDasharray="7 5" />
+                        <path d={d} fill={palette.main} fillOpacity="0.055" />
+                        <path d={d} fill="none" stroke={palette.line} strokeOpacity="0.24" strokeWidth="0.8" strokeDasharray="5 5" />
                       </g>
                     )
                   })}
@@ -970,11 +970,11 @@ export function AtlasMap({
                       key={`g-${id}`}
                       d={d}
                       fill="#8a7550"
-                      fillOpacity="0.09"
+                      fillOpacity="0.06"
                       stroke="#8d7550"
-                      strokeOpacity="0.55"
-                      strokeWidth="1"
-                      strokeDasharray="6 5"
+                      strokeOpacity="0.34"
+                      strokeWidth="0.9"
+                      strokeDasharray="4 5"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.6 }}
