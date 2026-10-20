@@ -699,7 +699,7 @@ export function AtlasMap({
               initial={false}
               animate={{ x: camera.x, y: camera.y, scale: camera.k }}
               transition={reduced ? { duration: 0 } : { duration: 1.15, ease: [0.33, 1, 0.36, 1] }}
-              style={{ transformOrigin: '0px 0px', transformBox: 'view-box' }}
+              style={{ originX: 0, originY: 0, transformBox: 'view-box', transformOrigin: '0px 0px' }}
             >
             {/* خطوط نصف‌النهار و مدار */}
             <path d={graticulePath} fill="none" stroke="#8fb4d4" strokeOpacity="0.13" strokeWidth="0.6" />

@@ -9,6 +9,7 @@ import { Progress } from '../src/renderer/src/pages/Progress'
 import { Recap } from '../src/renderer/src/pages/Recap'
 import { Quiz } from '../src/renderer/src/pages/Quiz'
 import { Settings } from '../src/renderer/src/pages/Settings'
+import { LessonExperience } from '../src/renderer/src/pages/LessonExperience'
 
 const mem = new Map<string, string>()
 ;(globalThis as any).localStorage = {
@@ -37,7 +38,8 @@ async function main() {
     ['Progress', Progress, {}],
     ['Recap', Recap, { id: '3' }],
     ['Quiz', Quiz, {}],
-    ['Settings', Settings, {}]
+    ['Settings', Settings, {}],
+    ['LessonFilm', LessonExperience, { id: '3' }]
   ]
   let fail = 0
   const expect = (cond: boolean, msg: string) => {
