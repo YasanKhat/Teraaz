@@ -3682,3 +3682,299 @@ html[data-film-full='on'] .film-frame { border-radius: 1.05rem; }
 }
 .film-ask__q { font-size: 0.86rem; font-weight: 700; color: #f6ecd6; }
 .film-ask__hint { font-size: 0.66rem; color: rgba(246, 236, 214, 0.62); }
+
+/* ── لایهٔ دوربین نقشه: حرکت نرم، و در حین کشش/زوم بدون بازچینش برچسب ── */
+.atlas__cam {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  transition: transform 0.9s cubic-bezier(0.33, 1, 0.36, 1);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+.atlas__svg.is-gesturing .atlas__cam { transition: none; }
+.atlas__svg.is-gesturing .atlas__cam text,
+.atlas__svg.is-gesturing .atlas__cam .map-label { opacity: 0.05; transition: opacity 0.12s linear; }
+.atlas__svg.is-grabbable { cursor: grab; }
+.atlas__svg.is-dragging { cursor: grabbing; }
+.atlas__svg text { text-rendering: optimizeSpeed; }
+
+/* ────────────────────────── اطلس تازه ────────────────────────── */
+.atlasx { display: flex; flex-direction: column; gap: 0.5rem; }
+.atlasx__bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid color-mix(in oklab, var(--c-line) 80%, transparent);
+  border-radius: 0.85rem;
+  background: color-mix(in oklab, var(--c-surface) 70%, transparent);
+}
+.atlasx__kicker { font-size: 0.56rem; letter-spacing: 0.14em; color: var(--c-gold); margin-bottom: 0.1rem; }
+.atlasx__tools { display: flex; align-items: center; gap: 0.35rem; }
+.atlasx__count { font-size: 0.62rem; color: var(--c-faint); font-variant-numeric: tabular-nums; }
+.atlasx__frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1000 / 620;
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--c-gold) 24%, var(--c-line));
+  background: #071522;
+  box-shadow: 0 24px 60px -40px rgba(0, 0, 0, 0.9);
+}
+.atlasx__svg { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; }
+.atlasx__cam { transform-box: view-box; transform-origin: 0 0; transition: transform 0.95s cubic-bezier(.33,1,.36,1); will-change: transform; }
+.atlasx__svg.is-gesturing .atlasx__cam { transition: none; }
+.atlasx__svg.is-gesturing .atlasx__labels { opacity: 0.03; transition: opacity 0.1s linear; }
+.atlasx__svg.is-grabbable { cursor: grab; }
+.atlasx__svg.is-dragging { cursor: grabbing; }
+.atlasx__svg text { text-rendering: optimizeSpeed; }
+.atlasx__route { animation: atlasDash 1.6s ease-out both; }
+@keyframes atlasDash { from { stroke-dashoffset: 90; opacity: 0; } to { stroke-dashoffset: 0; opacity: 1; } }
+.atlasx__hintflag {
+  position: absolute; inset-inline-start: 0.7rem; top: 0.7rem;
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.25rem 0.5rem; border-radius: 99px;
+  font-size: 0.6rem; color: #f4e6c6; background: rgba(6, 20, 30, 0.8);
+  border: 1px solid rgba(201, 171, 116, 0.3);
+}
+.atlasx__tip {
+  position: absolute; inset-inline-start: 0.7rem; bottom: 0.7rem;
+  padding: 0.2rem 0.5rem; border-radius: 0.4rem;
+  font-size: 0.6rem; background: rgba(6, 20, 30, 0.85); color: #f4e6c6;
+}
+.atlasx__caption { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.15rem 0.6rem; }
+.atlasx__captionTop { display: flex; align-items: center; gap: 0.5rem; width: 100%; }
+.atlasx__step { font-size: 0.58rem; color: var(--c-gold); font-variant-numeric: tabular-nums; }
+.atlasx__stepTitle { font-size: 0.78rem; font-weight: 800; color: var(--c-ink); flex: 1; }
+.atlasx__captionText { flex: 1 1 100%; margin: 0.1rem 0 0; font-size: 0.72rem; line-height: 1.95; color: var(--c-muted); }
+.atlasx__nav { display: flex; align-items: center; gap: 0.2rem; }
+.atlasx__nav button {
+  display: grid; place-items: center; width: 1.65rem; height: 1.65rem;
+  border-radius: 0.45rem; border: 1px solid var(--c-line); color: var(--c-muted);
+  font-size: 0.62rem; transition: all 0.15s ease;
+}
+.atlasx__nav button:hover:not(:disabled) { color: var(--c-gold); border-color: color-mix(in oklab, var(--c-gold) 45%, var(--c-line)); }
+.atlasx__nav button:disabled { opacity: 0.35; }
+.atlasx__nav button.is-on { color: var(--c-gold); border-color: color-mix(in oklab, var(--c-gold) 50%, var(--c-line)); }
+.atlasx__dots { display: flex; gap: 0.25rem; width: 100%; }
+.atlasx__dot { flex: 1; height: 3px; border-radius: 99px; background: var(--c-line); transition: background 0.2s ease; }
+.atlasx__dot.is-on { background: var(--c-gold); }
+.atlasx__dot:hover { background: color-mix(in oklab, var(--c-gold) 50%, var(--c-line)); }
+.atlasx__legend { display: flex; flex-wrap: wrap; gap: 0.35rem 0.8rem; font-size: 0.6rem; color: var(--c-faint); }
+.atlasx__legend span { display: inline-flex; align-items: center; gap: 0.3rem; }
+.atlasx__legend i { width: 0.7rem; height: 0.7rem; border-radius: 0.2rem; display: inline-block; }
+.atlasx__legend i.dash { background: transparent; border: 1px dashed #8a7550; }
+.atlasx__legend i.pin { width: 0.5rem; height: 0.5rem; border-radius: 99px; }
+.atlasx__legend i.line { height: 2px; border-radius: 0; width: 0.9rem; }
+.atlasx__hintj { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 0.25rem; }
+.planboard { background: #0b1c28; }
+
+/* در فیلم: نقشه نباید سرریز کند و باید قاب را پر کند */
+.film .atlasx { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.film .atlasx__frame { flex: 1; min-height: 0; aspect-ratio: auto; }
+.film .atlasx__caption { margin-top: 0.35rem; }
+@media (max-width: 700px) {
+  .atlasx__bar { padding: 0.35rem 0.5rem; }
+  .atlasx__legend { font-size: 0.55rem; }
+  .atlasx__captionText { font-size: 0.68rem; }
+}
+
+/* ── تمام‌صفحهٔ واقعی درس: کل پنجره، بدون حاشیه و بدون نوار برنامه ────── */
+.film.is-full,
+.film:fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  width: 100vw;
+  height: 100dvh;
+  min-height: 0;
+  padding: clamp(0.5rem, 1.4vw, 1.4rem) clamp(0.6rem, 2vw, 2.2rem) clamp(0.7rem, 1.6vw, 1.5rem);
+  gap: 0.7rem;
+  background:
+    radial-gradient(120% 90% at 50% -10%, color-mix(in oklab, var(--film-accent) 12%, transparent), transparent 60%),
+    var(--c-bg);
+}
+
+.film.is-full .film-frame,
+.film:fullscreen .film-frame {
+  border-radius: 0.6rem;
+}
+
+.film.is-full .film__stage,
+.film:fullscreen .film__stage {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.film.is-full .film-body,
+.film:fullscreen .film-body { max-width: min(1120px, 92vw); }
+
+html[data-film-full='on'],
+html[data-film-full='on'] body { overflow: hidden; }
+
+/* ── صحنه: پیوند با صحنهٔ پیش و فهرست «چه یاد می‌گیری» ─────────────────── */
+.film-scene__link {
+  font-size: 0.72rem;
+  color: rgba(246, 236, 214, 0.5);
+  margin-bottom: 0.55rem;
+  max-width: 42rem;
+}
+
+.film-scene__goals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.65rem 0 0.2rem;
+  padding: 0;
+  list-style: none;
+}
+
+.film-scene__goals li {
+  font-size: 0.68rem;
+  line-height: 1.7;
+  color: rgba(246, 236, 214, 0.82);
+  background: color-mix(in oklab, #0b1b2b 55%, transparent);
+  border: 1px solid color-mix(in oklab, var(--c-gold) 22%, transparent);
+  border-radius: 99px;
+  padding: 0.16rem 0.6rem;
+}
+
+.film-scene__goals li::before {
+  content: '✦';
+  color: var(--c-gold);
+  font-size: 0.6em;
+  margin-inline-end: 0.35rem;
+}
+
+/* ── نقشهٔ راه درس ─────────────────────────────────────────────────────── */
+.film-roadmap {
+  list-style: none;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.film-roadmap li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.8rem;
+  border: 1px solid color-mix(in oklab, var(--c-line) 80%, transparent);
+  background: color-mix(in oklab, var(--c-surface) 55%, transparent);
+}
+
+.film-roadmap__n {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 99px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  color: #10202e;
+  background: var(--c-gold);
+}
+
+.film-roadmap__body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.film-roadmap__body b { font-size: 0.82rem; color: var(--c-ink); font-weight: 800; }
+.film-roadmap__body em { font-size: 0.72rem; font-style: normal; color: var(--c-muted); line-height: 1.75; }
+
+/* ── نوار صحنه‌ها (جای ریل قدیمی) ─────────────────────────────────────── */
+.film__rail {
+  display: flex;
+  gap: 4px;
+  height: 1.35rem;
+  align-items: stretch;
+  overflow: hidden;
+  padding: 0 0.1rem;
+}
+
+.film__seg {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: 0.45rem;
+  background: color-mix(in oklab, var(--c-ink) 9%, transparent);
+  border: 1px solid transparent;
+  overflow: hidden;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.film__seg:hover { border-color: color-mix(in oklab, var(--c-gold) 45%, transparent); }
+
+.film__segFill {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  background: color-mix(in oklab, var(--c-gold) 42%, transparent);
+  transition: width 0.3s ease;
+}
+
+.film__seg.is-now .film__segFill { background: var(--c-gold); }
+.film__seg.is-now { border-color: color-mix(in oklab, var(--c-gold) 55%, transparent); }
+.film__seg.is-past .film__segFill { background: color-mix(in oklab, var(--c-gold) 30%, transparent); }
+
+.film__segLabel {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.56rem;
+  font-weight: 800;
+  color: color-mix(in oklab, var(--c-ink) 70%, transparent);
+  mix-blend-mode: normal;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+.film__seg.is-now .film__segLabel { color: #10202e; }
+
+/* ── برجسته‌سازی درون متن درس ──────────────────────────────────────────── */
+.film-em {
+  font-weight: 800;
+  color: color-mix(in oklab, var(--c-gold) 70%, var(--c-ink));
+  font-style: normal;
+}
+
+.film-em--quote {
+  color: color-mix(in oklab, #8fd0c7 75%, var(--c-ink));
+  font-weight: 700;
+}
+
+/* ── کارت «به یاد بسپار» ──────────────────────────────────────────────── */
+.film-remind {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.05rem 1.15rem;
+  border-radius: 1rem;
+  border: 1px dashed color-mix(in oklab, var(--c-gold) 42%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--c-gold) 8%, transparent), transparent 70%),
+    color-mix(in oklab, var(--c-surface) 60%, transparent);
+}
+
+.film-remind__tag {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--c-gold);
+  border: 1px solid color-mix(in oklab, var(--c-gold) 35%, transparent);
+  border-radius: 99px;
+  padding: 0.12rem 0.5rem;
+}
+
+.film-remind__text {
+  font-size: clamp(0.95rem, 1.6vw, 1.2rem);
+  font-weight: 700;
+  line-height: 2;
+  color: var(--c-ink);
+}
+
+.film-remind__from { font-size: 0.65rem; color: var(--c-faint); }

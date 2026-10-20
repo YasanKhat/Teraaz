@@ -44,7 +44,19 @@ import { MindMap, type MindBranch } from './scene/MindMap'
 type Frame =
   | { kind: 'cover'; art: string }
   | { kind: 'why'; title: string; text: string; essence?: string; outline?: string[] }
-  | { kind: 'scene'; n: number; total: number; title: string; kicker?: string; beat: string; ask?: string; art: string }
+  | {
+      kind: 'scene'
+      n: number
+      total: number
+      title: string
+      kicker?: string
+      beat: string
+      ask?: string
+      art: string
+      link?: string
+      goals: string[]
+    }
+  | { kind: 'roadmap'; items: { n: number; title: string; goal: string }[] }
   | { kind: 'head'; kicker: string; title: string }
   | { kind: 'text'; kicker?: string; title?: string; body: string }
   | { kind: 'list'; kicker?: string; title?: string; items: string[]; numbered?: boolean }
@@ -53,6 +65,7 @@ type Frame =
   | { kind: 'steps'; kicker?: string; title?: string; items: { title: string; text: string }[] }
   | { kind: 'quote'; text: string; source?: string }
   | { kind: 'note'; tone: 'tip' | 'warn'; title?: string; text: string }
+  | { kind: 'remind'; text: string; scene: string }
   | { kind: 'map'; kicker: string; title: string; spec: NonNullable<LessonPlan['scenes'][number]['maps']>[number]['spec'] }
   | { kind: 'timeline'; title: string; ids: string[] }
   | { kind: 'panel'; panel: Panel }
@@ -205,6 +218,28 @@ function pickCheck(lesson: Lesson, scene: Beat, used: Set<string>): Lesson['quiz
   return best
 }
 
+/** کلیدواژه‌های یک بخش، برای جفت‌کردن «یادآور» با متن همان بخش */
+function sectionWords(lesson: Lesson, idx: number): Set<string> {
+  const sec = lesson.sections[idx]
+  if (!sec) return new Set()
+  return keyWords([sec.title, ...sec.blocks.map((b) => JSON.stringify(b))].join(' '))
+}
+
+/** نزدیک‌ترین نکتهٔ کلیدیِ درس به یک بخش — برای تکرارِ هدفمند در میانهٔ درس */
+function remindFor(lesson: Lesson, idx: number, used: Set<string>): string | null {
+  const words = sectionWords(lesson, idx)
+  if (!words.size) return null
+  let best: string | null = null
+  let score = 0
+  for (const kp of lesson.keyPoints) {
+    if (used.has(kp)) continue
+    let sc = 0
+    for (const w of keyWords(kp)) if (words.has(w)) sc++
+    if (sc > score) { score = sc; best = kp }
+  }
+  return score >= 3 ? best : null
+}
+
 /** نخستین جملهٔ معنادار یک بخش — برای وقتی که روایتِ دست‌نویس نداریم */
 function leadOf(lesson: Lesson, idx: number, max = 240): string | null {
   const sec = lesson.sections[idx]
@@ -231,24 +266,50 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
     })
   const scenes = plan.scenes
   const total = scenes.length
+  frames.push({
+    kind: 'roadmap',
+    items: scenes.map((sc, k) => ({
+      n: k + 1,
+      title: sc.title,
+      goal: sc.takeaway ?? lesson.keyPoints[k] ?? ''
+    }))
+  })
   /** پرسش‌هایی که در صحنه‌ها آمده‌اند تا سؤال تکراری نپرسیم */
   const usedChecks = new Set<string>()
+  /** نکته‌هایی که یک‌بار به‌عنوان «یادآور» نشان داده شده‌اند */
+  const usedReminders = new Set<string>()
   scenes.forEach((sc) => sc.panels.forEach((p) => { if (p.kind === 'check') usedChecks.add(p.prompt) }))
 
   scenes.forEach((scene, si) => {
     const beat = story?.beats[si]
-    // پرسش راهنما: پیش از خواندن مطرح می‌شود و پاسخش در همان صحنه پیدا می‌شود
-    const ask = scene.panels.find((p): p is Extract<Panel, { kind: 'check' }> => p.kind === 'check')?.prompt
+    // پرسش راهنما: اگر صحنه خودش پرسش ندارد، از بانک همین درس یکی می‌آوریم
+    const ownCheck = scene.panels.find((p): p is Extract<Panel, { kind: 'check' }> => p.kind === 'check')
+    const pickedCheck = ownCheck ?? pickCheck(lesson, scene, usedChecks)
     const derived = leadOf(lesson, (scene.sections ?? [])[0] ?? -1)
+    const goals = (scene.sections ?? [])
+      .map((n) => lesson.sections[n]?.title ?? '')
+      .map((t) => t.replace(/^[۰-۹\d]+\.\s*/, '').trim())
+      .filter((t) => t.length > 2)
+      .slice(0, 4)
+    const prev = si > 0 ? scenes[si - 1] : null
+    const link =
+      prev && si > 0
+        ? si === 1
+          ? `پس از این درس، نخستین ایستگاه «${scene.title}» است؛ از همین‌جا وارد ماجرا می‌شویم.`
+          : `در صحنهٔ پیش، «${prev.title}» را خواندیم. حالا گرهٔ بعدی: «${scene.title}».`
+        : undefined
     frames.push({
       kind: 'scene',
       n: si + 1,
       total,
       title: scene.title,
       kicker: scene.kicker,
-      beat: beat ?? scene.takeaway ?? derived ?? `در این صحنه، «${scene.title}» را از نزدیک می‌بینیم و می‌فهمیم چرا مهم است.`,
-      ask,
-      art: art[plan.art]
+      // مقدمهٔ صحنه: روایت دست‌نویس، وگرنه جملهٔ آغازینِ خودِ متن درس
+      beat: beat ?? derived ?? scene.takeaway ?? `در این صحنه، «${scene.title}» را از نزدیک می‌بینیم و می‌فهمیم چرا مهم است.`,
+      ask: pickedCheck?.prompt,
+      art: art[plan.art],
+      link,
+      goals
     })
 
     scene.maps?.forEach((m) => {
@@ -259,29 +320,32 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
 
     ;(scene.sections ?? []).forEach((n) => {
       const sec = lesson.sections[n]
-      if (sec) frames.push(...sectionFrames(sec, `درس ${fas(lesson.id)} · ${scene.title}`))
+      if (!sec) return
+      const part = sectionFrames(sec, `درس ${fas(lesson.id)} · ${scene.title}`)
+      frames.push(...part)
+      // تکرارِ هدفمند: پس از هر بخشِ چندقابی، یک نکتهٔ کلیدی را دوباره می‌بینیم
+      if (part.length >= 2) {
+        const kp = remindFor(lesson, n, usedReminders)
+        if (kp) {
+          usedReminders.add(kp)
+          frames.push({ kind: 'remind', text: kp, scene: scene.title })
+        }
+      }
     })
 
     scene.panels
       .filter((p) => p.kind !== 'read')
       .forEach((panel) => {
-        if (panel.kind === 'check') {
-          frames.push({ kind: 'panel', panel })
-          return
-        }
         frames.push({ kind: 'panel', panel })
       })
 
-    // یادآوری فعال: هر صحنهٔ دارای محتوا دست‌کم یک پرسش کوتاه داشته باشد
-    if (!scene.panels.some((p) => p.kind === 'check') && (scene.sections ?? []).length > 0) {
-      const q = pickCheck(lesson, scene, usedChecks)
-      if (q) {
-        usedChecks.add(q.prompt)
-        frames.push({
-          kind: 'panel',
-          panel: { kind: 'check', prompt: q.prompt, options: q.options, answer: q.answer, explain: q.explain }
-        })
-      }
+    // یادآوری فعال: هر صحنه دست‌کم یک پرسش داشته باشد (اگر از بانک آورده‌ایم، همین‌جا می‌نشیند)
+    if (!ownCheck && pickedCheck) {
+      usedChecks.add(pickedCheck.prompt)
+      frames.push({
+        kind: 'panel',
+        panel: { kind: 'check', prompt: pickedCheck.prompt, options: pickedCheck.options, answer: pickedCheck.answer, explain: pickedCheck.explain }
+      })
     }
 
     // جمع‌بندی صحنه: اگر جمع‌بندیِ دست‌نویس نبود، از توضیحِ پرسش‌ها استفاده می‌کنیم
@@ -341,6 +405,32 @@ function textOfFrame(frame: Frame): string {
   }
   walk(frame)
   return parts.join(' · ').replace(/\s+/g, ' ').trim()
+}
+
+/** تاریخ‌ها، سده‌ها و واژه‌های کلیدی را در متن برجسته می‌کند تا چشم بایستد */
+export const Emph = ({ text, terms }: { text: string; terms?: string[] }) => {
+  const nodes = useMemo(() => {
+    const keys = (terms ?? []).filter((t) => t.length > 3).slice(0, 24)
+    const escaped = keys.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    const re = new RegExp(`(«[^»]{2,40}»|[۰-۹]+(?:\\.|[۰-۹])*\\s*(?:ق\\.?|قبل از میلاد|میلادی|هجری)|${escaped.join('|')})`, 'g')
+    const out: React.ReactNode[] = []
+    let last = 0
+    for (const m of text.matchAll(re)) {
+      const k = m.index ?? 0
+      if (k > last) out.push(text.slice(last, k))
+      const v = m[0]
+      const quoted = v.startsWith('«')
+      out.push(
+        <b key={`${k}-${v}`} className={quoted ? 'film-em film-em--quote' : 'film-em'}>
+          {v}
+        </b>
+      )
+      last = k + v.length
+    }
+    if (last < text.length) out.push(text.slice(last))
+    return out
+  }, [text, terms])
+  return <>{nodes}</>
 }
 
 const norm = (s: string) => s.replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/\s+/g, ' ').trim()
@@ -454,7 +544,15 @@ function renderStage(
             </div>
             <h2 className="film-scene__title">{frame.title}</h2>
             {frame.kicker && <div className="film-scene__kicker">{frame.kicker}</div>}
+            {frame.link && <p className="film-scene__link">{frame.link}</p>}
             <p className="film-prose film-prose--lead">{frame.beat}</p>
+            {frame.goals.length > 0 && (
+              <ul className="film-scene__goals">
+                {frame.goals.map((g) => (
+                  <li key={g}>{g}</li>
+                ))}
+              </ul>
+            )}
             {frame.ask && (
               <div className="film-ask">
                 <span className="film-ask__label">پرسش راهنما</span>
@@ -462,6 +560,30 @@ function renderStage(
                 <span className="film-ask__hint">پاسخش را در همین صحنه پیدا کن.</span>
               </div>
             )}
+          </div>
+        </div>
+      )
+
+    case 'roadmap':
+      return (
+        <div className="film-frame film-frame--copy film-frame--scroll">
+          <div className="film-body film-body--wide">
+            <div className="film-kicker">نقشهٔ راه درس</div>
+            <h3 className="film-h3">در این درس از کجا به کجا می‌رویم؟</h3>
+            <ol className="film-roadmap">
+              {frame.items.map((it) => (
+                <li key={it.n}>
+                  <span className="film-roadmap__n">{fas(it.n)}</span>
+                  <span className="film-roadmap__body">
+                    <b>{it.title}</b>
+                    {it.goal && <em>{it.goal}</em>}
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <p className="film-faint" style={{ marginTop: '0.7rem' }}>
+              هر ایستگاه با یک پرسش آغاز می‌شود و با یک جملهٔ جمع‌بندی بسته می‌شود؛ میان راه هم از خودت می‌پرسیم.
+            </p>
           </div>
         </div>
       )
@@ -486,7 +608,9 @@ function renderStage(
           <div className="film-body">
             {frame.kicker && <div className="film-kicker">{frame.kicker}</div>}
             {frame.title && <h3 className="film-h3">{frame.title}</h3>}
-            <p className="film-prose">{frame.body}</p>
+            <p className="film-prose">
+              <Emph text={frame.body} terms={lesson.terms.map((t) => t.term)} />
+            </p>
           </div>
         </div>
       )
@@ -501,7 +625,9 @@ function renderStage(
               {frame.items.map((it, i) => (
                 <li key={i}>
                   <span className="film-list__mark">{frame.numbered ? fas(i + 1) : ''}</span>
-                  <span>{it}</span>
+                  <span>
+                    <Emph text={it} terms={lesson.terms.map((t) => t.term)} />
+                  </span>
                 </li>
               ))}
             </ul>
@@ -625,6 +751,21 @@ function renderStage(
         <div className="film-frame film-frame--scroll">
           <div className="film-body film-body--wide">
             <PanelView panel={frame.panel} accent={accent} />
+          </div>
+        </div>
+      )
+
+    case 'remind':
+      return (
+        <div className="film-frame film-frame--copy">
+          <div className="film-body">
+            <div className="film-remind">
+              <span className="film-remind__tag">
+                <Sparkles size={11} /> به یاد بسپار
+              </span>
+              <p className="film-remind__text">{frame.text}</p>
+              <span className="film-remind__from">از درسنامهٔ «{frame.scene}»</span>
+            </div>
           </div>
         </div>
       )
@@ -813,11 +954,36 @@ export function LessonFilm({
     savedAt.current = guess > 1 && guess < frames.length - 2 ? guess : 0
   }
 
+  /* تمام‌صفحهٔ واقعی: هم کلاس چیدمان، هم درخواست fullscreen از مرورگر */
+  const shellRef = useRef<HTMLDivElement | null>(null)
+  const wantFull = useRef(false)
+
   useEffect(() => {
     document.documentElement.dataset.filmFull = full ? 'on' : 'off'
     try { localStorage.setItem('tabar:filmFull', full ? '1' : '0') } catch { /* بی‌اهمیت */ }
+    const el = shellRef.current
+    if (full && wantFull.current && el && !document.fullscreenElement) {
+      el.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => { /* مرورگر اجازه نداد؛ چیدمان ثابت کافی است */ })
+    }
+    if (!full && document.fullscreenElement) document.exitFullscreen?.().catch(() => { /* بی‌اهمیت */ })
     return () => { document.documentElement.dataset.filmFull = 'off' }
   }, [full])
+
+  /* اگر کاربر با Esc مرورگر از تمام‌صفحهٔ بومی بیرون آمد، حالت ما هم هم‌گام شود */
+  useEffect(() => {
+    const onFs = () => {
+      if (!document.fullscreenElement) setFull(false)
+    }
+    document.addEventListener('fullscreenchange', onFs)
+    return () => document.removeEventListener('fullscreenchange', onFs)
+  }, [])
+
+  const toggleFull = useCallback(() => {
+    setFull((v) => {
+      wantFull.current = !v
+      return !v
+    })
+  }, [])
 
   useEffect(() => {
     setLastLesson(lesson.id)
@@ -873,10 +1039,13 @@ export function LessonFilm({
       if (e.key === 'ArrowRight') { e.preventDefault(); prev() }
       if (e.key === ' ') { e.preventDefault(); setPlaying((p) => !p) }
       if (e.key === 'Escape') {
-        if (full) { setFull(false); return }
+        if (full) { wantFull.current = false; setFull(false); return }
         navigate(`chapter/${lesson.chapter}`)
       }
-      if (e.key.toLowerCase() === 'f') setFull((v) => !v)
+      if (e.key.toLowerCase() === 'f') {
+        wantFull.current = !full
+        setFull((v) => !v)
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -944,9 +1113,20 @@ export function LessonFilm({
     return null
   })()
 
+  const segments = useMemo(() => {
+    const out: { n: number; title: string; start: number; end: number }[] = []
+    frames.forEach((f, k) => {
+      if (f.kind === 'scene') out.push({ n: f.n, title: f.title, start: k, end: k })
+      else if (out.length) out[out.length - 1].end = k
+      else out.push({ n: 0, title: 'پیش‌درآمد درس', start: k, end: k })
+    })
+    return out
+  }, [frames])
+
   return (
     <div
-      className="film"
+      ref={shellRef}
+      className={cn('film', full && 'is-full')}
       style={{ ['--film-accent' as string]: accent }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
@@ -976,7 +1156,7 @@ export function LessonFilm({
           )}
           <button
             className={cn('film__back', full && 'is-on')}
-            onClick={() => setFull((v) => !v)}
+            onClick={toggleFull}
             aria-label={full ? 'خروج از تمام‌صفحه' : 'تمام‌صفحه'}
             title={full ? 'خروج از تمام‌صفحه (Esc)' : 'تمام‌صفحهٔ درس (F)'}
           >
@@ -988,17 +1168,24 @@ export function LessonFilm({
         </div>
       </div>
 
-      {/* نشانگرهای قاب */}
+      {/* نوار صحنه‌ها: جای هر صحنه و پیشرفتِ درونش، یک نگاه */}
       <div className="film__rail" aria-hidden>
-        {frames.map((f, k) => (
-          <button
-            key={k}
-            onClick={() => go(k)}
-            className={cn('film__tick', k < i && 'is-past', k === i && 'is-now', f.kind === 'map' && 'is-map', f.kind === 'scene' && 'is-scene')}
-            title={f.kind === 'scene' ? f.title : undefined}
-            aria-label={`قاب ${k + 1}`}
-          />
-        ))}
+        {segments.map((seg) => {
+          const count = seg.end - seg.start + 1
+          const inside = Math.min(Math.max(i - seg.start + 1, 0), count)
+          return (
+            <button
+              key={seg.start}
+              onClick={() => go(seg.start)}
+              className={cn('film__seg', i > seg.end && 'is-past', i >= seg.start && i <= seg.end && 'is-now')}
+              style={{ flexGrow: count }}
+              title={seg.title}
+            >
+              <span className="film__segFill" style={{ width: `${(inside / count) * 100}%` }} />
+              <span className="film__segLabel">{seg.n ? fas(seg.n) : '▪'}</span>
+            </button>
+          )
+        })}
       </div>
 
       {/* صحنه */}
