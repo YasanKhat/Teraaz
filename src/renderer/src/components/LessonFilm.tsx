@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowLeft,
   ArrowRight,
+  BookOpen,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -26,6 +27,8 @@ import type { Lesson, Section } from '../data/types'
 import type { Beat, Panel, LessonPlan } from '../data/plans/types'
 import type { Chapter } from '../data/types'
 import { storyByLesson } from '../data/story'
+import { bookQuote } from '../data/book/sections'
+import { bookQuestionsOf, examQuestionsOf, type BookQuestion } from '../data/book/examQuestions'
 import { art } from '../art'
 import { navigate } from '../lib/router'
 import { cn, fas } from '../lib/utils'
@@ -41,7 +44,12 @@ import { MindMap, type MindBranch } from './scene/MindMap'
    یک قاب در هر لحظه، با دکمه‌های جهت‌دار، بدون فهرست و بدون بخش‌های کنارِ هم.
    ──────────────────────────────────────────────────────────────────────── */
 
-type Frame =
+/** منبع هر قاب: متن کتاب (باید حفظ شود)، تدریس ما، یا نکتهٔ امتحانی */
+type Src = 'book' | 'guide' | 'exam'
+
+type Tagged = { src?: Src; book?: string }
+
+type FrameBody =
   | { kind: 'cover'; art: string }
   | { kind: 'why'; title: string; text: string; essence?: string; outline?: string[] }
   | {
@@ -57,6 +65,8 @@ type Frame =
       goals: string[]
     }
   | { kind: 'roadmap'; items: { n: number; title: string; goal: string }[] }
+  | { kind: 'legend' }
+  | { kind: 'qbank'; items: BookQuestion[]; scene?: string }
   | { kind: 'head'; kicker: string; title: string }
   | { kind: 'text'; kicker?: string; title?: string; body: string }
   | { kind: 'list'; kicker?: string; title?: string; items: string[]; numbered?: boolean }
@@ -77,6 +87,9 @@ type Frame =
   | { kind: 'danger'; items: { title: string; text: string }[] }
   | { kind: 'echo'; text: string }
   | { kind: 'end' }
+
+type Frame = FrameBody & Tagged
+
 
 const SENTENCE = /(?<=[.!؟…])\s+/
 
@@ -124,8 +137,21 @@ const chunk = <T,>(arr: T[], size: number): T[][] => {
   return out
 }
 
-function sectionFrames(section: Section, kicker: string): Frame[] {
+function sectionFrames(
+  section: Section,
+  kicker: string,
+  opts: { lessonId: number; order: number }
+): Frame[] {
   const frames: Frame[] = []
+  const quote = bookQuote(opts.lessonId, section.title, opts.order)
+  let quoteUsed = false
+  const withQuote = (f: Frame & Tagged): Frame => {
+    if (!quoteUsed && quote && (f.kind === 'text' || f.kind === 'list')) {
+      quoteUsed = true
+      return { ...f, book: quote }
+    }
+    return f
+  }
   const title = section.title.replace(/^[۰-۹\d]+\.\s*/, '')
   let first = true
   const head = () => {
@@ -137,7 +163,7 @@ function sectionFrames(section: Section, kicker: string): Frame[] {
     switch (b.t) {
       case 'p':
         chunkText(b.text).forEach((part, i) => {
-          frames.push({ kind: 'text', kicker, title: i === 0 ? head() : undefined, body: part })
+          frames.push(withQuote({ kind: 'text', src: 'book', kicker, title: i === 0 ? head() : undefined, body: part }))
         })
         break
       case 'bullets': {
@@ -156,27 +182,27 @@ function sectionFrames(section: Section, kicker: string): Frame[] {
         }
         if (cur.length) groups.push(cur)
         groups.forEach((items, i) => {
-          frames.push({ kind: 'list', kicker, title: i === 0 ? head() : undefined, items })
+          frames.push(withQuote({ kind: 'list', src: 'book', kicker, title: i === 0 ? head() : undefined, items }))
         })
         break
       }
       case 'table':
-        frames.push({ kind: 'table', kicker, title: head(), head: b.head, rows: b.rows, caption: b.caption })
+        frames.push({ kind: 'table', src: 'book', kicker, title: head(), head: b.head, rows: b.rows, caption: b.caption })
         break
       case 'cards':
         chunk(b.items, 4).forEach((items, i) => {
-          frames.push({ kind: 'cards', kicker, title: i === 0 ? head() : undefined, items })
+          frames.push({ kind: 'cards', src: 'book', kicker, title: i === 0 ? head() : undefined, items })
         })
         break
       case 'steps':
-        frames.push({ kind: 'steps', kicker, title: head(), items: b.items })
+        frames.push({ kind: 'steps', src: 'book', kicker, title: head(), items: b.items })
         break
       case 'quote':
-        frames.push({ kind: 'quote', text: b.text, source: b.source })
+        frames.push({ kind: 'quote', src: 'book', text: b.text, source: b.source })
         break
       case 'tip':
       case 'warn':
-        frames.push({ kind: 'note', tone: b.t, title: b.title, text: b.text })
+        frames.push({ kind: 'note', src: 'guide', tone: b.t, title: b.title, text: b.text })
         break
     }
   }
@@ -259,6 +285,7 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
   if (lesson.why)
     frames.push({
       kind: 'why',
+      src: 'guide',
       title: 'چرا این درس را می‌خوانیم؟',
       text: lesson.why,
       essence: plan.essence,
@@ -268,6 +295,7 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
   const total = scenes.length
   frames.push({
     kind: 'roadmap',
+    src: 'guide',
     items: scenes.map((sc, k) => ({
       n: k + 1,
       title: sc.title,
@@ -275,9 +303,13 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
     }))
   })
   /** پرسش‌هایی که در صحنه‌ها آمده‌اند تا سؤال تکراری نپرسیم */
+  frames.push({ kind: 'legend', src: 'guide' })
+
   const usedChecks = new Set<string>()
   /** نکته‌هایی که یک‌بار به‌عنوان «یادآور» نشان داده شده‌اند */
   const usedReminders = new Set<string>()
+  /** پرسش‌های کتاب که هنوز در جایی نیامده‌اند */
+  const bookPool = bookQuestionsOf(lesson.id).slice(0, 24)
   scenes.forEach((sc) => sc.panels.forEach((p) => { if (p.kind === 'check') usedChecks.add(p.prompt) }))
 
   scenes.forEach((scene, si) => {
@@ -300,6 +332,7 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
         : undefined
     frames.push({
       kind: 'scene',
+      src: 'guide',
       n: si + 1,
       total,
       title: scene.title,
@@ -313,10 +346,10 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
     })
 
     scene.maps?.forEach((m) => {
-      frames.push({ kind: 'map', kicker: scene.title, title: m.spec.title, spec: m.spec })
+      frames.push({ kind: 'map', src: 'book', kicker: scene.title, title: m.spec.title, spec: m.spec })
     })
 
-    if (scene.timeline) frames.push({ kind: 'timeline', title: scene.timeline.title, ids: scene.timeline.items })
+    if (scene.timeline) frames.push({ kind: 'timeline', src: 'book', title: scene.timeline.title, ids: scene.timeline.items })
 
     // پرسش‌ها و کارها را به همان بخشی می‌چسبانیم که از آن سؤال شده‌اند
     const sceneSections = scene.sections ?? []
@@ -340,30 +373,50 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
     sceneSections.forEach((n, idx) => {
       const sec = lesson.sections[n]
       if (!sec) return
-      const part = sectionFrames(sec, `درس ${fas(lesson.id)} · ${scene.title}`)
+      const part = sectionFrames(sec, `درس ${fas(lesson.id)} · ${scene.title}`, { lessonId: lesson.id, order: n })
       frames.push(...part)
       // تکرارِ هدفمند: پس از هر بخشِ چندقابی، یک نکتهٔ کلیدی را دوباره می‌بینیم
       if (part.length >= 2) {
         const kp = remindFor(lesson, n, usedReminders)
         if (kp) {
           usedReminders.add(kp)
-          frames.push({ kind: 'remind', text: kp, scene: scene.title })
+          frames.push({ kind: 'remind', src: 'guide', text: kp, scene: scene.title })
         }
       }
       // پرسشِ همین بخش، همان‌جا: کمی بعد از خواندن، نه یک‌جا در پایان صحنه
-      perSection[idx].forEach((panel) => frames.push({ kind: 'panel', panel }))
+      perSection[idx].forEach((panel) =>
+        frames.push({ kind: 'panel', src: panel.kind === 'check' ? 'exam' : 'guide', panel })
+      )
     })
 
     // کارهای باقی‌ماندهٔ صحنه (که به بخش خاصی نمی‌چسبیدند)
-    leftovers.forEach((panel) => frames.push({ kind: 'panel', panel }))
+    leftovers.forEach((panel) => frames.push({ kind: 'panel', src: panel.kind === 'check' ? 'exam' : 'guide', panel }))
 
     // یادآوری فعال: هر صحنه دست‌کم یک پرسش داشته باشد (اگر از بانک آورده‌ایم، همین‌جا می‌نشیند)
     if (!ownCheck && pickedCheck) {
       usedChecks.add(pickedCheck.prompt)
       frames.push({
         kind: 'panel',
+        src: 'exam',
         panel: { kind: 'check', prompt: pickedCheck.prompt, options: pickedCheck.options, answer: pickedCheck.answer, explain: pickedCheck.explain }
       })
+    }
+
+    // پرسش‌های خودِ کتاب که به همین صحنه مربوط‌اند
+    const sceneText = norm(
+      [
+        scene.title,
+        ...(scene.sections ?? []).flatMap((n) => {
+          const sec = lesson.sections[n]
+          return sec ? [sec.title, ...sec.blocks.map((b) => JSON.stringify(b))] : []
+        })
+      ].join(' ')
+    )
+    const related = bookPool.filter((q) => sceneText.includes(norm(q.q).slice(0, 22)))
+    if (related.length) {
+      const picked = related.slice(0, 2)
+      picked.forEach((q) => bookPool.splice(bookPool.indexOf(q), 1))
+      frames.push({ kind: 'qbank', src: 'exam', items: picked, scene: scene.title })
     }
 
     // جمع‌بندی صحنه: اگر جمع‌بندیِ دست‌نویس نبود، از توضیحِ پرسش‌ها استفاده می‌کنیم
@@ -371,26 +424,33 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
       .reverse()
       .find((p): p is Extract<Panel, { kind: 'check' }> => p.kind === 'check' && !!p.explain)?.explain
     const take = scene.takeaway ?? fallbackTake
-    if (take) frames.push({ kind: 'takeaway', text: take, scene: scene.title })
+    if (take) frames.push({ kind: 'takeaway', src: 'guide', text: take, scene: scene.title })
   })
+
+  // پرسش‌های کتاب که به صحنه‌ای نچسبیدند — در «شب امتحانِ» همان درس
+  if (bookPool.length) {
+    frames.push({ kind: 'head', src: 'exam', kicker: 'پرسش‌های کتاب', title: 'از کتاب بپرس' })
+    chunk(bookPool, 4).forEach((items) => frames.push({ kind: 'qbank', src: 'exam', items }))
+  }
 
   // بخش‌های کتاب که در هیچ صحنه‌ای نیامده‌اند — هیچ چیز جا نمی‌ماند
   const used = new Set<number>()
   scenes.forEach((s) => (s.sections ?? []).forEach((n) => used.add(n)))
   const missing = lesson.sections.map((_, i) => i).filter((i) => !used.has(i))
   if (missing.length) {
-    frames.push({ kind: 'head', kicker: 'پیوست', title: 'بخش‌های تکمیلی درس' })
+    frames.push({ kind: 'head', src: 'guide', kicker: 'پیوست', title: 'بخش‌های تکمیلی درس' })
     missing.forEach((n) => {
       const sec = lesson.sections[n]
-      if (sec) frames.push(...sectionFrames(sec, 'بخش تکمیلی'))
+      if (sec) frames.push(...sectionFrames(sec, 'بخش تکمیلی', { lessonId: lesson.id, order: n }))
     })
   }
 
-  frames.push({ kind: 'signature' })
+  frames.push({ kind: 'signature', src: 'guide' })
 
   // جمع‌بندی تصویری: کل درس در یک قاب
   frames.push({
     kind: 'mind',
+    src: 'guide',
     title: lesson.title,
     core: plan.essence,
     branches: scenes.map((sc) => ({
@@ -400,13 +460,13 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
   })
 
   chunk(lesson.keyPoints, 5).forEach((items, i, all) => {
-    frames.push({ kind: 'keypoints', items, part: i + 1, parts: all.length })
+    frames.push({ kind: 'keypoints', src: 'exam', items, part: i + 1, parts: all.length })
   })
 
-  chunk(plan.interview, 2).forEach((items) => frames.push({ kind: 'exam', items }))
-  if (plan.danger.length) frames.push({ kind: 'danger', items: plan.danger.slice(0, 4) })
-  if (story?.echo) frames.push({ kind: 'echo', text: story.echo })
-  frames.push({ kind: 'end' })
+  chunk(plan.interview, 2).forEach((items) => frames.push({ kind: 'exam', src: 'exam', items }))
+  if (plan.danger.length) frames.push({ kind: 'danger', src: 'exam', items: plan.danger.slice(0, 4) })
+  if (story?.echo) frames.push({ kind: 'echo', src: 'guide', text: story.echo })
+  frames.push({ kind: 'end', src: 'guide' })
 
   return frames
 }
@@ -479,6 +539,9 @@ function Stage({
   const body = renderStage(frame, lesson, accent, { resumeAt, onJump })
   return (
     <div className="film-stage" data-kind={frame.kind}>
+      <div className="film-stage__tag">
+        <SourceTag src={frame.src} />
+      </div>
       {body}
       {gloss.length > 0 && (
         <div className="film-gloss">
@@ -490,6 +553,77 @@ function Stage({
         </div>
       )}
     </div>
+  )
+}
+
+const SRC_META = {
+  book: { label: 'از کتاب', hint: 'همین را باید بازتولید کنی', tone: 'gold' },
+  guide: { label: 'توضیح ما', hint: 'برای فهمیدن، نه حفظ‌کردن', tone: 'turq' },
+  exam: { label: 'نکتهٔ امتحانی', hint: 'پرسش و پاسخِ خودِ کتاب', tone: 'rose' }
+} as const
+
+/** نشانِ منبعِ قاب: کتاب / تدریس ما / امتحان */
+export function SourceTag({ src }: { src?: Src }) {
+  const meta = SRC_META[src ?? 'guide']
+  return (
+    <span className={cn('film-src', `film-src--${meta.tone}`)} title={meta.hint}>
+      {src === 'book' ? <BookOpen size={10} /> : src === 'exam' ? <Target size={10} /> : <Sparkles size={10} />}
+      {meta.label}
+    </span>
+  )
+}
+
+/** عین عبارت کتاب — بازشو، تا با توضیح ما اشتباه نشود */
+function BookQuote({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className={cn('film-quote', open && 'is-open')}>
+      <button className="film-quote__toggle" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+        <BookOpen size={12} />
+        عین عبارت کتاب
+        <ChevronLeft size={12} className={cn('film-quote__chev', open && 'is-open')} />
+      </button>
+      {open && <p className="film-quote__text">{text}</p>}
+    </div>
+  )
+}
+
+/** پرسش‌های رسمی کتاب، با پاسخِ بازشو */
+function QuestionCards({ items }: { items: BookQuestion[] }) {
+  const [open, setOpen] = useState<number[]>([])
+  const toggle = (i: number) => setOpen((v) => (v.includes(i) ? v.filter((x) => x !== i) : [...v, i]))
+  return (
+    <ol className="film-qbank">
+      {items.map((q, i) => {
+        const isOpen = open.includes(i)
+        return (
+          <li key={q.id}>
+            <div className="film-qbank__head">
+              <span className="film-qbank__n">{fas(q.n)}</span>
+              <span className="film-qbank__kind">{q.kindLabel}</span>
+            </div>
+            <p className="film-qbank__q">{q.q}</p>
+            {q.options && q.options.length > 1 && (
+              <div className="film-qbank__opts">
+                {q.options.map((o, k) => (
+                  <span key={k} className="film-qbank__opt">
+                    <b>{fas(k + 1)}</b> {o}
+                  </span>
+                ))}
+              </div>
+            )}
+            <button className={cn('film-qbank__reveal', isOpen && 'is-open')} onClick={() => toggle(i)}>
+              {isOpen ? 'بستن پاسخ' : 'نمایش پاسخ'}
+            </button>
+            {isOpen && (
+              <p className="film-qbank__a">
+                <Check size={12} /> {q.answer}
+              </p>
+            )}
+          </li>
+        )
+      })}
+    </ol>
   )
 }
 
@@ -606,6 +740,52 @@ function renderStage(
         </div>
       )
 
+    case 'legend':
+      return (
+        <div className="film-frame film-frame--copy">
+          <div className="film-body">
+            <div className="film-kicker">راهنمای درس</div>
+            <h3 className="film-h3">چه چیزی از کتاب است و چه چیزی توضیح ما؟</h3>
+            <div className="film-legend">
+              <div className="film-legend__row">
+                <SourceTag src="book" />
+                <p>
+                  جمله‌هایی که <b>در کتاب درسی</b> آمده‌اند؛ در امتحان باید همین‌ها را بازتولید کنی. روی هر قابِ
+                  کتابی، دکمهٔ «عین عبارت کتاب» هم هست.
+                </p>
+              </div>
+              <div className="film-legend__row">
+                <SourceTag src="guide" />
+                <p>
+                  <b>توضیح و تدریس ما</b>: مثال، داستان، پیوند میان رویدادها. برای فهمیدن است؛ لازم نیست کلمه‌به‌کلمه
+                  حفظ شود.
+                </p>
+              </div>
+              <div className="film-legend__row">
+                <SourceTag src="exam" />
+                <p>
+                  <b>نکته و پرسش امتحانی</b>: پرسش‌های خودِ کتاب با پاسخ، و نکته‌هایی که در آزمون تکرار می‌شوند.
+                </p>
+              </div>
+            </div>
+            <p className="film-faint">
+              از دکمهٔ «فقط کتاب» در بالای صفحه می‌توانی همهٔ توضیح‌های ما را کنار بگذاری و فقط متنِ کتاب را ببینی.
+            </p>
+          </div>
+        </div>
+      )
+
+    case 'qbank':
+      return (
+        <div className="film-frame film-frame--scroll film-frame--copy">
+          <div className="film-body film-body--wide">
+            <div className="film-kicker">{frame.scene ? `پرسش کتاب · ${frame.scene}` : 'پرسش‌های کتاب'}</div>
+            <h3 className="film-h3">کتاب از تو چه می‌پرسد؟</h3>
+            <QuestionCards items={frame.items} />
+          </div>
+        </div>
+      )
+
     case 'head':
       return (
         <div className="film-frame film-center" style={{ backgroundImage: `url(${art[lesson.id <= 4 ? 'ch1' : lesson.id <= 8 ? 'ch2' : lesson.id <= 12 ? 'ch3' : 'ch4']})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
@@ -629,6 +809,7 @@ function renderStage(
             <p className="film-prose">
               <Emph text={frame.body} terms={lesson.terms.map((t) => t.term)} />
             </p>
+            {frame.book && <BookQuote text={frame.book} />}
           </div>
         </div>
       )
@@ -954,6 +1135,8 @@ export function LessonFilm({
   const [playing, setPlaying] = useState(false)
   const [voice, setVoice] = useState(false)
   const [searchHit, setSearchHit] = useState<string | null>(null)
+  /** صافی منبع: همه / آنچه از کتاب است / توضیح‌های ما */
+  const [scope, setScope] = useState<'all' | 'book' | 'guide'>('all')
   /** تمام‌صفحه: قاب درس کل پنجره را می‌گیرد تا چشم فقط روی درس باشد */
   const [full, setFull] = useState(() => {
     try { return localStorage.getItem('tabar:filmFull') === '1' } catch { return false }
@@ -1043,15 +1226,31 @@ export function LessonFilm({
     [frames.length]
   )
 
-  const next = useCallback(() => go(i + 1), [go, i])
-  const prev = useCallback(() => go(i - 1), [go, i])
+  /** قاب‌هایی که با صافی فعلی دیده می‌شوند */
+  const shown = useMemo(() => {
+    const keep = (f: Frame) => (scope === 'all' ? true : scope === 'book' ? f.src !== 'guide' : f.src !== 'book')
+    const list = frames.map((_, k) => k).filter((k) => keep(frames[k]))
+    return list.length ? list : frames.map((_, k) => k)
+  }, [frames, scope])
+  const pos = Math.max(0, shown.indexOf(i))
+
+  const next = useCallback(() => go(shown[Math.min(shown.length - 1, pos + 1)]), [go, shown, pos])
+  const prev = useCallback(() => go(shown[Math.max(0, pos - 1)]), [go, shown, pos])
+
+  /* با عوض‌شدن صافی، به نزدیک‌ترین قابِ دیدنی می‌رویم */
+  useEffect(() => {
+    if (scope === 'all') return
+    if (shown.includes(i)) return
+    go(shown[Math.min(pos < 0 ? 0 : pos, shown.length - 1)])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope])
 
   useEffect(() => {
-    const pct = Math.round(((i + 1) / frames.length) * 100)
+    const pct = Math.round(((pos + 1) / shown.length) * 100)
     if (!done) setProgress(lesson.id, Math.max(8, Math.min(96, pct)))
-    if (i > 0) saveReadPos(lesson.id, (i + 1) / frames.length)
+    if (pos > 0) saveReadPos(lesson.id, (pos + 1) / shown.length)
     if (i === frames.length - 1 && !done) completeLesson(lesson.id)
-  }, [i, frames.length, lesson.id, done, setProgress, completeLesson, saveReadPos])
+  }, [i, pos, shown.length, lesson.id, done, setProgress, completeLesson, saveReadPos])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -1135,13 +1334,14 @@ export function LessonFilm({
 
   const segments = useMemo(() => {
     const out: { n: number; title: string; start: number; end: number }[] = []
-    frames.forEach((f, k) => {
+    shown.forEach((k) => {
+      const f = frames[k]
       if (f.kind === 'scene') out.push({ n: f.n, title: f.title, start: k, end: k })
       else if (out.length) out[out.length - 1].end = k
       else out.push({ n: 0, title: 'پیش‌درآمد درس', start: k, end: k })
     })
     return out
-  }, [frames])
+  }, [frames, shown])
 
   return (
     <div
@@ -1168,6 +1368,17 @@ export function LessonFilm({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <div className="film-scope" role="group" aria-label="صافی منبع">
+            {([
+              ['all', 'همه'],
+              ['book', 'کتاب'],
+              ['guide', 'توضیح ما']
+            ] as const).map(([id, label]) => (
+              <button key={id} onClick={() => setScope(id)} data-active={scope === id} title={id === 'book' ? 'فقط متن و پرسش‌های کتاب' : id === 'guide' ? 'فقط توضیح‌های ما' : 'همهٔ قاب‌ها'}>
+                {label}
+              </button>
+            ))}
+          </div>
           {searchHit && (
             <button className="film__search" onClick={() => setSearchHit(null)} title="پاک‌کردن جست‌وجو">
               <Search size={11} /> {searchHit}
@@ -1183,7 +1394,7 @@ export function LessonFilm({
             {full ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
           </button>
           <div className="film__counter">
-            {fas(i + 1)} <span>/</span> {fas(frames.length)}
+            {fas(pos + 1)} <span>/</span> {fas(shown.length)}
           </div>
         </div>
       </div>
@@ -1270,7 +1481,7 @@ export function LessonFilm({
         </div>
 
         <div className="film__progress" aria-hidden>
-          <span style={{ width: `${((i + 1) / frames.length) * 100}%` }} />
+          <span style={{ width: `${((pos + 1) / shown.length) * 100}%` }} />
         </div>
 
         <div className="film__hint">
