@@ -14,7 +14,6 @@ import {
   Sparkles
 } from 'lucide-react'
 import { figures, figureTypes } from '../data/figures'
-import { figuresArt, figuresWithArt } from '../data/figuresArt'
 import type { Figure } from '../data/types'
 import { lessonById } from '../data/lessons'
 import { timeline } from '../data/timeline'
@@ -108,13 +107,6 @@ export function FiguresGallery() {
             </button>
           )}
         </div>
-        <div className="fig-cover">
-          <span>تصویر تمام چهره‌ها</span>
-          <span className="fig-cover__bar">
-            <span style={{ width: `${Math.round((figuresWithArt / figures.length) * 100)}%` }} />
-          </span>
-          <span className="tabular-nums">{fas(figuresWithArt)} / {fas(figures.length)}</span>
-        </div>
         <div className="fig-chips">
           {figureTypes.map((t) => (
             <button key={t} className="chip shrink-0" data-active={type === t} onClick={() => setType(t)}>
@@ -156,21 +148,10 @@ export function FiguresGallery() {
                       className="fig-card"
                       style={{ ['--fig-accent' as string]: f.accent }}
                     >
-                      <span className="fig-card__plate">
-                        {figuresArt[f.id] ? (
-                          <img className="fig-card__photo" src={figuresArt[f.id]} alt={f.name} loading="lazy" />
-                        ) : (
-                          <span className="fig-card__medi">
-                            <span className="fig-card__mono">{monogram(f.name)}</span>
-                          </span>
-                        )}
-                        <span className="fig-card__veil" aria-hidden />
-                        <span className="fig-card__kind">{f.type}</span>
-                        {saved && (
-                          <span className="fig-card__saved">
-                            <Bookmark size={10} />
-                          </span>
-                        )}
+                      <span className="fig-card__glow" aria-hidden />
+                      <span className="fig-card__arch">
+                        <span className="fig-card__mono">{monogram(f.name)}</span>
+                        <span className="fig-card__archLine" aria-hidden />
                       </span>
                       <span className="fig-card__body">
                         <span className="fig-card__name">{f.name}</span>
@@ -184,14 +165,13 @@ export function FiguresGallery() {
                           )}
                         </span>
                         <span className="fig-card__foot">
+                          <span className="fig-card__type">{f.type}</span>
                           <span className="fig-card__lessons">
                             {lessons.slice(0, 2).map((l) => (
                               <span key={l!.id}>درس {fas(l!.id)}</span>
                             ))}
                           </span>
-                          <span className="fig-card__go">
-                            <ChevronLeft size={12} />
-                          </span>
+                          {saved && <Bookmark size={10} className="text-gold" />}
                         </span>
                       </span>
                     </button>
@@ -260,14 +240,8 @@ function FigureDetail({
   return (
     <div className="fig-detail" style={{ ['--fig-accent' as string]: f.accent }}>
       <div className="fig-detail__head">
-        <span className="fig-detail__portrait">
-          {figuresArt[f.id] ? (
-            <img src={figuresArt[f.id]} alt={f.name} />
-          ) : (
-            <span className="fig-detail__arch">
-              <span>{monogram(f.name)}</span>
-            </span>
-          )}
+        <span className="fig-detail__arch">
+          <span>{monogram(f.name)}</span>
         </span>
         <div className="min-w-0 flex-1">
           <div className="fig-detail__eyebrow">{f.type}</div>

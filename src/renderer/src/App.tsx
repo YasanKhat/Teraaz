@@ -11,7 +11,6 @@ import { Bank } from './pages/Bank'
 import { Archive } from './pages/Archive'
 import { Quiz } from './pages/Quiz'
 import { PaperPage } from './pages/Paper'
-import { BookReader } from './pages/BookReader'
 import { Progress } from './pages/Progress'
 import { Settings } from './pages/Settings'
 
@@ -48,8 +47,6 @@ export default function App() {
       case 'progress':
       case 'me':
         return <Progress />
-      case 'book':
-        return <BookReader id={route.id} />
       case 'paper':
         return <PaperPage id={route.id} />
       case 'settings':
