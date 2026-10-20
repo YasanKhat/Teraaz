@@ -721,7 +721,7 @@ function renderStage(
 
     case 'legend':
       return (
-        <div className="film-frame film-frame--copy">
+        <div className="film-frame film-frame--copy film-frame--scroll">
           <div className="film-body">
             <div className="film-kicker">راهنمای درس</div>
             <h3 className="film-h3">چه چیزی از کتاب است و چه چیزی توضیح ما؟</h3>
@@ -1278,7 +1278,10 @@ export function LessonFilm({
 
   /** قاب‌هایی که با صافی فعلی دیده می‌شوند */
   const shown = useMemo(() => {
-    const keep = (f: Frame) => (scope === 'all' ? true : scope === 'book' ? f.src !== 'guide' : f.src !== 'book')
+    // قاب‌های ساختاری همیشه می‌مانند تا در صافی، مسیر درس گم نشود
+    const always = new Set(['cover', 'scene', 'roadmap', 'legend', 'head', 'end', 'signature'])
+    const keep = (f: Frame) =>
+      scope === 'all' || always.has(f.kind) ? true : scope === 'book' ? f.src !== 'guide' : f.src !== 'book'
     const list = frames.map((_, k) => k).filter((k) => keep(frames[k]))
     return list.length ? list : frames.map((_, k) => k)
   }, [frames, scope])
