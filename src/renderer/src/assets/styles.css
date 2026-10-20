@@ -3978,3 +3978,21 @@ html[data-film-full='on'] body { overflow: hidden; }
 }
 
 .film-remind__from { font-size: 0.65rem; color: var(--c-faint); }
+
+/* ── ایمنی چیدمان صحنه در صفحه‌های کوتاه ──────────────────────────────── */
+.film-scene__inner {
+  max-height: 100%;
+  overflow-y: auto;
+  padding-block: 0.3rem;
+  scrollbar-width: thin;
+}
+
+.film-frame { min-height: 0; }
+
+@media (max-width: 640px) {
+  .film-scene__goals li { font-size: 0.62rem; }
+  .film-scene__link { font-size: 0.66rem; }
+  .film__segLabel { font-size: 0.5rem; }
+  .film.is-full,
+  .film:fullscreen { padding: 0.4rem 0.5rem 0.6rem; }
+}
