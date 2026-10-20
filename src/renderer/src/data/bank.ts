@@ -47,16 +47,20 @@ const tfItems: BankItem[] = (tfBank.items as TfRow[]).map((row) => ({
 }))
 
 const mcqItems: BankItem[] = lessons.flatMap((lesson) =>
-  lesson.quiz.map((q, i) => ({
-    id: `bank-${lesson.id}-mcq-${q.id ?? i + 1}`,
-    lesson: lesson.id,
-    kind: 'mcq' as const,
-    q: q.prompt,
-    options: q.options,
-    correct: q.answer,
-    answer: q.options[q.answer] ?? '',
-    note: q.explain
-  }))
+  lesson.quiz.map((q, i) => {
+    // پرسش دوگزینه‌ای، در واقع درست/نادرست است؛ برچسبش هم باید همان باشد
+    const twoWay = q.options.length === 2
+    return {
+      id: `bank-${lesson.id}-mcq-${q.id ?? i + 1}`,
+      lesson: lesson.id,
+      kind: (twoWay ? 'tf' : 'mcq') as BankKind,
+      q: q.prompt,
+      options: q.options,
+      correct: q.answer,
+      answer: q.options[q.answer] ?? '',
+      note: q.explain
+    }
+  })
 )
 
 const termItems: BankItem[] = lessons.flatMap((lesson) =>

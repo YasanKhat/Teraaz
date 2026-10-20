@@ -318,7 +318,26 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
 
     if (scene.timeline) frames.push({ kind: 'timeline', title: scene.timeline.title, ids: scene.timeline.items })
 
-    ;(scene.sections ?? []).forEach((n) => {
+    // پرسش‌ها و کارها را به همان بخشی می‌چسبانیم که از آن سؤال شده‌اند
+    const sceneSections = scene.sections ?? []
+    const panelsLeft = scene.panels.filter((p) => p.kind !== 'read')
+    const perSection: Panel[][] = sceneSections.map(() => [])
+    const leftovers: Panel[] = []
+    for (const panel of panelsLeft) {
+      const words = keyWords(JSON.stringify(panel))
+      let bestAt = -1
+      let bestScore = 0
+      sceneSections.forEach((n, idx) => {
+        const sw = sectionWords(lesson, n)
+        let sc = 0
+        for (const w of words) if (sw.has(w)) sc++
+        if (sc > bestScore) { bestScore = sc; bestAt = idx }
+      })
+      if (bestScore >= 2 && bestAt >= 0) perSection[bestAt].push(panel)
+      else leftovers.push(panel)
+    }
+
+    sceneSections.forEach((n, idx) => {
       const sec = lesson.sections[n]
       if (!sec) return
       const part = sectionFrames(sec, `درس ${fas(lesson.id)} · ${scene.title}`)
@@ -331,13 +350,12 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
           frames.push({ kind: 'remind', text: kp, scene: scene.title })
         }
       }
+      // پرسشِ همین بخش، همان‌جا: کمی بعد از خواندن، نه یک‌جا در پایان صحنه
+      perSection[idx].forEach((panel) => frames.push({ kind: 'panel', panel }))
     })
 
-    scene.panels
-      .filter((p) => p.kind !== 'read')
-      .forEach((panel) => {
-        frames.push({ kind: 'panel', panel })
-      })
+    // کارهای باقی‌ماندهٔ صحنه (که به بخش خاصی نمی‌چسبیدند)
+    leftovers.forEach((panel) => frames.push({ kind: 'panel', panel }))
 
     // یادآوری فعال: هر صحنه دست‌کم یک پرسش داشته باشد (اگر از بانک آورده‌ایم، همین‌جا می‌نشیند)
     if (!ownCheck && pickedCheck) {

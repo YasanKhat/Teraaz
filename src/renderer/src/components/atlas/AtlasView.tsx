@@ -192,17 +192,52 @@ export function AtlasView({ spec, autoPlay, chrome = true, onDone, initialPhase 
 
   const decorate = useMemo(() => {
     return geom.phases.map((ph) => {
-      const arrowBoxes: LabelBox[] = ph.arrows
-        .filter((a) => !!a.label)
-        .map((a) => ({
-          x: a.lx - (a.label!.length * labelFont * 0.5) - 10,
-          y: a.ly - labelFont * 1.4,
-          w: a.label!.length * labelFont * 1.02 + 20,
-          h: labelFont * 2.4
-        }))
+      /* پلاک نامِ مسیرها: جای هر پلاک با جست‌وجوی کم‌تداخل انتخاب می‌شود */
+      const boxes: LabelBox[] = []
+      const arrowBox = (a: (typeof ph.arrows)[number]) => {
+        const fs = labelFont * 0.86
+        const parts = (a.label ?? '').split('←').map((t) => t.trim())
+        const w =
+          (parts[0]?.length ?? 0) * fs * 0.62 +
+          (parts[1]?.length ?? 0) * fs * 0.62 +
+          (parts[1] ? fs * 1.9 : 0) +
+          16
+        return { w, h: fs * 2.2 }
+      }
+      const hits = (b: LabelBox) =>
+        boxes.some((o) => b.x < o.x + o.w && b.x + b.w > o.x && b.y < o.y + o.h && b.y + b.h > o.y)
+      const arrows = ph.arrows.map((a) => {
+        if (!a.label) return a
+        const { w, h } = arrowBox(a)
+        const baseY = a.ly - h * 0.72
+        const tries: [number, number][] = [
+          [0, 0],
+          [0, -h - 7],
+          [0, h + 7],
+          [w * 0.34, 0],
+          [-w * 0.34, 0],
+          [0, -2 * h - 14],
+          [0, 2 * h + 14],
+          [w * 0.55, -h - 7],
+          [-w * 0.55, -h - 7]
+        ]
+        for (const [ox, oy] of tries) {
+          const x = a.lx - w / 2 + ox
+          const y = baseY + oy
+          if (x < 8 || y < 8 || x + w > W - 8 || y + h > H - 10) continue
+          if (!hits({ x, y, w, h })) {
+            boxes.push({ x, y, w, h })
+            return { ...a, lx: x + w / 2, ly: y + h * 0.72 }
+          }
+        }
+        const first = { x: a.lx - w / 2, y: baseY, w, h }
+        boxes.push(first)
+        return a
+      })
+      const arrowBoxes = boxes.slice()
       const pinItems = ph.pins.map((p) => ({ x: p.x, y: p.y, label: p.label, tone: p.tone }))
       const placed = placeLabels(pinItems, labelFont, arrowBoxes)
-      const boxes: LabelBox[] = [
+      const allBoxes: LabelBox[] = [
         ...arrowBoxes,
         ...placed.map((p) => ({
           x: p.anchor === 'start' ? p.x + p.dx : p.x + p.dx - (labelWidth(p.label, labelFont * 0.95) + 10),
@@ -217,19 +252,19 @@ export function AtlasView({ spec, autoPlay, chrome = true, onDone, initialPhase 
           const w = labelWidth(r.label, r.fs) + 16
           const h = r.fs * 2 + 10
           const box = { x: r.x - w / 2, y: r.y - h / 2, w, h }
-          const hit = boxes.some((b) => box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y)
+          const hit = allBoxes.some((b) => box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y)
           if (hit) return false
-          boxes.push(box)
+          allBoxes.push(box)
           return true
         })
       const seaLabels = geom.seas.filter((s) => {
         const w = labelWidth(s.label, labelFont * 0.82)
         const box = { x: s.x - 12, y: s.y - w / 2, w: 24, h: w }
-        if (boxes.some((b) => box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y)) return false
-        boxes.push(box)
+        if (allBoxes.some((b) => box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y)) return false
+        allBoxes.push(box)
         return true
       })
-      return { placed, regionLabels, seaLabels, arrowBoxes }
+      return { placed, regionLabels, seaLabels, arrows, arrowBoxes }
     })
   }, [geom, labelFont, regionFont])
 
@@ -508,11 +543,11 @@ export function AtlasView({ spec, autoPlay, chrome = true, onDone, initialPhase 
                           </g>
                         )
                       })}
-                      {d.arrowBoxes.length > 0 && ph.arrows.map((a, n) => {
+                      {d.arrows.map((a, n) => {
                         if (!a.label) return null
                         const parts = a.label.split('←').map((t) => t.trim())
                         const fs = labelFont * 0.86
-                        const w = (parts[0]?.length ?? 0) * fs * 0.52 + (parts[1]?.length ?? 0) * fs * 0.52 + (parts[1] ? 18 : 0) + 18
+                        const w = (parts[0]?.length ?? 0) * fs * 0.62 + (parts[1]?.length ?? 0) * fs * 0.62 + (parts[1] ? fs * 1.9 : 0) + 16
                         const h = fs * 2.2
                         return (
                           <g key={`al-${k}-${n}`} className="map-label">
