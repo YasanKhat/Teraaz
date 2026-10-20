@@ -3,7 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Pause, Play, RotateCcw } from 'lucide-react'
 import { geoBounds, geoCentroid, geoGraticule, geoMercator, geoPath } from 'd3-geo'
 import { feature, mesh } from 'topojson-client'
-import world from 'world-atlas/countries-110m.json'
+import world from 'world-atlas/countries-50m.json'
+import worldCoarse from 'world-atlas/countries-110m.json'
 import { countryLabels, regions, rivers, seas } from '../lib/geo'
 import { cn, fas } from '../lib/utils'
 
@@ -50,13 +51,34 @@ export interface MapSpec {
 }
 
 const PALETTE = {
-  conquest: { main: '#d9a93f', soft: '#e7c979', sea: ['#12314c', '#0b2136', '#071827'], land: ['#efe3c6', '#e3d3b0', '#d6c39c'] },
-  steppe: { main: '#c9563c', soft: '#e0856c', sea: ['#14334a', '#0c2337', '#081a28'], land: ['#eee1c4', '#e2d0ab', '#d3bf95'] },
-  sea: { main: '#3f9c95', soft: '#79c3bc', sea: ['#10334a', '#0b2236', '#071827'], land: ['#eee5ca', '#e3d6b4', '#d5c49d'] },
-  europe: { main: '#5b7fc7', soft: '#8fa9dd', sea: ['#122e49', '#0c2237', '#081827'], land: ['#eee4c8', '#e2d3ae', '#d4c199'] }
+  conquest: { main: '#c98a2a', soft: '#e7c979', wash: '#a87a33', line: '#8f6a24', sea: ['#12314c', '#0b2136', '#071827'], land: ['#efe3c6', '#e3d3b0', '#d6c39c'] },
+  steppe: { main: '#b04f36', soft: '#e0856c', wash: '#a3603f', line: '#8c4830', sea: ['#14334a', '#0c2337', '#081a28'], land: ['#eee1c4', '#e2d0ab', '#d3bf95'] },
+  sea: { main: '#367f78', soft: '#79c3bc', wash: '#5c8778', line: '#2f6660', sea: ['#10334a', '#0b2236', '#071827'], land: ['#eee5ca', '#e3d6b4', '#d5c49d'] },
+  europe: { main: '#6a6b9b', soft: '#8fa9dd', wash: '#8a7f6a', line: '#6b5233', sea: ['#122e49', '#0c2237', '#081827'], land: ['#eee4c8', '#e2d3ae', '#d4c199'] }
 } as const
 
 const TONES = { gold: '#e6bb58', rose: '#d0705a', turq: '#4fb0a7' } as const
+
+/** مسیر نرمِ بسته از نقطه‌های صفحه (کاتمول‌رام → بزیه): مرزهای تاریخی لبهٔ تیز ندارند */
+function smoothClosed(pts: [number, number][], tension = 1): string {
+  const n = pts.length
+  if (n < 3) return ''
+  const at = (i: number) => pts[((i % n) + n) % n]
+  const r = (v: number) => Math.round(v * 10) / 10
+  let d = `M${r(pts[0][0])},${r(pts[0][1])}`
+  for (let i = 0; i < n; i++) {
+    const p0 = at(i - 1)
+    const p1 = at(i)
+    const p2 = at(i + 1)
+    const p3 = at(i + 2)
+    const c1x = p1[0] + ((p2[0] - p0[0]) / 6) * tension
+    const c1y = p1[1] + ((p2[1] - p0[1]) / 6) * tension
+    const c2x = p2[0] - ((p3[0] - p1[0]) / 6) * tension
+    const c2y = p2[1] - ((p3[1] - p1[1]) / 6) * tension
+    d += `C${r(c1x)},${r(c1y)} ${r(c2x)},${r(c2y)} ${r(p2[0])},${r(p2[1])}`
+  }
+  return `${d}Z`
+}
 
 const W = 1000
 const H = 620
@@ -69,9 +91,16 @@ const landFC: any = feature(topo, topo.objects.land)
 /** خشکی بی‌جنوبگان: قطب جنوب در اطلس تاریخی فقط قاب را شلوغ می‌کند */
 const landNoAntarctica: any = {
   type: 'FeatureCollection',
-  features: countriesFC.features.filter((f: any) => String(f.id) !== '010')
+  features: countriesFC.features.filter((f: any) => Number(f.id) !== 10)
 }
 const borderMesh: any = (mesh as any)(topo, topo.objects.countries, (a: any, b: any) => a !== b)
+
+/** خشکیِ ساده (۱۱۰m) فقط برای ماسک‌کردن قلمروها: سبک و سریع */
+const coarseTopo: any = worldCoarse
+const coarseLand: any = {
+  type: 'FeatureCollection',
+  features: (feature(coarseTopo, coarseTopo.objects.countries) as any).features.filter((f: any) => Number(f.id) !== 10)
+}
 
 const shapeById = new Map<string, any>()
 countriesFC.features.forEach((f: any) => {
@@ -572,8 +601,23 @@ export function AtlasMap({
   const lk = Math.pow(camera.k, -0.78)
 
   const path = useMemo(() => geoPath(projection), [projection])
-  const graticulePath = useMemo(() => path(geoGraticule().step([5, 5])() as any) ?? '', [path])
+  const graticuleMinor = useMemo(() => path(geoGraticule().step([5, 5])() as any) ?? '', [path])
+  const graticuleMajor = useMemo(() => path(geoGraticule().step([30, 30])() as any) ?? '', [path])
   const landPath = useMemo(() => path(landNoAntarctica) ?? '', [path])
+  const landClipPath = useMemo(() => path(coarseLand) ?? '', [path])
+  /** قلمروها با منحنی نرم رسم می‌شوند، نه خط‌شکن */
+  const regionPath = useMemo(() => {
+    const cache = new Map<string, string>()
+    return (id: string) => {
+      const hit = cache.get(id)
+      if (hit !== undefined) return hit
+      const r = regions[id]
+      const pts = (r ? r.points : []).map((pt) => projection(pt)).filter(Boolean) as [number, number][]
+      const d = pts.length >= 3 ? smoothClosed(pts, 0.95) : ''
+      cache.set(id, d)
+      return d
+    }
+  }, [projection])
   const borderPath = useMemo(() => path(borderMesh as any) ?? '', [path])
   const spherePath = useMemo(() => path({ type: 'Sphere' } as any) ?? '', [path])
 
@@ -642,6 +686,16 @@ export function AtlasMap({
   )
 
   /* برچسب قلمروها: اندازهٔ خوانا + پرهیز از هم‌پوشانی */
+  /** ردیف‌های راهنمای نقشه بر پایهٔ عناصر همین گام */
+  const legendRows = useMemo(() => {
+    const rows: { label: string; color: string; kind: 'fill' | 'ghost' | 'pin' | 'arrow' }[] = []
+    if (phase.regions?.length) rows.push({ label: 'قلمرو این گام', color: palette.wash, kind: 'fill' })
+    if (phase.ghost?.length) rows.push({ label: 'قلمرو پیشین', color: '#8d7550', kind: 'ghost' })
+    if (phase.pins?.length) rows.push({ label: 'شهر / نشانه', color: TONES.gold, kind: 'pin' })
+    if (phase.arrows?.length) rows.push({ label: 'مسیر رویداد', color: TONES[phase.arrows[0].tone ?? 'gold'], kind: 'arrow' })
+    return rows
+  }, [phase, palette])
+
   const placedRegionLabels = useMemo(() => {
     const out: { id: string; label: string; x: number; y: number; ghost: boolean; on: boolean; fs: number }[] = []
     const boxes: { x: number; y: number; w: number; h: number }[] = pinBoxes.map((b) => ({ ...b }))
@@ -725,42 +779,63 @@ export function AtlasMap({
           aria-label={`${spec.title} — ${phase.title}`}
         >
           <defs>
-            <radialGradient id={`${uid}-sea`} cx="42%" cy="30%" r="90%">
+            <linearGradient id={`${uid}-sea`} x1="0" y1="0" x2="0.15" y2="1">
               <stop offset="0%" stopColor={palette.sea[0]} />
-              <stop offset="58%" stopColor={palette.sea[1]} />
+              <stop offset="52%" stopColor={palette.sea[1]} />
               <stop offset="100%" stopColor={palette.sea[2]} />
+            </linearGradient>
+            <radialGradient id={`${uid}-seagl`} cx="48%" cy="26%" r="58%">
+              <stop offset="0%" stopColor="#5aa3c2" stopOpacity="0.16" />
+              <stop offset="100%" stopColor="#5aa3c2" stopOpacity="0" />
             </radialGradient>
-            <linearGradient id={`${uid}-land`} x1="0" y1="0" x2="0.75" y2="1">
+            <linearGradient id={`${uid}-land`} x1="0.08" y1="0" x2="0.82" y2="1">
               <stop offset="0%" stopColor={palette.land[0]} />
-              <stop offset="55%" stopColor={palette.land[1]} />
+              <stop offset="54%" stopColor={palette.land[1]} />
               <stop offset="100%" stopColor={palette.land[2]} />
             </linearGradient>
-            <linearGradient id={`${uid}-terr`} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor={palette.soft} stopOpacity="0.55" />
-              <stop offset="100%" stopColor={palette.main} stopOpacity="0.5" />
+            <linearGradient id={`${uid}-terr`} x1="0.1" y1="0" x2="0.8" y2="1">
+              <stop offset="0%" stopColor={palette.wash} stopOpacity="0.34" />
+              <stop offset="55%" stopColor={palette.wash} stopOpacity="0.3" />
+              <stop offset="100%" stopColor={palette.wash} stopOpacity="0.26" />
             </linearGradient>
+            <radialGradient id={`${uid}-vig`} cx="50%" cy="44%" r="78%">
+              <stop offset="62%" stopColor="#03121e" stopOpacity="0" />
+              <stop offset="100%" stopColor="#03121e" stopOpacity="0.42" />
+            </radialGradient>
+            <linearGradient id={`${uid}-railtint`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#03121e" stopOpacity="0.2" />
+              <stop offset="16%" stopColor="#03121e" stopOpacity="0" />
+              <stop offset="84%" stopColor="#03121e" stopOpacity="0" />
+              <stop offset="100%" stopColor="#03121e" stopOpacity="0.24" />
+            </linearGradient>
+            <pattern id={`${uid}-hatch`} width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+              <line x1="0" y1="0" x2="0" y2="7" stroke={palette.main} strokeWidth="0.9" strokeOpacity="0.16" />
+            </pattern>
             <filter id={`${uid}-glow`} x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="4" result="b" />
+              <feGaussianBlur stdDeviation="3.6" result="b" />
               <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
             </filter>
-            <pattern id={`${uid}-hatch`} width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
-              <line x1="0" y1="0" x2="0" y2="8" stroke={palette.main} strokeWidth="1.2" strokeOpacity="0.22" />
-            </pattern>
             <clipPath id={`${uid}-landclip`}>
-              <path d={landPath} />
+              <path d={landClipPath} />
             </clipPath>
             <clipPath id={`${uid}-framelip`}>
-              <rect x="0" y="0" width={W} height={H} rx="6" />
+              <rect x="0" y="0" width={W} height={H} rx="7" />
             </clipPath>
-            <marker id={`${uid}-head`} markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto">
-              <path d="M0,0 L9,5 L0,10 z" fill={palette.main} />
+            <marker id={`${uid}-head`} markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto">
+              <path d="M0,0 L10,5.5 L0,11 z" fill={palette.main} />
             </marker>
-            <marker id={`${uid}-head-rose`} markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto">
-              <path d="M0,0 L9,5 L0,10 z" fill={TONES.rose} />
+            <marker id={`${uid}-head-rose`} markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto">
+              <path d="M0,0 L10,5.5 L0,11 z" fill={TONES.rose} />
+            </marker>
+            <marker id={`${uid}-head-turq`} markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto">
+              <path d="M0,0 L10,5.5 L0,11 z" fill={TONES.turq} />
             </marker>
           </defs>
 
+          {/* دریا: دو لایه، عمق و بازتاب نور */}
           <rect x="0" y="0" width={W} height={H} fill={`url(#${uid}-sea)`} />
+          <rect x="0" y="0" width={W} height={H} fill={`url(#${uid}-seagl)`} />
+
           <g clipPath={`url(#${uid}-framelip)`}>
             <motion.g
               initial={false}
@@ -768,251 +843,318 @@ export function AtlasMap({
               transition={reduced ? { duration: 0 } : { duration: 1.15, ease: [0.33, 1, 0.36, 1] }}
               style={{ originX: 0, originY: 0, transformBox: 'view-box', transformOrigin: '0px 0px' }}
             >
-            {/* خطوط نصف‌النهار و مدار */}
-            <path d={graticulePath} fill="none" stroke="#8fb4d4" strokeOpacity="0.13" strokeWidth="0.6" />
+              {/* شبکهٔ مختصات: خطوط فرعی و اصلی */}
+              <path d={graticuleMinor} fill="none" stroke="#8fb4d4" strokeOpacity="0.07" strokeWidth="0.5" />
+              <path d={graticuleMajor} fill="none" stroke="#9dc0dd" strokeOpacity="0.13" strokeWidth="0.7" />
 
-            {/* خشکی */}
-            <path d={landPath} fill={`url(#${uid}-land)`} stroke="#a58a5c" strokeOpacity="0.55" strokeWidth="0.7" />
-            {/* مرزهای امروز، بسیار کمرنگ: فقط برای جهت‌یابی */}
-            <path d={borderPath} fill="none" stroke="#8a7043" strokeOpacity="0.32" strokeWidth="0.55" strokeDasharray="3 3" />
+              {/* خشکی: لبهٔ روشن از سمت دریا، سایهٔ نرم به سمت داخل */}
+              <path d={landPath} fill="#061522" fillOpacity="0.55" transform="translate(1.4,2.2)" stroke="none" />
+              <path d={landPath} fill={`url(#${uid}-land)`} stroke="#6d5734" strokeOpacity="0.65" strokeWidth="0.95" />
+              <g clipPath={`url(#${uid}-landclip)`} pointerEvents="none">
+                <path d={landPath} fill="none" stroke="#fff6e2" strokeOpacity="0.34" strokeWidth="1.6" />
+                <path d={landPath} fill="none" stroke="#5b4527" strokeOpacity="0.14" strokeWidth="5" />
+              </g>
 
-            {/* سایهٔ ساحل */}
-            <g clipPath={`url(#${uid}-landclip)`} pointerEvents="none" opacity="0.22">
-              <path d={landPath} fill="none" stroke="#5d4c2c" strokeWidth="2.2" />
-            </g>
+              {/* مرزهای امروز: خیلی کم‌رنگ، فقط برای جهت‌یابی */}
+              <path d={borderPath} fill="none" stroke="#6f5a37" strokeOpacity="0.2" strokeWidth="0.55" strokeDasharray="2.5 3.5" />
 
-            {/* رودها */}
-            <g clipPath={`url(#${uid}-landclip)`} pointerEvents="none">
-              {rivers.map((r) => {
-                const d = path({ type: 'LineString', coordinates: r.points } as any)
-                if (!d) return null
-                return <path key={r.name} d={d} fill="none" stroke="#4c7e97" strokeWidth="1.1" strokeOpacity="0.55" strokeLinecap="round" />
-              })}
-            </g>
+              {/* رودها */}
+              <g clipPath={`url(#${uid}-landclip)`} pointerEvents="none">
+                {rivers.map((r) => {
+                  const d = path({ type: 'LineString', coordinates: r.points } as any)
+                  if (!d) return null
+                  return <path key={r.name} d={d} fill="none" stroke="#3f7f9c" strokeWidth="1.05" strokeOpacity="0.6" strokeLinecap="round" />
+                })}
+              </g>
 
-            {/* جغرافیای سیاسی پایه: قلمرو دولت‌های این دوره */}
-            <g clipPath={`url(#${uid}-landclip)`}>
-              {[...new Set(spec.base ?? [])]
-                .filter((id) => !phase.regions?.includes(id) && !phase.ghost?.includes(id))
-                .map((id) => {
-                  const f = regionFeature(id)
-                  const d = f ? path(f) : ''
+              {/* قلمروهای پایه: زمینهٔ سیاسی این دوره */}
+              <g clipPath={`url(#${uid}-landclip)`}>
+                {[...new Set(spec.base ?? [])]
+                  .filter((id) => !phase.regions?.includes(id) && !phase.ghost?.includes(id))
+                  .map((id) => {
+                    const d = regionPath(id)
+                    if (!d) return null
+                    return (
+                      <g key={`base-${id}`}>
+                        <path d={d} fill={palette.main} fillOpacity="0.09" />
+                        <path d={d} fill="none" stroke={palette.line} strokeOpacity="0.4" strokeWidth="0.9" strokeDasharray="7 5" />
+                      </g>
+                    )
+                  })}
+              </g>
+
+              {/* قلمرو پیشین: خاطرهٔ گام قبلی */}
+              <g clipPath={`url(#${uid}-landclip)`}>
+                {(phase.ghost ?? []).map((id) => {
+                  const d = regionPath(id)
                   if (!d) return null
                   return (
-                    <g key={`base-${id}`}>
-                      <path d={d} fill={palette.main} fillOpacity="0.1" />
-                      <path d={d} fill="none" stroke={palette.main} strokeOpacity="0.4" strokeWidth="0.9" strokeDasharray="6 4" />
-                    </g>
+                    <motion.path
+                      key={`g-${id}`}
+                      d={d}
+                      fill="#8a7550"
+                      fillOpacity="0.09"
+                      stroke="#8d7550"
+                      strokeOpacity="0.55"
+                      strokeWidth="1"
+                      strokeDasharray="6 5"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.6 }}
+                    />
                   )
                 })}
-            </g>
+              </g>
 
-            {/* قلمرو پیشین */}
-            <g clipPath={`url(#${uid}-landclip)`}>
-              {(phase.ghost ?? []).map((id) => {
-                const f = regionFeature(id)
-                const d = f ? path(f) : ''
-                if (!d) return null
-                return (
-                  <path key={`g-${id}`} d={d} fill="#8a7550" fillOpacity="0.07" stroke="#7d6a47" strokeOpacity="0.5" strokeWidth="0.9" strokeDasharray="5 4" />
-                )
-              })}
-            </g>
+              {/* قلمرو این گام: پررنگ، با هاشور و خطِ جان‌گرفته */}
+              <AnimatePresence mode="sync">
+                <motion.g
+                  key={`regions-${i}`}
+                  clipPath={`url(#${uid}-landclip)`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.55 }}
+                >
+                  {(phase.regions ?? []).map((id) => {
+                    const d = regionPath(id)
+                    if (!d) return null
+                    return (
+                      <g key={`r-${id}`}>
+                        <path d={d} fill={`url(#${uid}-terr)`} style={{ mixBlendMode: 'multiply' }} />
+                        <path d={d} fill={`url(#${uid}-hatch)`} opacity="0.55" />
+                        <motion.path
+                          d={d}
+                          fill="none"
+                          stroke={palette.line}
+                          strokeOpacity="0.92"
+                          strokeWidth="1.55"
+                          strokeLinejoin="round"
+                          initial={{ pathLength: 0 }}
+                          animate={{ pathLength: 1 }}
+                          transition={{ duration: 1.1, ease: 'easeInOut' }}
+                        />
+                      </g>
+                    )
+                  })}
+                </motion.g>
+              </AnimatePresence>
 
-            {/* قلمرو این گام */}
-            <AnimatePresence mode="sync">
+              {/* کشورهای افزوده‌شده در این گام */}
               <motion.g
-                key={`regions-${i}`}
-                clipPath={`url(#${uid}-landclip)`}
+                key={`countries-${i}`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.55 }}
+                transition={{ duration: 0.5 }}
+                clipPath={`url(#${uid}-landclip)`}
               >
-                {(phase.regions ?? []).map((id) => {
-                  const f = regionFeature(id)
+                {(phase.countries ?? []).map((id) => {
+                  const f = shapeById.get(id)
                   const d = f ? path(f) : ''
                   if (!d) return null
                   return (
-                    <g key={`r-${id}`}>
-                      <path d={d} fill={`url(#${uid}-terr)`} />
-                      <path d={d} fill={`url(#${uid}-hatch)`} />
-                      <path d={d} fill="none" stroke={palette.main} strokeOpacity="0.9" strokeWidth="1.5" strokeLinejoin="round" />
+                    <g key={`c-${id}`}>
+                      <path d={d} fill={palette.main} fillOpacity="0.26" />
+                      <path d={d} fill="none" stroke={palette.main} strokeOpacity="0.8" strokeWidth="1.3" />
                     </g>
                   )
                 })}
               </motion.g>
-            </AnimatePresence>
 
-            {/* کشورهای افزوده‌شده */}
-            <motion.g
-              key={`countries-${i}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5 }}
-              clipPath={`url(#${uid}-landclip)`}
-            >
-              {(phase.countries ?? []).map((id) => {
-                const f = shapeById.get(id)
-                const d = f ? path(f) : ''
-                if (!d) return null
-                return (
-                  <g key={`c-${id}`}>
-                    <path d={d} fill={palette.main} fillOpacity="0.3" />
-                    <path d={d} fill="none" stroke={palette.main} strokeOpacity="0.85" strokeWidth="1.4" />
-                  </g>
-                )
-              })}
-            </motion.g>
+              {/* مسیرها و پیکان‌ها */}
+              <g pointerEvents="none">
+                {(phase.arrows ?? []).map((a, k) => {
+                  const p0 = projection(a.from)
+                  const p1 = projection(a.to)
+                  if (!p0 || !p1) return null
+                  const [x0, y0] = p0
+                  const [x1, y1] = p1
+                  const dx = x1 - x0
+                  const dy = y1 - y0
+                  const len = Math.hypot(dx, dy) || 1
+                  const bend = (a.bend ?? 0.2) * len
+                  const cx = (x0 + x1) / 2 - (dy / len) * bend
+                  const cy = (y0 + y1) / 2 + (dx / len) * bend
+                  const d = `M${x0},${y0} Q${cx},${cy} ${x1},${y1}`
+                  const tone = TONES[a.tone ?? 'gold']
+                  return (
+                    <g key={`a-${k}`}>
+                      <motion.path
+                        d={d}
+                        fill="none"
+                        stroke={tone}
+                        strokeOpacity="0.28"
+                        strokeWidth="7"
+                        strokeLinecap="round"
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: 1 }}
+                        transition={{ duration: 1.1, delay: 0.12 * k }}
+                      />
+                      <motion.path
+                        d={d}
+                        fill="none"
+                        stroke={tone}
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                        strokeDasharray="8 5"
+                        markerEnd={`url(#${uid}-head${a.tone === 'rose' ? '-rose' : a.tone === 'turq' ? '-turq' : ''})`}
+                        initial={{ pathLength: 0, opacity: 0 }}
+                        animate={{ pathLength: 1, opacity: 0.95 }}
+                        transition={{ duration: 1, delay: 0.12 * k }}
+                        style={{ filter: `url(#${uid}-glow)` }}
+                      />
+                      {a.label && (
+                        <text
+                          x={(x0 + x1) / 2 + dx * 0.05}
+                          y={(y0 + y1) / 2 + dy * 0.05 - 9 * lk}
+                          textAnchor="middle"
+                          fontSize={11 * unit * lk}
+                          fontWeight={700}
+                          fill="#f9efd8"
+                          stroke="#0b1b2b"
+                          strokeWidth={3.6 * lk * unit}
+                          paintOrder="stroke"
+                          style={{ fontFamily: 'Estedad, sans-serif' }}
+                        >
+                          {a.label}
+                        </text>
+                      )}
+                    </g>
+                  )
+                })}
+              </g>
 
-            {/* مسیرها و پیکان‌ها */}
-            <g pointerEvents="none">
-              {(phase.arrows ?? []).map((a, k) => {
-                const p0 = projection(a.from)
-                const p1 = projection(a.to)
-                if (!p0 || !p1) return null
-                const [x0, y0] = p0
-                const [x1, y1] = p1
-                const dx = x1 - x0
-                const dy = y1 - y0
-                const len = Math.hypot(dx, dy) || 1
-                const bend = (a.bend ?? 0.2) * len
-                const cx = (x0 + x1) / 2 - (dy / len) * bend
-                const cy = (y0 + y1) / 2 + (dx / len) * bend
-                const d = `M${x0},${y0} Q${cx},${cy} ${x1},${y1}`
-                const tone = TONES[a.tone ?? 'gold']
-                return (
-                  <g key={`a-${k}`}>
-                    <motion.path
-                      d={d}
-                      fill="none"
-                      stroke={tone}
-                      strokeWidth="2.6"
-                      strokeLinecap="round"
-                      strokeDasharray="7 5"
-                      markerEnd={`url(#${uid}-head${a.tone === 'rose' ? '-rose' : ''})`}
-                      initial={{ pathLength: 0, opacity: 0 }}
-                      animate={{ pathLength: 1, opacity: 0.95 }}
-                      transition={{ duration: 0.9, delay: 0.15 * k }}
-                      style={{ filter: `url(#${uid}-glow)` }}
-                    />
-                    {a.label && (
+              {/* شهرها و نشانه‌ها */}
+              <g>
+                {placedPins.map((pin, k) => {
+                  const { x, y } = pin
+                  const tone = TONES[pin.tone ?? 'gold']
+                  return (
+                    <motion.g
+                      key={`p-${k}`}
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.09 * k, duration: 0.4 }}
+                      style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+                    >
+                      <circle cx={x} cy={y} r={13} fill={tone} fillOpacity="0.14" />
+                      <circle cx={x} cy={y} r={8} fill="none" stroke={tone} strokeOpacity="0.5" strokeWidth="1.2" className="atlas-pin__ring" />
+                      <circle cx={x} cy={y} r={4} fill={tone} stroke="#0b1b2b" strokeWidth="1.3" />
                       <text
-                        x={(x0 + x1) / 2 + dx * 0.05}
-                        y={(y0 + y1) / 2 + dy * 0.05 - 8}
-                        textAnchor="middle"
-                        fontSize={11 * unit * lk}
-                        fontWeight={700}
-                        fill="#f7ecd2"
-                        stroke="#0b1b2b"
-                        strokeWidth="3.4"
+                        x={x + pin.dx}
+                        y={y + pin.dy}
+                        textAnchor={pin.anchor}
+                        fontSize={12 * unit * lk}
+                        fontWeight={800}
+                        fill="#15202c"
+                        stroke="#f9efd8"
+                        strokeWidth={4 * lk * unit}
                         paintOrder="stroke"
                         style={{ fontFamily: 'Estedad, sans-serif' }}
                       >
-                        {a.label}
+                        {pin.label}
                       </text>
-                    )}
-                  </g>
-                )
-              })}
-            </g>
+                    </motion.g>
+                  )
+                })}
+              </g>
 
-            {/* شهرها و نقطه‌های کلیدی */}
-            <g>
-              {placedPins.map((pin, k) => {
-                const { x, y } = pin
-                const tone = TONES[pin.tone ?? 'gold']
-                return (
-                  <motion.g
-                    key={`p-${k}`}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.1 * k, duration: 0.4 }}
+              {/* نام نواحی تاریخی */}
+              <g pointerEvents="none">
+                {placedRegionLabels.map((r) => (
+                  <text
+                    key={r.id}
+                    x={r.x}
+                    y={r.y}
+                    textAnchor="middle"
+                    fontSize={r.fs * unit}
+                    fontWeight={800}
+                    letterSpacing={0.4}
+                    fill={r.ghost ? '#6d5c3d' : r.on ? '#241a06' : '#5f4d2c'}
+                    fillOpacity={r.ghost ? 0.62 : r.on ? 0.97 : 0.76}
+                    stroke="#f8efd9"
+                    strokeOpacity={r.on ? 0.8 : 0.5}
+                    strokeWidth={2.6 * lk * unit}
+                    paintOrder="stroke"
+                    style={{ fontFamily: 'Estedad, sans-serif' }}
                   >
-                    <circle cx={x} cy={y} r={11} fill={tone} fillOpacity="0.16" />
-                    <circle cx={x} cy={y} r={4.2} fill={tone} stroke="#0d1f30" strokeWidth="1.1" />
-                    <text
-                      x={x + pin.dx}
-                      y={y + pin.dy}
-                      textAnchor={pin.anchor}
-                      fontSize={12 * unit * lk}
-                      fontWeight={800}
-                      fill="#0f1f2f"
-                      stroke="#f6ecd4"
-                      strokeWidth={4 * lk * unit}
-                      paintOrder="stroke"
-                      style={{ fontFamily: 'Estedad, sans-serif' }}
-                    >
-                      {pin.label}
-                    </text>
-                  </motion.g>
-                )
-              })}
-            </g>
+                    {r.label}
+                  </text>
+                ))}
+              </g>
 
-            {/* نام نواحی تاریخی */}
-            <g pointerEvents="none">
-              {placedRegionLabels.map((r) => (
-                <text
-                  key={r.id}
-                  x={r.x}
-                  y={r.y}
-                  textAnchor="middle"
-                  fontSize={r.fs * unit}
-                  fontWeight={800}
-                  letterSpacing="0.3"
-                  fill={r.ghost ? '#6d5c3d' : r.on ? '#241a06' : '#5a4a2b'}
-                  fillOpacity={r.ghost ? 0.6 : r.on ? 0.97 : 0.74}
-                  stroke="#f6ecd6"
-                  strokeOpacity={r.on ? 0.75 : 0.45}
-                  strokeWidth="2.6"
-                  paintOrder="stroke"
-                  style={{ fontFamily: 'Estedad, sans-serif' }}
-                >
-                  {r.label}
-                </text>
-              ))}
-            </g>
-
-            {/* نام کشورها و دریاها */}
-            <g pointerEvents="none">
-              {geoLabels.map((l) => (
-                <text
-                  key={`${l.kind}-${l.text}`}
-                  x={l.x}
-                  y={l.y}
-                  textAnchor="middle"
-                  fontSize={l.fs * unit}
-                  letterSpacing={l.kind === 'sea' ? l.fs * 0.22 : l.fs * 0.06}
-                  fill={l.kind === 'sea' ? '#9cc2e2' : '#6a5738'}
-                  fillOpacity={l.kind === 'sea' ? 0.62 : 0.62}
-                  transform={l.rotate ? `rotate(${l.rotate} ${l.x} ${l.y})` : undefined}
-                  style={{ fontFamily: 'Estedad, sans-serif' }}
-                >
-                  {l.text}
-                </text>
-              ))}
-            </g>
-
+              {/* نام کشورها و دریاها */}
+              <g pointerEvents="none">
+                {geoLabels.map((l) => (
+                  <text
+                    key={`${l.kind}-${l.text}`}
+                    x={l.x}
+                    y={l.y}
+                    textAnchor="middle"
+                    fontSize={l.fs * unit}
+                    letterSpacing={l.kind === 'sea' ? l.fs * 0.24 : l.fs * 0.08}
+                    fontStyle={l.kind === 'sea' ? 'italic' : undefined}
+                    fill={l.kind === 'sea' ? '#9cc2e2' : '#6a5738'}
+                    fillOpacity={l.kind === 'sea' ? 0.62 : 0.6}
+                    transform={l.rotate ? `rotate(${l.rotate} ${l.x} ${l.y})` : undefined}
+                    style={{ fontFamily: 'Estedad, sans-serif' }}
+                  >
+                    {l.text}
+                  </text>
+                ))}
+              </g>
             </motion.g>
 
-            {/* قاب داخلی — ثابت، بیرون از دوربین */}
-            <rect x="0.5" y="0.5" width={W - 1} height={H - 1} fill="none" stroke="#b79a63" strokeOpacity="0.35" />
+            {/* هالهٔ تاریک لبه‌ها و قاب */}
+            <rect x="0" y="0" width={W} height={H} fill={`url(#${uid}-vig)`} pointerEvents="none" />
+            <rect x="0" y="0" width={W} height={H} fill={`url(#${uid}-railtint)`} pointerEvents="none" />
+            <rect x="0.6" y="0.6" width={W - 1.2} height={H - 1.2} rx="7" fill="none" stroke="#c9ab74" strokeOpacity="0.4" pointerEvents="none" />
+            <rect x="5.5" y="5.5" width={W - 11} height={H - 11} rx="4" fill="none" stroke="#c9ab74" strokeOpacity="0.12" pointerEvents="none" />
           </g>
 
+          {/* راهنمای نقشه */}
+          {(phase.regions?.length || phase.ghost?.length || phase.pins?.length || phase.arrows?.length) ? (
+            <g transform="translate(18, 20)" pointerEvents="none">
+              <rect width="188" height={14 + legendRows.length * 19} rx="9" fill="#061a29" fillOpacity="0.72" stroke="#c9ab74" strokeOpacity="0.28" />
+              <text x="12" y="16" fontSize="9" fill="#e6c579" letterSpacing="1.2" style={{ fontFamily: 'Estedad, sans-serif' }}>راهنما</text>
+              {legendRows.map((row, k) => (
+                <g key={row.label} transform={`translate(12, ${22 + k * 19})`}>
+                  {row.kind === 'fill' && (
+                    <>
+                      <rect width="16" height="11" rx="2.5" fill={row.color} fillOpacity="0.5" stroke={row.color} strokeOpacity="0.9" />
+                    </>
+                  )}
+                  {row.kind === 'ghost' && (
+                    <rect width="16" height="11" rx="2.5" fill="none" stroke={row.color} strokeOpacity="0.8" strokeDasharray="3 2.5" />
+                  )}
+                  {row.kind === 'pin' && (
+                    <>
+                      <circle cx="8" cy="5.5" r="4.6" fill={row.color} fillOpacity="0.2" />
+                      <circle cx="8" cy="5.5" r="2.2" fill={row.color} />
+                    </>
+                  )}
+                  {row.kind === 'arrow' && (
+                    <path d="M0,5.5 Q8,-1 16,5.5" fill="none" stroke={row.color} strokeWidth="1.6" strokeDasharray="4 2.5" />
+                  )}
+                  <text x="24" y="9" fontSize="9.5" fill="#e8ddc6" style={{ fontFamily: 'Estedad, sans-serif' }}>{row.label}</text>
+                </g>
+              ))}
+            </g>
+          ) : null}
+
           {/* راهنمای شمال */}
-          <g transform={`translate(${W - 46}, ${H - 112})`} opacity="0.7">
-            <circle r="20" fill="#0d2033" fillOpacity="0.55" stroke="#c9ab74" strokeOpacity="0.45" />
-            <path d="M0,-14 L5,2 L0,-1 L-5,2 Z" fill="#e6c579" />
-            <text y="15" textAnchor="middle" fontSize="9" fill="#e6c579" style={{ fontFamily: 'Estedad, sans-serif' }}>ش</text>
+          <g transform={`translate(${W - 44}, 48)`} opacity="0.9" pointerEvents="none">
+            <circle r="19" fill="#061a29" fillOpacity="0.6" stroke="#c9ab74" strokeOpacity="0.42" />
+            <circle r="13" fill="none" stroke="#c9ab74" strokeOpacity="0.16" />
+            <path d="M0,-12.5 L4.6,2 L0,-1 L-4.6,2 Z" fill="#e6c579" />
+            <text y="14.5" textAnchor="middle" fontSize="8" fill="#e6c579" style={{ fontFamily: 'Estedad, sans-serif' }}>ش</text>
           </g>
 
           {/* مقیاس */}
-          <g transform={`translate(30, ${H - 26})`} opacity="0.9">
+          <g transform={`translate(32, ${H - 26})`} pointerEvents="none">
             {(() => {
-              // با بزرگ‌نمایی دوربین، هر پیکسل کمتر کیلومتر می‌گیرد
               const effKm = kmPerPx / camera.k
-              const target = 120 * effKm
+              const target = 118 * effKm
               const nice = [50, 100, 200, 250, 500, 750, 1000, 1500, 2000, 3000, 4000].reduce(
                 (best, v) => (Math.abs(v - target) < Math.abs(best - target) ? v : best),
                 100
@@ -1020,20 +1162,20 @@ export function AtlasMap({
               const px = nice / effKm
               return (
                 <>
-                  <rect x="-8" y="-16" width={px + 70} height="30" rx="6" fill="#0b1c2c" fillOpacity="0.5" />
-                  <line x1="0" y1="0" x2={px} y2="0" stroke="#e6c579" strokeWidth="1.6" />
-                  <line x1="0" y1="-4" x2="0" y2="4" stroke="#e6c579" strokeWidth="1.6" />
-                  <line x1={px} y1="-4" x2={px} y2="4" stroke="#e6c579" strokeWidth="1.6" />
-                  <text x={px / 2} y="-6" textAnchor="middle" fontSize="9.5" fill="#f4e6c6" style={{ fontFamily: 'Estedad, sans-serif' }}>
+                  <rect x="-10" y="-17" width={px + 72} height="30" rx="8" fill="#061a29" fillOpacity="0.55" />
+                  <line x1="0" y1="0" x2={px} y2="0" stroke="#e6c579" strokeWidth="1.5" />
+                  <line x1="0" y1="-4.5" x2="0" y2="4.5" stroke="#e6c579" strokeWidth="1.5" />
+                  <line x1={px} y1="-4.5" x2={px} y2="4.5" stroke="#e6c579" strokeWidth="1.5" />
+                  <line x1={px / 2} y1="0" x2={px / 2} y2="3.5" stroke="#e6c579" strokeOpacity="0.7" strokeWidth="1" />
+                  <text x={px / 2} y="-7" textAnchor="middle" fontSize="9.5" fill="#f4e6c6" style={{ fontFamily: 'Estedad, sans-serif' }}>
                     {fas(nice)} کیلومتر
                   </text>
                 </>
               )
             })()}
           </g>
-
-
         </svg>
+
 
         {/* پانوشت گام */}
         <div className="atlas__caption">
