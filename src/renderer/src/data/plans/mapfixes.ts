@@ -349,8 +349,8 @@ export const MAP_FIXES: Record<string, Patch[]> = {
     {
       planPins: [{ x: 50, y: 48, label: 'میدان نقش جهان', tone: 'gold' }],
       planLines: [
-        { from: [50, 10], to: [50, 76], kind: 'axis', label: 'چهارباغ' },
-        { from: [20, 48], to: [80, 48], kind: 'street', label: 'بازار قیصریه' }
+        { from: [39, 8], to: [39, 74], kind: 'axis', label: 'چهارباغ' },
+        { from: [18, 35], to: [88, 35], kind: 'street', label: 'بازار قیصریه' }
       ]
     },
     {

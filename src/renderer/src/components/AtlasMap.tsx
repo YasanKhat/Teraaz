@@ -340,6 +340,26 @@ function CityPlan({ spec, phase, index }: { spec: MapSpec; phase: MapPhase; inde
       y: (l.from[1] * 6.2 + l.to[1] * 6.2) / 2 - 9 * unit,
       label: l.label!
     }))
+  /** بافت شهری: بلوک‌های ریز نمادین، دور از محور و میدان و رود */
+  const blocks = useMemo(() => {
+    if (!isCity) return [] as { x: number; y: number; w: number; h: number }[]
+    const out: { x: number; y: number; w: number; h: number }[] = []
+    let seed = 20240517
+    const rnd = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648
+      return seed / 2147483648
+    }
+    for (let n = 0; n < 420; n++) {
+      const x = -off + 26 + rnd() * (vbW - 64)
+      const y = 54 + rnd() * 512
+      if (y > 396 && y < 528) continue
+      if (Math.abs(x - 390) < 40) continue
+      if (x > 404 && x < 606 && y > 216 && y < 388) continue
+      out.push({ x, y, w: 16 + rnd() * 30, h: 11 + rnd() * 19 })
+    }
+    return out
+  }, [isCity, off, vbW])
+
   const marks = [
     ...(spec.artifacts ?? []).map((a) => ({
       x: a.x * 10,
@@ -353,68 +373,89 @@ function CityPlan({ spec, phase, index }: { spec: MapSpec; phase: MapPhase; inde
     <div className="atlas__frame">
       <svg ref={wrapRef} viewBox={`${-off} 0 ${vbW} 620`} preserveAspectRatio="xMidYMid meet" className="atlas__svg" role="img" aria-label={`${spec.title} — ${phase.title}`}>
         <defs>
-          <linearGradient id={`${uid}-paper`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#f2e9d2" />
-            <stop offset="100%" stopColor="#e0d2ae" />
+          <linearGradient id={`${uid}-board`} x1="0" y1="0" x2="0.4" y2="1">
+            <stop offset="0%" stopColor="#16283a" />
+            <stop offset="52%" stopColor="#101f2c" />
+            <stop offset="100%" stopColor="#0a1622" />
           </linearGradient>
-          <pattern id={`${uid}-grid`} width="46" height="46" patternUnits="userSpaceOnUse">
-            <path d="M46 0H0V46" fill="none" stroke="#b9a173" strokeOpacity="0.16" strokeWidth="1" />
+          <radialGradient id={`${uid}-halo`} cx="50%" cy="42%" r="66%">
+            <stop offset="0%" stopColor="#2f5d7a" stopOpacity="0.28" />
+            <stop offset="100%" stopColor="#2f5d7a" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id={`${uid}-vig`} cx="50%" cy="46%" r="76%">
+            <stop offset="60%" stopColor="#020a12" stopOpacity="0" />
+            <stop offset="100%" stopColor="#020a12" stopOpacity="0.55" />
+          </radialGradient>
+          <pattern id={`${uid}-grid`} width="25" height="25" patternUnits="userSpaceOnUse">
+            <path d="M25 0H0V25" fill="none" stroke="#7fb0c9" strokeOpacity="0.09" strokeWidth="0.6" />
           </pattern>
-          <pattern id={`${uid}-blocks`} width="86" height="70" patternUnits="userSpaceOnUse">
-            <rect x="6" y="6" width="30" height="24" rx="2" fill="#c9b68c" fillOpacity="0.4" />
-            <rect x="48" y="8" width="30" height="20" rx="2" fill="#c9b68c" fillOpacity="0.32" />
-            <rect x="14" y="40" width="34" height="22" rx="2" fill="#c9b68c" fillOpacity="0.36" />
-            <rect x="54" y="38" width="24" height="26" rx="2" fill="#c9b68c" fillOpacity="0.28" />
+          <pattern id={`${uid}-grid5`} width="125" height="125" patternUnits="userSpaceOnUse">
+            <path d="M125 0H0V125" fill="none" stroke="#9fc6da" strokeOpacity="0.14" strokeWidth="0.8" />
           </pattern>
+          <linearGradient id={`${uid}-water`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3f8bab" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#2b6b88" stopOpacity="0.5" />
+          </linearGradient>
+          <filter id={`${uid}-glow`} x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="3.2" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
         </defs>
 
-        <rect x={-off} width={vbW} height="620" fill={`url(#${uid}-paper)`} />
-        <rect x={-off} width={vbW} height="620" fill={`url(#${uid}-blocks)`} opacity="0.3" />
+        <rect x={-off} width={vbW} height="620" fill={`url(#${uid}-board)`} />
+        <rect x={-off} width={vbW} height="620" fill={`url(#${uid}-halo)`} />
         <rect x={-off} width={vbW} height="620" fill={`url(#${uid}-grid)`} />
+        <rect x={-off} width={vbW} height="620" fill={`url(#${uid}-grid5)`} />
 
-        {/* حاشیهٔ چپ: یادداشت طرح */}
-        {off > 150 && (
-          <g pointerEvents="none" opacity="0.62" textAnchor="middle">
-            <text x={-off * 0.56} y={96} fontSize={13 * unit} fontWeight={700} fill="#7a6845" style={{ fontFamily: 'Estedad, sans-serif' }}>
-              {isCity ? 'طرح نمادین شهر' : 'طرح نمادینِ نمونه‌ها'}
-            </text>
-            <text x={-off * 0.56} y={96 + 24 * unit} fontSize={11 * unit} fill="#8a7752" style={{ fontFamily: 'Estedad, sans-serif' }}>
-              {isCity ? 'جای بناها تقریبی است؛ برای دیدن نسبتشان' : 'جای هر نشانه تقریبی است؛ برای مقایسهٔ گونه‌ها'}
-            </text>
-            <line
-              x1={-off * 0.56 - 100 * unit} x2={-off * 0.56 + 100 * unit}
-              y1={108 + 24 * unit} y2={108 + 24 * unit}
-              stroke="#b79a63" strokeOpacity="0.5" strokeWidth="1.2"
-            />
+        {/* باغ‌ها: لکه‌های سبزِ کم‌رنگ، مثل نقشهٔ باغ‌های شهری */}
+        <g opacity="0.5">
+          <ellipse cx={150 - off * 0.6} cy="140" rx="120" ry="82" fill="#2f5a4c" fillOpacity="0.45" />
+          <ellipse cx={860 + off * 0.55} cy="520" rx="112" ry="74" fill="#2f5a4c" fillOpacity="0.38" />
+          {off > 0 && (
+            <>
+              <ellipse cx={640 - off * 0.1} cy="86" rx="140" ry="64" fill="#2f5a4c" fillOpacity="0.28" />
+              <ellipse cx={330 + off * 0.15} cy="566" rx="160" ry="72" fill="#2f5a4c" fillOpacity="0.24" />
+            </>
+          )}
+        </g>
+
+        {/* بافت شهری */}
+        {isCity && (
+          <g fill="#4a6a83" fillOpacity="0.2">
+            {blocks.map((b, k) => (
+              <rect key={`b-${k}`} x={b.x} y={b.y} width={b.w} height={b.h} rx="2" />
+            ))}
           </g>
-        )}
-
-        {/* باغ‌ها */}
-        <ellipse cx={140 - off * 0.7} cy="150" rx="130" ry="95" fill="#9cae7d" fillOpacity="0.22" />
-        <ellipse cx={880 + off * 0.7} cy="520" rx="120" ry="80" fill="#9cae7d" fillOpacity="0.18" />
-        {off > 0 && (
-          <>
-            <ellipse cx={640 - off * 0.15} cy="90" rx="150" ry="70" fill="#9cae7d" fillOpacity="0.14" />
-            <ellipse cx={300 + off * 0.2} cy="560" rx="170" ry="80" fill="#9cae7d" fillOpacity="0.12" />
-          </>
         )}
 
         {/* زاینده‌رود — فقط نقشهٔ اصفهان */}
         {isCity && (
           <g transform={`translate(500,0) scale(${vbW / 1000},1) translate(-500,0)`}>
-            <path d="M-20 470 C 180 430, 380 505, 560 458 S 860 425, 1020 452" fill="none" stroke="#4f8ba3" strokeOpacity="0.45" strokeWidth="30" strokeLinecap="round" />
-            <path d="M-20 470 C 180 430, 380 505, 560 458 S 860 425, 1020 452" fill="none" stroke="#9dcbd8" strokeOpacity="0.75" strokeWidth="12" strokeLinecap="round" />
+            <path d="M-20 470 C 180 430, 380 505, 560 458 S 860 425, 1020 452" fill="none" stroke="#0b2434" strokeOpacity="0.75" strokeWidth="46" strokeLinecap="round" />
+            <path d="M-20 470 C 180 430, 380 505, 560 458 S 860 425, 1020 452" fill="none" stroke={`url(#${uid}-water)`} strokeWidth="30" strokeLinecap="round" />
+            <path d="M-20 470 C 180 430, 380 505, 560 458 S 860 425, 1020 452" fill="none" stroke="#8fd0e4" strokeOpacity="0.35" strokeWidth="5" strokeLinecap="round" />
+          </g>
+        )}
+        {isCity && (
+          <g fill="#dcc38a" stroke="#8a7444" strokeWidth="0.8">
+            {[[655, 452, -9], [818, 476, -6]].map(([bx, by, rot], k) => (
+              <g key={`br-${k}`} transform={`translate(${bx} ${by}) rotate(${rot})`}>
+                <rect x="-7" y="-26" width="14" height="52" rx="2" fillOpacity="0.9" />
+                <line x1="-7" y1="-13" x2="7" y2="-13" strokeOpacity="0.5" />
+                <line x1="-7" y1="13" x2="7" y2="13" strokeOpacity="0.5" />
+              </g>
+            ))}
           </g>
         )}
         {isCity && (
           <text
-            x={180} y={452} textAnchor="middle" fontSize={13 * unit} fill="#2f6a80" opacity="0.85"
-            stroke="#e9e0c6" strokeWidth={4 * unit} paintOrder="stroke"
+            x={186} y={444} textAnchor="middle" fontSize={13.5 * unit} fill="#bfe6f2" opacity="0.95"
+            stroke="#081420" strokeWidth={2.6 * unit} paintOrder="stroke" letterSpacing="0.6"
             style={{ fontFamily: 'Estedad, sans-serif' }}
           >زاینده‌رود</text>
         )}
 
-        {/* محورها */}
+        {/* محورها و خیابان‌ها */}
         {lines.map((l, k) => {
           const bx1 = l.from[0] * 10
           const by1 = l.from[1] * 6.2
@@ -426,23 +467,36 @@ function CityPlan({ spec, phase, index }: { spec: MapSpec; phase: MapPhase; inde
           const y1 = by1 - ((by2 - by1) / len) * ext
           const x2 = bx2 + ((bx2 - bx1) / len) * ext
           const y2 = by2 + ((by2 - by1) / len) * ext
+          const axis = l.kind === 'axis'
           const street = l.kind === 'street'
+          const river = l.kind === 'river'
           return (
             <g key={k}>
-              <line
-                x1={x1} y1={y1} x2={x2} y2={y2}
-                stroke={l.kind === 'river' ? '#4f8ba3' : l.kind === 'axis' ? '#a9812f' : '#9a8659'}
-                strokeOpacity={street ? 0.55 : 0.85}
-                strokeWidth={l.kind === 'axis' ? 6 : street ? 3 : 4}
-                strokeDasharray={street ? '12 7' : undefined}
-                strokeLinecap="round"
-              />
+              {axis && (
+                <>
+                  <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#d8ab53" strokeOpacity="0.16" strokeWidth="16" strokeLinecap="round" />
+                  <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#d8ab53" strokeOpacity="0.85" strokeWidth="2.6" strokeLinecap="round" />
+                  <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#f6e3ae" strokeOpacity="0.55" strokeWidth="0.9" strokeDasharray="1 9" strokeLinecap="round" />
+                </>
+              )}
+              {street && (
+                <>
+                  <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#c9d7dd" strokeOpacity="0.08" strokeWidth="14" strokeLinecap="round" />
+                  <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#c9d7dd" strokeOpacity="0.5" strokeWidth="1.6" strokeDasharray="9 6" strokeLinecap="round" />
+                </>
+              )}
+              {river && (
+                <>
+                  <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#1d4a60" strokeOpacity="0.8" strokeWidth="26" strokeLinecap="round" />
+                  <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#4d94b1" strokeOpacity="0.7" strokeWidth="12" strokeLinecap="round" />
+                </>
+              )}
               {l.label && (
                 <text
-                  x={bx1 + (bx2 - bx1) * (compact ? 0.22 : 0.5)}
-                  y={by1 + (by2 - by1) * (compact ? 0.22 : 0.5) - 9 * unit}
-                  textAnchor="middle" fontSize={13 * unit}
-                  fill="#6b5a38" stroke="#f7eed8" strokeWidth={3.6 * unit} paintOrder="stroke"
+                  x={bx1 + (bx2 - bx1) * (l.kind === 'axis' ? 0.16 : compact ? 0.24 : 0.5)}
+                  y={by1 + (by2 - by1) * (l.kind === 'axis' ? 0.16 : compact ? 0.24 : 0.5) - 11 * unit}
+                  textAnchor="middle" fontSize={13 * unit} fontWeight={700}
+                  fill="#f4e6c4" stroke="#081420" strokeWidth={2.6 * unit} paintOrder="stroke" letterSpacing="0.4"
                   style={{ fontFamily: 'Estedad, sans-serif' }}
                 >{l.label}</text>
               )}
@@ -453,49 +507,72 @@ function CityPlan({ spec, phase, index }: { spec: MapSpec; phase: MapPhase; inde
         {/* میدان نقش جهان — فقط نقشهٔ اصفهان */}
         {isCity && (
           <>
-            <rect x="420" y="238" width="160" height="118" rx="5" fill="#e8d8ad" fillOpacity="0.5" stroke="#a9812f" strokeOpacity="0.8" strokeWidth="3" />
+            <rect x="420" y="238" width="160" height="118" rx="6" fill="#d8ab53" fillOpacity="0.1" stroke="#d8ab53" strokeOpacity="0.5" strokeWidth="1.2" />
+            <rect x="428" y="246" width="144" height="102" rx="4" fill="none" stroke="#d8ab53" strokeOpacity="0.26" strokeWidth="0.8" strokeDasharray="4 4" />
             {index > 0 && !pins.some((p) => p.x > 42 && p.x < 58 && p.y > 40 && p.y < 56) && (
-              <text x={compact ? 760 : 500} y="376" textAnchor="middle" fontSize={12 * unit} fill="#6b5a38" opacity="0.75" style={{ fontFamily: 'Estedad, sans-serif' }}>میدان نقش جهان</text>
+              <text x={compact ? 760 : 500} y="376" textAnchor="middle" fontSize={12 * unit} fill="#e8d3a6" opacity="0.9" stroke="#081420" strokeWidth={3.6 * unit} paintOrder="stroke" style={{ fontFamily: 'Estedad, sans-serif' }}>میدان نقش جهان</text>
             )}
           </>
         )}
 
-        {/* اشیا، نشانه‌ها و برچسب‌ها */}
+        {/* نشانه‌ها */}
         {(compact
           ? marks.map((m, k) => (
               <g key={`n-${k}`}>
-                <circle cx={m.x} cy={m.y} r={badgeR * 1.5} fill={m.tone} fillOpacity="0.16" />
-                <circle cx={m.x} cy={m.y} r={badgeR} fill={m.tone} stroke="#3a2c12" strokeWidth={1.6 / Math.max(0.4, px)} />
+                <circle cx={m.x} cy={m.y} r={badgeR * 1.6} fill={m.tone} fillOpacity="0.14" />
+                <circle cx={m.x} cy={m.y} r={badgeR} fill={m.tone} fillOpacity="0.9" stroke="#0a1420" strokeWidth={1.6 / Math.max(0.4, px)} />
                 <text
-                  x={m.x} y={m.y + badgeFs * 0.35} textAnchor="middle" fontSize={badgeFs} fontWeight="800" fill="#241a06"
+                  x={m.x} y={m.y + badgeFs * 0.35} textAnchor="middle" fontSize={badgeFs} fontWeight={800} fill="#12212e"
                   style={{ fontFamily: 'Estedad, sans-serif' }}
                 >{fas(k + 1)}</text>
               </g>
             ))
           : placeLabels(marks, unit, lineLabels).map((m, k) => (
               <g key={`n-${k}`}>
-                <circle cx={m.x} cy={m.y} r="21" fill={m.tone} fillOpacity="0.12" />
-                <circle cx={m.x} cy={m.y} r="6.5" fill={m.tone} stroke="#3a2c12" strokeWidth="1.5" />
+                <circle cx={m.x} cy={m.y} r="19" fill={m.tone} fillOpacity="0.13" />
+                <circle cx={m.x} cy={m.y} r="10" fill="none" stroke={m.tone} strokeOpacity="0.5" strokeWidth="1.2" />
+                <circle cx={m.x} cy={m.y} r="4.6" fill={m.tone} stroke="#081420" strokeWidth="1.4" style={{ filter: `url(#${uid}-glow)` }} />
                 <text
-                  x={m.x + m.dx} y={m.y + m.dy} textAnchor={m.anchor} fontSize={15 * unit} fontWeight="800" fill="#241a06"
-                  stroke="#f9f1dc" strokeWidth={4.4 * unit} paintOrder="stroke"
+                  x={m.x + m.dx} y={m.y + m.dy} textAnchor={m.anchor} fontSize={14 * unit} fontWeight={800} fill="#f8ecd2"
+                  stroke="#081420" strokeWidth={3.2 * unit} paintOrder="stroke" letterSpacing="0.3"
                   style={{ fontFamily: 'Estedad, sans-serif' }}
                 >{m.label}</text>
               </g>
             )))}
 
-        {/* راهنما و مقیاس */}
-        <g transform="translate(944, 556)" opacity="0.85">
-          <circle r="20" fill="#0d2033" fillOpacity="0.07" stroke="#a9812f" strokeOpacity="0.55" />
-          <path d="M0,-13 L5,2 L0,-1 L-5,2 Z" fill="#8d6d24" />
+        {/* قاب، گوشه‌ها و مقیاس */}
+        <rect x={-off + 1} y="1" width={vbW - 2} height="618" fill="none" stroke="#c9ab74" strokeOpacity="0.34" />
+        {[
+          [-off + 1, 1, 1, 1], [off + 999, 1, -1, 1], [-off + 1, 619, 1, -1], [off + 999, 619, -1, -1]
+        ].map(([x, y, sx, sy], k) => (
+          <path
+            key={`c-${k}`}
+            d={`M${x + 22 * sx},${y} L${x},${y} L${x},${y + 22 * sy}`}
+            fill="none" stroke="#d8ab53" strokeOpacity="0.6" strokeWidth="2"
+          />
+        ))}
+        <g transform={`translate(${off + 944}, 56)`} opacity="0.9">
+          <circle r="21" fill="#0a1622" fillOpacity="0.6" stroke="#c9ab74" strokeOpacity="0.42" />
+          <circle r="14" fill="none" stroke="#c9ab74" strokeOpacity="0.16" />
+          <path d="M0,-13 L5,2 L0,-1 L-5,2 Z" fill="#e6c579" />
+          <text y="15" textAnchor="middle" fontSize="8.5" fill="#e6c579" style={{ fontFamily: 'Estedad, sans-serif' }}>ش</text>
         </g>
-        <g transform="translate(44, 586)" opacity="0.85">
-          <line x1="0" y1="0" x2="118" y2="0" stroke="#8d6d24" strokeWidth="2" />
-          <line x1="0" y1="-5" x2="0" y2="5" stroke="#8d6d24" strokeWidth="2" />
-          <line x1="118" y1="-5" x2="118" y2="5" stroke="#8d6d24" strokeWidth="2" />
-          <text x="59" y="-9" textAnchor="middle" fontSize={11 * unit} fill="#6b5a38" style={{ fontFamily: 'Estedad, sans-serif' }}>۵۰۰ متر</text>
+        <g transform="translate(38, 578)" opacity="0.95">
+          <rect x="-12" y="-18" width="150" height="32" rx="8" fill="#0a1622" fillOpacity="0.6" />
+          <line x1="0" y1="0" x2="118" y2="0" stroke="#e6c579" strokeWidth="1.6" />
+          <line x1="0" y1="-5" x2="0" y2="5" stroke="#e6c579" strokeWidth="1.6" />
+          <line x1="118" y1="-5" x2="118" y2="5" stroke="#e6c579" strokeWidth="1.6" />
+          <line x1="59" y1="0" x2="59" y2="4" stroke="#e6c579" strokeOpacity="0.7" strokeWidth="1" />
+          <text x="59" y="-7" textAnchor="middle" fontSize={10.5 * unit} fill="#f4e6c6" style={{ fontFamily: 'Estedad, sans-serif' }}>{isCity ? 'حدود ۵۰۰ متر' : 'نمای نمادین'}</text>
         </g>
-        <rect x="1" y="1" width="998" height="618" fill="none" stroke="#b79a63" strokeOpacity="0.45" />
+        <g transform={`translate(${-off + 22}, 26)`}>
+          <rect width={Math.min(vbW - 44, 330)} height="46" rx="8" fill="#0a1622" fillOpacity="0.55" stroke="#c9ab74" strokeOpacity="0.22" />
+          <text x="14" y="20" fontSize={11.5 * unit} fontWeight={800} fill="#f2e2bd" style={{ fontFamily: 'Estedad, sans-serif' }}>{spec.title}</text>
+          <text x="14" y="36" fontSize={9.5 * unit} fill="#a9c2ce" style={{ fontFamily: 'Estedad, sans-serif' }}>
+            {isCity ? 'طرح نمادین شهر؛ جای بناها تقریبی است' : 'طرح نمادین؛ جای هر نشانه تقریبی است'}
+          </text>
+        </g>
+        <rect x={-off} width={vbW} height="620" fill={`url(#${uid}-vig)`} pointerEvents="none" />
       </svg>
       {compact && marks.length > 0 && (
         <div className="atlas__pinKey">
@@ -526,8 +603,8 @@ function CityPlan({ spec, phase, index }: { spec: MapSpec; phase: MapPhase; inde
 }
 
 const BASE_PLAN_LINES: NonNullable<MapPhase['planLines']> = [
-  { from: [50, 18], to: [50, 82], kind: 'axis', label: 'چهارباغ' },
-  { from: [18, 48], to: [82, 48], kind: 'street', label: 'بازار' }
+  { from: [39, 8], to: [39, 74], kind: 'axis', label: 'چهارباغ' },
+  { from: [18, 35], to: [88, 35], kind: 'street', label: 'بازار' }
 ]
 
 export function AtlasMap({
