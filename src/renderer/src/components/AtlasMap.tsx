@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Compass, Minus, Pause, Play, Plus, RotateCcw, Move } from 'lucide-react'
-import { geoBounds, geoCentroid, geoGraticule, geoMercator, geoPath } from 'd3-geo'
+import { geoBounds, geoCentroid, geoContains, geoGraticule, geoMercator, geoPath } from 'd3-geo'
 import { feature, mesh } from 'topojson-client'
 import world from 'world-atlas/countries-50m.json'
 import worldCoarse from 'world-atlas/countries-110m.json'
@@ -106,6 +106,69 @@ const shapeById = new Map<string, any>()
 countriesFC.features.forEach((f: any) => {
   if (f.id != null) shapeById.set(String(f.id), f)
 })
+
+
+/** نقطه‌ای در دلِ ناحیه که از لبه‌ها دور است — نام ناحیه روی دریا یا مرز نیفتد */
+const interiorCache = new Map<string, [number, number] | null>()
+function interiorPoint(id: string, f: unknown): [number, number] | null {
+  if (interiorCache.has(id)) return interiorCache.get(id)!
+  const rings: [number, number][][] = []
+  const walk = (g: any) => {
+    if (!g) return
+    if (g.type === 'Polygon') rings.push(g.coordinates[0] as [number, number][])
+    else if (g.type === 'MultiPolygon') (g.coordinates as [number, number][][][]).forEach((poly) => rings.push(poly[0]))
+    else if (g.type === 'Feature') walk(g.geometry)
+    else if (g.type === 'GeometryCollection') (g.geometries as unknown[]).forEach(walk)
+  }
+  walk(f)
+  if (!rings.length) {
+    interiorCache.set(id, null)
+    return null
+  }
+  const [[w, s0], [e, n]] = geoBounds(f as any) as [[number, number], [number, number]]
+  const lat0 = ((s0 + n) / 2) * (Math.PI / 180)
+  const kx = Math.cos(lat0)
+  const segDist = (lon: number, lat: number) => {
+    let best = Number.POSITIVE_INFINITY
+    for (const ring of rings) {
+      for (let i = 0; i < ring.length - 1; i++) {
+        const ax = ring[i][0] * kx
+        const ay = ring[i][1]
+        const bx = ring[i + 1][0] * kx
+        const by = ring[i + 1][1]
+        const px = lon * kx
+        const py = lat
+        const dx = bx - ax
+        const dy = by - ay
+        const len2 = dx * dx + dy * dy || 1
+        const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2))
+        best = Math.min(best, Math.hypot(px - (ax + t * dx), py - (ay + t * dy)))
+      }
+    }
+    return best
+  }
+  let bestPt: [number, number] | null = null
+  let bestScore = -1
+  const N = 30
+  const M = 24
+  for (let i = 1; i < N; i++) {
+    for (let j = 1; j < M; j++) {
+      const lon = w + ((e - w) * i) / N
+      const lat = s0 + ((n - s0) * j) / M
+      if (!geoContains(f as any, [lon, lat])) continue
+      const d = segDist(lon, lat)
+      // کمی به مرکز جرم هم وزن می‌دهیم تا نامِ ناحیه‌های بزرگ سرگردان نشود
+      const c = geoCentroid(f as any) as [number, number]
+      const score = d - Math.hypot((lon - c[0]) * kx, lat - c[1]) * 0.12
+      if (score > bestScore) {
+        bestScore = score
+        bestPt = [lon, lat]
+      }
+    }
+  }
+  interiorCache.set(id, bestPt)
+  return bestPt
+}
 
 const regionFeature = (id: string) => {
   const r = regions[id]
@@ -259,16 +322,20 @@ export const ATLAS_FRAME = { W, H, PAD, extentOf }
 function placeLabels<T extends { x: number; y: number; label: string }>(
   items: T[],
   unit = 1,
-  obstacles: { x: number; y: number; label: string }[] = [],
+  obstacles: { x: number; y: number; label?: string; w?: number; h?: number }[] = [],
   avoid: { x: number; y: number }[] = []
 ) {
   const wOf = (t: string) => (t.length * 7.4 + 6) * unit
-  const boxes: { x0: number; y0: number; x1: number; y1: number }[] = obstacles.map((o) => ({
-    x0: o.x - wOf(o.label) / 2,
-    y0: o.y - 15 * unit,
-    x1: o.x + wOf(o.label) / 2,
-    y1: o.y + 4 * unit
-  }))
+  const boxes: { x0: number; y0: number; x1: number; y1: number }[] = obstacles.map((o) =>
+    o.w != null
+      ? { x0: o.x, y0: o.y, x1: o.x + o.w, y1: o.y + (o.h ?? 18 * unit) }
+      : {
+          x0: o.x - wOf(o.label ?? '') / 2,
+          y0: o.y - 15 * unit,
+          x1: o.x + wOf(o.label ?? '') / 2,
+          y1: o.y + 4 * unit
+        }
+  )
   // خودِ نشانه‌ها هم نباید زیر متن‌ها پنهان شوند
   for (const a of avoid) {
     boxes.push({ x0: a.x - 9 * unit, y0: a.y - 9 * unit, x1: a.x + 9 * unit, y1: a.y + 9 * unit })
@@ -297,7 +364,16 @@ function placeLabels<T extends { x: number; y: number; label: string }>(
     { dx: 3.4 * d, dy: 32 * unit, anchor: 'start' },
     { dx: -3.4 * d, dy: 32 * unit, anchor: 'end' },
     { dx: 0.6 * d, dy: -30 * unit, anchor: 'middle' },
-    { dx: 0.6 * d, dy: 38 * unit, anchor: 'middle' }
+    { dx: 0.6 * d, dy: 38 * unit, anchor: 'middle' },
+    // دورترها: وقتی اطراف نشانه پر است، نام با یک خط راهنما کمی عقب‌تر می‌نشیند
+    { dx: 4.8 * d, dy: 4.5 * unit, anchor: 'start' },
+    { dx: -4.8 * d, dy: 4.5 * unit, anchor: 'end' },
+    { dx: 6.2 * d, dy: -14 * unit, anchor: 'start' },
+    { dx: -6.2 * d, dy: -14 * unit, anchor: 'end' },
+    { dx: 4.8 * d, dy: 34 * unit, anchor: 'start' },
+    { dx: -4.8 * d, dy: 34 * unit, anchor: 'end' },
+    { dx: 2.4 * d, dy: -46 * unit, anchor: 'middle' },
+    { dx: 2.4 * d, dy: 56 * unit, anchor: 'middle' }
   ]
   for (const it of items) {
     const width = widthOf(it.label)
@@ -852,7 +928,7 @@ export function AtlasMap({
       .map((id) => {
         const f = regionFeature(id)
         if (!f) return null
-        const c = geoCentroid(f as any) as [number, number]
+        const c = interiorPoint(id, f) ?? (geoCentroid(f as any) as [number, number])
         const p = projection(c)
         if (!p) return null
         const ghost = !!phase.ghost?.includes(id)
@@ -872,6 +948,23 @@ export function AtlasMap({
   }
 
   /** نشانه‌های گام؛ برچسبشان با پرهیز از هم‌پوشانی چیده می‌شود */
+  /** کادر پلاکِ برچسب مسیرها؛ نام نواحی نباید رویشان بیفتد */
+  const arrowBoxes = useMemo(() => {
+    const out: { x: number; y: number; w: number; h: number }[] = []
+    for (const a of phase.arrows ?? []) {
+      if (!a.label) continue
+      const p0 = projection(a.from)
+      const p1 = projection(a.to)
+      if (!p0 || !p1) continue
+      const lx = (p0[0] + p1[0]) / 2
+      const ly = (p0[1] + p1[1]) / 2 - 10 * lk
+      const w = a.label.length * 5.6 * unit * lk + 24 * lk
+      const h = 18 * unit * lk
+      out.push({ x: lx - w / 2, y: ly - h, w, h })
+    }
+    return out
+  }, [phase, projection, unit, lk])
+
   const placedPins = useMemo(() => {
     const items = (phase.pins ?? [])
       .map((pin) => {
@@ -911,19 +1004,32 @@ export function AtlasMap({
     }
 
     const others = items.map((v) => ({ x: v.mx, y: v.my }))
-    return placeLabels(items as any, unit * lk, [], others) as (typeof items[number] & {
+    const placed = placeLabels(items as any, unit * lk, [], others) as (typeof items[number] & {
       dx: number
       dy: number
       anchor: 'start' | 'end' | 'middle'
+      lx: number
     })[]
-  }, [phase, projection, unit, lk])
+    // برچسب نباید از لبهٔ قاب بیرون بزند؛ x نهایی همین‌جا یک‌بار حساب می‌شود
+    for (const pin of placed) {
+      const w = pin.label.length * 7.4 * unit * lk
+      const raw = pin.mx + pin.dx
+      pin.lx =
+        pin.anchor === 'start'
+          ? Math.min(raw, W - 10 - w)
+          : pin.anchor === 'middle'
+            ? Math.min(Math.max(raw, 10 + w / 2), W - 10 - w / 2)
+            : Math.max(raw, 10 + w)
+    }
+    return placed
+  }, [phase, projection, unit, lk, arrowBoxes])
 
   /** کادر برچسب نشانه‌ها؛ مانعِ چیدن برچسب نواحی و کشورها */
   const pinBoxes = useMemo(
     () =>
       placedPins.map((p) => {
         const w = (p.label.length * 7.4 + 6) * unit * lk
-        const x0 = p.anchor === 'start' ? p.mx + p.dx : p.anchor === 'middle' ? p.mx + p.dx - w / 2 : p.mx + p.dx - w
+        const x0 = p.anchor === 'start' ? p.lx : p.anchor === 'middle' ? p.lx - w / 2 : p.lx - w
         return { x: x0 - 4, y: p.my + p.dy - 14 * unit * lk - 3, w: w + 8, h: 18 * unit * lk + 6 }
       }),
     [placedPins, unit, lk]
@@ -962,7 +1068,7 @@ export function AtlasMap({
 
   const placedRegionLabels = useMemo(() => {
     const out: { id: string; label: string; x: number; y: number; ghost: boolean; on: boolean; fs: number }[] = []
-    const boxes: { x: number; y: number; w: number; h: number }[] = pinBoxes.map((b) => ({ ...b }))
+    const boxes: { x: number; y: number; w: number; h: number }[] = [...pinBoxes, ...arrowBoxes].map((b) => ({ ...b }))
     for (const r of regionLabels) {
       const fs = (r.on ? 14 : 12) * lk
       const w = labelWidth(r.label, fs) * 1.14 + 8
@@ -979,30 +1085,79 @@ export function AtlasMap({
         [26, -26],
         [-26, -26],
         [0, 62],
-        [0, -62]
+        [0, -62],
+        [62, 0],
+        [-62, 0],
+        [54, 54],
+        [-54, 54],
+        [54, -54],
+        [-54, -54]
       ]
+      const free = (box: { x: number; y: number; w: number; h: number }) =>
+        inFrame(box) && !boxes.some((b) => box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y)
       let placed = false
       for (const [ox, oy] of offsets) {
         const box = { x: r.x + ox - w / 2, y: r.y + oy - h / 2, w, h }
-        if (!inFrame(box)) continue
-        if (boxes.some((b) => box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y)) continue
+        if (!free(box)) continue
         boxes.push(box)
         out.push({ ...r, x: r.x + ox, y: r.y + oy, fs })
         placed = true
         break
       }
       if (!placed && r.on) {
-        // قلمرو این گام هر جا باشد باید نامش دیده شود
-        out.push({ ...r, fs })
+        // قلمرو این گام هر جا باشد باید نامش دیده شود؛ کمی ریزتر و با ثبت کادر
+        const small = fs * 0.82
+        const w2 = labelWidth(r.label, small) * 1.14 + 8
+        const h2 = small * 2.1 + 6
+        for (const [ox, oy] of offsets) {
+          const box = { x: r.x + ox - w2 / 2, y: r.y + oy - h2 / 2, w: w2, h: h2 }
+          if (!free(box)) continue
+          boxes.push(box)
+          out.push({ ...r, x: r.x + ox, y: r.y + oy, fs: small })
+          placed = true
+          break
+        }
+        if (!placed) {
+          boxes.push({ x: r.x - w / 2, y: r.y - h / 2, w, h })
+          out.push({ ...r, fs })
+        }
       }
     }
     return out
-  }, [regionLabels, pinBoxes, view, lk])
+  }, [regionLabels, pinBoxes, arrowBoxes, view, lk])
+
+  /** اگر برچسب مسیر روی نام یک ناحیه بیفتد، فقط خط مسیر می‌ماند؛ نام ناحیه مهم‌تر است */
+  const arrowLabelOk = useMemo(() => {
+    const out: boolean[] = []
+    for (const a of phase.arrows ?? []) {
+      if (!a.label) { out.push(false); continue }
+      const p0 = projection(a.from)
+      const p1 = projection(a.to)
+      if (!p0 || !p1) { out.push(false); continue }
+      const lx = (p0[0] + p1[0]) / 2
+      const ly = (p0[1] + p1[1]) / 2 - 10 * lk
+      const w = a.label.length * 5.6 * unit * lk + 24 * lk
+      const h = 18 * unit * lk
+      const box = { x: lx - w / 2, y: ly - h, w, h }
+      const hits = (bx: { x: number; y: number; w: number; h: number }) =>
+        box.x < bx.x + bx.w && box.x + box.w > bx.x && box.y < bx.y + bx.h && box.y + box.h > bx.y
+      const regionClash = placedRegionLabels.some((r) => {
+        const rw = labelWidth(r.label, r.fs) * 1.1
+        const rh = r.fs * 2
+        return hits({ x: r.x - rw / 2, y: r.y - rh / 2, w: rw, h: rh })
+      })
+      // پلاکِ مسیر روی نام نشانه‌ها هم نباید بیفتد؛ در این حالت فقط خط مسیر می‌ماند
+      const pinClash = pinBoxes.some((b) => hits(b))
+      out.push(!regionClash && !pinClash)
+    }
+    return out
+  }, [phase, projection, unit, lk, placedRegionLabels, pinBoxes])
 
   const geoLabels = useMemo(() => {
     const placed: { text: string; x: number; y: number; fs: number; kind: 'country' | 'sea'; rotate?: number }[] = []
     const boxes: { x: number; y: number; w: number; h: number }[] = [
       ...pinBoxes.map((b) => ({ ...b })),
+      ...arrowBoxes.map((b) => ({ ...b })),
       ...placedRegionLabels.map((r) => ({ x: r.x - labelWidth(r.label, r.fs) / 2, y: r.y - r.fs, w: labelWidth(r.label, r.fs), h: r.fs * 2.1 }))
     ]
     const push = (text: string, x: number, y: number, fs: number, kind: 'country' | 'sea', rotate?: number) => {
@@ -1026,7 +1181,7 @@ export function AtlasMap({
       push(c.label, p[0], p[1], 10 * lk, 'country')
     }
     return placed
-  }, [projection, seaLabels, zoomedIn, pinBoxes, placedRegionLabels, view, lk])
+  }, [projection, seaLabels, zoomedIn, pinBoxes, arrowBoxes, placedRegionLabels, view, lk])
 
   const fs = clampFs(W / 62)
   const stepCount = spec.phases.length
@@ -1343,22 +1498,75 @@ export function AtlasMap({
                         transition={{ duration: 1, delay: 0.12 * k }}
                         style={{ filter: `url(#${uid}-glow)` }}
                       />
-                      {a.label && (
-                        <text
-                          x={(x0 + x1) / 2 + dx * 0.05}
-                          y={(y0 + y1) / 2 + dy * 0.05 - 9 * lk}
-                          textAnchor="middle"
-                          fontSize={11 * unit * lk}
-                          fontWeight={700}
-                          fill="#f9efd8"
-                          stroke="#0b1b2b"
-                          strokeWidth={3.6 * lk * unit}
-                          paintOrder="stroke"
-                          style={{ fontFamily: 'Estedad, sans-serif' }}
-                        >
-                          {a.label}
-                        </text>
-                      )}
+                      {a.label && arrowLabelOk[k] && (() => {
+                        // برچسب مسیر روی هر چیزی می‌افتد؛ پس پلاک تیره دارد تا همیشه خوانا بماند.
+                        // فلش «←» در فونت نیست و دو طرف را روی هم می‌اندازد؛ خودمان فلش می‌کشیم.
+                        const [first, second] = a.label.split('←').map((t) => t.trim())
+                        const fsL = 10.2 * unit * lk
+                        const wOf = (t: string) => t.length * fsL * 0.54
+                        const gap = 15 * lk
+                        const total = second ? wOf(first) + wOf(second) + gap : wOf(first)
+                        const lx = (x0 + x1) / 2 + dx * 0.05
+                        const ly = (y0 + y1) / 2 + dy * 0.05 - 10 * lk
+                        const lw = total + 20 * lk
+                        const lh = 16 * unit * lk
+                        return (
+                          <g>
+                            <rect x={lx - lw / 2} y={ly - lh * 0.78} width={lw} height={lh} rx={lh / 2} fill="#08181f" fillOpacity="0.82" stroke="#c9ab74" strokeOpacity="0.24" strokeWidth="0.6" />
+                            {second ? (
+                              <>
+                                <text
+                                  x={lx + gap / 2}
+                                  y={ly}
+                                  textAnchor="start"
+                                  fontSize={fsL}
+                                  fontWeight={700}
+                                  fill="#f9efd8"
+                                  style={{ fontFamily: 'Estedad, sans-serif' }}
+                                >
+                                  {first}
+                                </text>
+                                <path
+                                  d={`M${lx - gap / 2 + 2 * lk},${ly - fsL * 0.3} L${lx + gap / 2 - 2 * lk},${ly - fsL * 0.3}`}
+                                  stroke="#e6c579"
+                                  strokeWidth={0.9 * lk}
+                                  strokeLinecap="round"
+                                />
+                                <path
+                                  d={`M${lx + gap / 2 - 5 * lk},${ly - fsL * 0.3 - 2.2 * lk} L${lx + gap / 2 - 2 * lk},${ly - fsL * 0.3} L${lx + gap / 2 - 5 * lk},${ly - fsL * 0.3 + 2.2 * lk}`}
+                                  fill="none"
+                                  stroke="#e6c579"
+                                  strokeWidth={0.9 * lk}
+                                  strokeLinecap="round"
+                                />
+                                <text
+                                  x={lx - gap / 2}
+                                  y={ly}
+                                  textAnchor="end"
+                                  fontSize={fsL}
+                                  fontWeight={700}
+                                  fill="#f9efd8"
+                                  style={{ fontFamily: 'Estedad, sans-serif' }}
+                                >
+                                  {second}
+                                </text>
+                              </>
+                            ) : (
+                              <text
+                                x={lx}
+                                y={ly}
+                                textAnchor="middle"
+                                fontSize={fsL}
+                                fontWeight={700}
+                                fill="#f9efd8"
+                                style={{ fontFamily: 'Estedad, sans-serif' }}
+                              >
+                                {first}
+                              </text>
+                            )}
+                          </g>
+                        )
+                      })()}
                     </g>
                   )
                 })}
@@ -1416,14 +1624,7 @@ export function AtlasMap({
                     })
                   : placedPins.map((pin, k) => {
                   const tone = TONES[pin.tone ?? 'gold']
-                  const labelW = pin.label.length * 7.4 * unit * lk
-                  const rawX = pin.mx + pin.dx
-                  const labelX =
-                    pin.anchor === 'start'
-                      ? Math.min(rawX, W - 10 - labelW)
-                      : pin.anchor === 'middle'
-                        ? Math.min(Math.max(rawX, 10 + labelW / 2), W - 10 - labelW / 2)
-                        : Math.max(rawX, 10 + labelW)
+                  const labelX = pin.lx
                   return (
                     <motion.text
                       key={`pl-${k}`}
