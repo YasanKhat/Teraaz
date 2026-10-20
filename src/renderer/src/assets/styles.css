@@ -3432,3 +3432,70 @@ a:focus-visible {
 .film-frame--copy .film-h3 { font-size: clamp(1.2rem, 2vw, 1.55rem); line-height: 1.9; }
 .film-frame--copy .film-prose { font-size: clamp(0.95rem, 1.35vw, 1.08rem); line-height: 2.3; }
 .film-frame--copy .film-kicker { margin-bottom: 0.5rem; }
+
+/* ────────────────────────── بانک سؤال ────────────────────────── */
+.bank-card {
+  position: relative;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--c-line);
+  border-radius: 1.05rem;
+  background: linear-gradient(165deg, color-mix(in oklab, var(--c-surface) 94%, transparent), color-mix(in oklab, var(--c-surface2) 80%, transparent));
+  box-shadow: var(--shadow-soft);
+}
+.bank-card[data-done='1'] { border-color: color-mix(in oklab, #34d399 32%, var(--c-line)); }
+.bank-card[data-done='0'] { border-color: color-mix(in oklab, var(--c-rose) 34%, var(--c-line)); }
+.bank-q { font-size: 0.92rem; line-height: 2.05; font-weight: 600; color: var(--c-ink); }
+.bank-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--c-line);
+  border-radius: 0.7rem;
+  background: color-mix(in oklab, var(--c-surface2) 60%, transparent);
+  font-size: 0.8rem;
+  line-height: 1.9;
+  text-align: start;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+.bank-opt:not(:disabled):hover { border-color: color-mix(in oklab, var(--c-gold) 45%, var(--c-line)); }
+.bank-opt__n {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 0.45rem;
+  border: 1px solid var(--c-line);
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-muted);
+}
+.bank-opt--right { border-color: color-mix(in oklab, #34d399 55%, var(--c-line)); background: color-mix(in oklab, #34d399 12%, transparent); }
+.bank-opt--right .bank-opt__n { border-color: #34d399; color: #34d399; }
+.bank-opt--wrong { border-color: color-mix(in oklab, var(--c-rose) 55%, var(--c-line)); background: color-mix(in oklab, var(--c-rose) 12%, transparent); }
+.bank-opt--wrong .bank-opt__n { border-color: var(--c-rose); color: var(--c-rose); }
+.bank-note {
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.62rem;
+  font-size: 0.76rem;
+  line-height: 1.95;
+  border: 1px solid var(--c-line);
+}
+.bank-note--ok { border-color: color-mix(in oklab, #34d399 40%, var(--c-line)); background: color-mix(in oklab, #34d399 8%, transparent); color: #6ee7b7; }
+.bank-note--bad { border-color: color-mix(in oklab, var(--c-rose) 40%, var(--c-line)); background: color-mix(in oklab, var(--c-rose) 8%, transparent); color: var(--c-rose); }
+.bank-answer {
+  padding: 0.7rem 0.85rem;
+  border: 1px solid color-mix(in oklab, var(--c-gold) 26%, var(--c-line));
+  border-radius: 0.75rem;
+  background: color-mix(in oklab, var(--c-gold) 6%, transparent);
+  font-size: 0.84rem;
+  line-height: 2.15;
+  color: var(--c-ink);
+}
+.bank-answer p { white-space: pre-line; }
+@media (max-width: 640px) {
+  .bank-card { padding: 0.7rem 0.8rem; }
+  .bank-q { font-size: 0.86rem; line-height: 2; }
+  .bank-answer { font-size: 0.8rem; }
+}

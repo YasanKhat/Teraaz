@@ -7,6 +7,7 @@ import { Chapters } from './pages/Chapters'
 import { Chapter } from './pages/Chapter'
 import { LessonExperience } from './pages/LessonExperience'
 import { Recap } from './pages/Recap'
+import { Bank } from './pages/Bank'
 import { Archive } from './pages/Archive'
 import { Quiz } from './pages/Quiz'
 import { PaperPage } from './pages/Paper'
@@ -31,6 +32,8 @@ export default function App() {
         return <LessonExperience id={route.id} autoFilm />
       case 'recap':
         return <Recap id={route.id} />
+      case 'bank':
+        return <Bank id={route.id} />
       case 'archive':
         return <Archive tab={route.id} />
       case 'timeline':

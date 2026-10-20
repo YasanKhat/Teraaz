@@ -3,6 +3,8 @@ import { Compass, Users } from 'lucide-react'
 import { TimelineView } from '../components/TimelineView'
 import { FiguresGallery } from '../components/FiguresGallery'
 import { cn, fas } from '../lib/utils'
+import { figures } from '../data/figures'
+import { timeline as timelineAll } from '../data/timeline'
 
 type Tab = 'timeline' | 'figures'
 
@@ -11,8 +13,8 @@ export function Archive({ tab }: { tab?: string }) {
   const [active, setActive] = useState<Tab>(initial)
 
   const tabs: { id: Tab; label: string; icon: typeof Compass; count: number }[] = [
-    { id: 'timeline', label: 'خط زمان', icon: Compass, count: 84 },
-    { id: 'figures', label: 'چهره‌ها', icon: Users, count: 53 }
+    { id: 'timeline', label: 'خط زمان', icon: Compass, count: timelineAll.length },
+    { id: 'figures', label: 'چهره‌ها', icon: Users, count: figures.length }
   ]
 
   return (

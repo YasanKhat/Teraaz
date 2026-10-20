@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowUpLeft, Check, Clock3, Play, Quote, Target } from 'lucide-react'
+import { ArrowLeft, ArrowUpLeft, Check, Clock3, ListChecks, Play, Quote, Target } from 'lucide-react'
 import { chapterPlans } from '../data/plans'
 import { chapterById } from '../data/chapters'
 import { lessonById } from '../data/lessons'
@@ -102,6 +102,9 @@ export function Chapter({ id }: { id?: string }) {
                 <span className="h-3 w-px bg-line" />
                 <button className="flex items-center gap-1 text-faint transition hover:text-ink" onClick={() => navigate(`lesson/${l.id}`)}>
                   خواندن صحنه‌به‌صحنه <ArrowLeft size={9} />
+                </button>
+                <button className="ms-auto flex items-center gap-1 text-faint transition hover:text-gold" onClick={() => navigate(`bank/${l.id}`)} title="همهٔ سؤال‌های این درس">
+                  <ListChecks size={9} /> سؤال‌ها
                 </button>
               </div>
             )

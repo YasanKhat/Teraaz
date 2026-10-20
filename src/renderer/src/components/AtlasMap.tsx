@@ -82,35 +82,16 @@ const regionFeature = (id: string) => {
 
 const labelWidth = (text: string, fs: number) => Math.max(16, text.length * fs * 0.56)
 
-/** گسترهٔ جغرافیایی یک نقشه: همهٔ گام‌ها + کمی حاشیه، با حداقل اندازه */
-function extentOf(spec: MapSpec) {
-  const pts: [number, number][] = []
-  const pushAll = (ids?: string[]) => ids?.forEach((id) => regions[id]?.points.forEach((pt) => pts.push(pt)))
-  spec.phases.forEach((p) => {
-    pushAll(p.regions)
-    pushAll(p.ghost)
-    p.pins?.forEach((pin) => pts.push([pin.lon, pin.lat]))
-    p.arrows?.forEach((a) => pts.push(a.from, a.to))
-    p.countries?.forEach((id) => {
-      const f = shapeById.get(id)
-      if (f) {
-        const b = geoBounds(f)
-        pts.push([b[0][0], b[0][1]], [b[1][0], b[1][1]])
-      }
-    })
-  })
-  if (!pts.length) {
-    pushAll(spec.base)
-    if (!pts.length) pts.push([30, 20], [70, 48])
-  }
+/** حاشیه و هم‌نسبت‌سازی: هر گستره را به قابی پرکشیده با همان نسبت قاب بدل می‌کند */
+function frameBox(pts: [number, number][], padFactor = 1) {
   const lons = pts.map((p) => p[0])
   const lats = pts.map((p) => p[1])
   let [minLon, maxLon] = [Math.min(...lons), Math.max(...lons)]
   let [minLat, maxLat] = [Math.min(...lats), Math.max(...lats)]
 
   // حاشیهٔ طبیعی؛ نقشه نباید مثل برشِ چسبان به لبه بچسبد
-  const padLon = Math.max(1.6, (maxLon - minLon) * 0.14)
-  const padLat = Math.max(1.2, (maxLat - minLat) * 0.16)
+  const padLon = Math.max(1.6, (maxLon - minLon) * 0.14) * padFactor
+  const padLat = Math.max(1.2, (maxLat - minLat) * 0.16) * padFactor
   minLon -= padLon
   maxLon += padLon
   minLat -= padLat
@@ -146,6 +127,63 @@ function extentOf(spec: MapSpec) {
     wide: spanLon > 26
   }
 }
+
+/** نقاط تعیین‌کنندهٔ گسترهٔ یک گام: قلمرو، نشانه‌ها و مسیرها */
+function phasePoints(phase: MapPhase): [number, number][] {
+  const pts: [number, number][] = []
+  const pushAll = (ids?: string[]) => ids?.forEach((id) => regions[id]?.points.forEach((pt) => pts.push(pt)))
+  pushAll(phase.regions)
+  pushAll(phase.ghost)
+  phase.pins?.forEach((pin) => pts.push([pin.lon, pin.lat]))
+  phase.arrows?.forEach((a) => pts.push(a.from, a.to))
+  phase.countries?.forEach((id) => {
+    const f = shapeById.get(id)
+    if (f) {
+      const b = geoBounds(f)
+      pts.push([b[0][0], b[0][1]], [b[1][0], b[1][1]])
+    }
+  })
+  return pts
+}
+
+/** گسترهٔ جغرافیایی یک نقشه: همهٔ گام‌ها + کمی حاشیه، با حداقل اندازه */
+function extentOf(spec: MapSpec) {
+  const pts = spec.phases.flatMap(phasePoints)
+  if (!pts.length) {
+    const base: [number, number][] = []
+    spec.base?.forEach((id) => regions[id]?.points.forEach((pt) => base.push(pt)))
+    pts.push(...(base.length ? base : ([[30, 20], [70, 48]] as [number, number][])))
+  }
+  return frameBox(pts)
+}
+
+/** دوربین یک گام: مقیاس و جابه‌جایی لازم تا گسترهٔ همان گام قاب را پر کند */
+export function cameraFor(phase: MapPhase, projection: (p: [number, number]) => [number, number] | null, cap: number) {
+  const pts = phasePoints(phase)
+  if (pts.length < 2) return { x: 0, y: 0, k: 1 }
+  const fb = frameBox(pts, 0.45)
+  const corners: [number, number][] = [
+    [fb.minLon, fb.minLat],
+    [fb.maxLon, fb.minLat],
+    [fb.maxLon, fb.maxLat],
+    [fb.minLon, fb.maxLat]
+  ]
+  const proj = corners.map((c) => projection(c)).filter((p): p is [number, number] => !!p)
+  if (proj.length < 2) return { x: 0, y: 0, k: 1 }
+  const xs = proj.map((p) => p[0])
+  const ys = proj.map((p) => p[1])
+  const rx0 = Math.min(...xs)
+  const rx1 = Math.max(...xs)
+  const ry0 = Math.min(...ys)
+  const ry1 = Math.max(...ys)
+  const raw = Math.min((W - 2 * PAD) / Math.max(1, rx1 - rx0), (H - 2 * PAD) / Math.max(1, ry1 - ry0))
+  const k = Math.max(1, Math.min(cap, raw))
+  const cx = (rx0 + rx1) / 2
+  const cy = (ry0 + ry1) / 2
+  return { x: W / 2 - cx * k, y: H / 2 - cy * k, k }
+}
+
+export const ATLAS_FRAME = { W, H, PAD, extentOf }
 
 /** جای خوانا برای برچسب: چهار جهت را امتحان می‌کند و از هم‌پوشانی می‌پرهیزد */
 function placeLabels<T extends { x: number; y: number; label: string }>(
@@ -496,6 +534,12 @@ export function AtlasMap({
     return geoMercator().fitExtent([[PAD, PAD], [W - PAD, H - PAD]], frame)
   }, [box])
 
+  /* ── دوربین هر گام: روی همان گامی که روایت می‌شود زوم و مرکز می‌کند ──── */
+  const camera = useMemo(
+    () => cameraFor(phase, projection, wrapW < 560 ? 1.45 : 2.05),
+    [phase, projection, wrapW]
+  )
+
   const path = useMemo(() => geoPath(projection), [projection])
   const graticulePath = useMemo(() => path(geoGraticule().step([5, 5])() as any) ?? '', [path])
   const landPath = useMemo(() => path(landFC) ?? '', [path])
@@ -651,6 +695,12 @@ export function AtlasMap({
 
           <rect x="0" y="0" width={W} height={H} fill={`url(#${uid}-sea)`} />
           <g clipPath={`url(#${uid}-framelip)`}>
+            <motion.g
+              initial={false}
+              animate={{ x: camera.x, y: camera.y, scale: camera.k }}
+              transition={reduced ? { duration: 0 } : { duration: 1.15, ease: [0.33, 1, 0.36, 1] }}
+              style={{ transformOrigin: '0px 0px', transformBox: 'view-box' }}
+            >
             {/* خطوط نصف‌النهار و مدار */}
             <path d={graticulePath} fill="none" stroke="#8fb4d4" strokeOpacity="0.13" strokeWidth="0.6" />
 
@@ -879,7 +929,9 @@ export function AtlasMap({
               ))}
             </g>
 
-            {/* قاب داخلی */}
+            </motion.g>
+
+            {/* قاب داخلی — ثابت، بیرون از دوربین */}
             <rect x="0.5" y="0.5" width={W - 1} height={H - 1} fill="none" stroke="#b79a63" strokeOpacity="0.35" />
           </g>
 
@@ -893,12 +945,14 @@ export function AtlasMap({
           {/* مقیاس */}
           <g transform={`translate(30, ${H - 26})`} opacity="0.9">
             {(() => {
-              const target = 120 * kmPerPx
+              // با بزرگ‌نمایی دوربین، هر پیکسل کمتر کیلومتر می‌گیرد
+              const effKm = kmPerPx / camera.k
+              const target = 120 * effKm
               const nice = [50, 100, 200, 250, 500, 750, 1000, 1500, 2000, 3000, 4000].reduce(
                 (best, v) => (Math.abs(v - target) < Math.abs(best - target) ? v : best),
                 100
               )
-              const px = nice / kmPerPx
+              const px = nice / effKm
               return (
                 <>
                   <rect x="-8" y="-16" width={px + 70} height="30" rx="6" fill="#0b1c2c" fillOpacity="0.5" />

@@ -41,6 +41,8 @@ interface State {
   exams: ExamRecord[]
   cards: Record<string, CardState>
   bookmarks: string[]
+  /** پاسخ‌های بانک سؤال: ۱ = درست، ۰ = نادرست */
+  bank: Record<string, 0 | 1>
   notes: Record<number, string>
   readPos: Record<number, number>
   days: string[]
@@ -57,6 +59,7 @@ interface State {
   recordExam: (r: Omit<ExamRecord, 'at'>) => void
   reviewCard: (id: string, grade: 0 | 1 | 2 | 3) => void
   toggleBookmark: (id: string) => void
+  answerBank: (id: string, correct: boolean) => void
   saveNote: (lesson: number, text: string) => void
   saveReadPos: (lesson: number, fraction: number) => void
   setSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void
@@ -74,6 +77,7 @@ const initial = {
   exams: [],
   cards: {},
   bookmarks: [],
+  bank: {},
   notes: {},
   readPos: {},
   days: [],
@@ -190,6 +194,20 @@ export const useProgress = create<State>()(
             dailyXp: { ...s.dailyXp, [t]: (s.dailyXp[t] ?? 0) + gain }
           }
         }),
+      answerBank: (id, correct) =>
+        set((s) => {
+          const prev = s.bank[id]
+          const next = correct ? 1 : 0
+          if (prev === next) return {}
+          const t = todayKey()
+          const gain = correct && prev !== 1 ? 4 : 0
+          return {
+            bank: { ...s.bank, [id]: next },
+            xp: s.xp + gain,
+            days: touchToday(s.days),
+            dailyXp: { ...s.dailyXp, [t]: (s.dailyXp[t] ?? 0) + gain }
+          }
+        }),
       toggleBookmark: (id) =>
         set((s) => ({
           bookmarks: s.bookmarks.includes(id) ? s.bookmarks.filter((b) => b !== id) : [...s.bookmarks, id]
@@ -212,13 +230,13 @@ export const useProgress = create<State>()(
           const parsed = JSON.parse(raw)
           const data = parsed?.state ?? parsed
           if (typeof data !== 'object' || data === null || Array.isArray(data)) return false
-          const known = ['xp', 'completed', 'lessonProgress', 'quizzes', 'exams', 'cards', 'bookmarks', 'notes', 'days', 'settings']
+          const known = ['xp', 'completed', 'lessonProgress', 'quizzes', 'exams', 'cards', 'bookmarks', 'bank', 'notes', 'days', 'settings']
           if (!known.some((k) => k in data)) return false
           if (data.xp !== undefined && (typeof data.xp !== 'number' || !Number.isFinite(data.xp))) return false
           for (const key of ['completed', 'exams', 'bookmarks', 'days']) {
             if (data[key] !== undefined && !Array.isArray(data[key])) return false
           }
-          for (const key of ['lessonProgress', 'quizzes', 'cards', 'notes', 'settings']) {
+          for (const key of ['lessonProgress', 'quizzes', 'cards', 'bank', 'notes', 'settings']) {
             if (data[key] !== undefined && (typeof data[key] !== 'object' || data[key] === null || Array.isArray(data[key]))) return false
           }
           set({ ...initial, ...data, settings: { ...initial.settings, ...(data.settings ?? {}) } })
@@ -239,6 +257,7 @@ export const useProgress = create<State>()(
         exams: s.exams,
         cards: s.cards,
         bookmarks: s.bookmarks,
+        bank: s.bank,
         notes: s.notes,
         readPos: s.readPos,
         days: s.days,

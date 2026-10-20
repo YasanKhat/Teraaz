@@ -7,6 +7,9 @@ import { art } from '../art'
 import { navigate } from '../lib/router'
 import { cn, daysUntil, fas, greeting, jalali, readingTime, todayKey } from '../lib/utils'
 import { useProgress, useStreak } from '../store/useProgress'
+import { bankCounts } from '../data/bank'
+import { figures } from '../data/figures'
+import { timeline as timelineAll } from '../data/timeline'
 import { badges, dailyQuests } from '../data/exams'
 
 const reveal = {
@@ -224,8 +227,9 @@ export function Home() {
           <div className="mt-3 space-y-0">
             {[
               { t: 'درس‌ها', s: 'شانزده فیلم درس، قاب‌به‌قاب', r: 'chapters', n: '۱۶' },
-              { t: 'خط زمان', s: 'هشتاد و چهار رویداد، در یک خط', r: 'archive/timeline', n: '۸۴' },
-              { t: 'چهره‌ها', s: 'پنجاه‌وسه شخصیت پشت رویدادها', r: 'archive/figures', n: '۵۳' }
+              { t: 'سؤال‌ها', s: 'همهٔ پرسش‌های کتاب، با پاسخ', r: 'bank', n: fas(bankCounts.total) },
+              { t: 'خط زمان', s: 'رویدادها، در یک خط', r: 'archive/timeline', n: fas(timelineAll.length) },
+              { t: 'چهره‌ها', s: 'شخصیت‌های پشت رویدادها', r: 'archive/figures', n: fas(figures.length) }
             ].map((x) => (
               <button key={x.r} onClick={() => navigate(x.r)} className="toc-row group">
                 <span className="tabular-nums text-[0.58rem] text-gold/80">{x.n}</span>

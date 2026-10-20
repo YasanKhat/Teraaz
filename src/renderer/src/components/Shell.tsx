@@ -3,6 +3,7 @@ import {
   Archive,
   BookOpen,
   Flame,
+  ListChecks,
   Home,
   Menu,
   Moon,
@@ -23,6 +24,7 @@ import { CommandPalette } from './CommandPalette'
 const NAV = [
   { key: 'home', label: 'خانه', icon: Home },
   { key: 'chapters', label: 'فصل‌ها', icon: BookOpen },
+  { key: 'bank', label: 'سؤال‌ها', icon: ListChecks },
   { key: 'archive', label: 'آرشیو', icon: Archive },
   { key: 'exams', label: 'آزمون‌ها', icon: Target },
   { key: 'me', label: 'کارنامه', icon: Trophy }
@@ -51,6 +53,7 @@ export function Shell({ current, children }: { current: string; children: ReactN
   const activeRoot =
     current === 'lesson' || current === 'chapter' || current === 'recap' ? 'chapters'
       : current === 'timeline' || current === 'map' || current === 'figures' ? 'archive'
+      : current === 'bank' ? 'bank'
       : current === 'quiz' ? 'exams'
       : current === 'progress' ? 'me'
       : current

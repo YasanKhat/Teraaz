@@ -10,6 +10,7 @@ import {
   Compass,
   Layers,
   Pause,
+  ListChecks,
   Play,
   Quote as QuoteIcon,
   Search,
@@ -642,6 +643,9 @@ function renderStage(
             <div className="film-end__actions">
               <button className="btn btn-gold" onClick={() => navigate(`quiz/lesson-${lesson.id}`)}>
                 <Target size={14} /> آزمون این درس
+              </button>
+              <button className="btn btn-ghost" onClick={() => navigate(`bank/${lesson.id}`)}>
+                <ListChecks size={14} /> همهٔ سؤال‌های این درس
               </button>
               {lesson.id < 16 ? (
                 <button className="btn btn-ghost" onClick={() => navigate(`lesson/${lesson.id + 1}`)}>
