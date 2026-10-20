@@ -121,14 +121,20 @@ export function matchBookSection(lessonId: number, title: string): BookSection |
  * اگر تطبیق عنوان سست بود، بخش هم‌جای همان شماره را می‌دهد تا هیچ‌گاه
  * متن بی‌ربط به اسم کتاب نشان داده نشود.
  */
-export function bookQuote(lessonId: number, sectionTitle: string, order: number): string | null {
-  const matched = matchBookSection(lessonId, sectionTitle)
-  const list = bookSections.get(lessonId) ?? []
-  const sec = matched ?? list[Math.min(order, list.length - 1)] ?? null
+export function bookQuote(lessonId: number, sectionTitle: string, _order = 0): string | null {
+  // فقط وقتی عبارت کتاب را نشان می‌دهیم که بخش واقعاً تطبیق خورده باشد؛
+  // بهتر است چیزی نگوییم تا اینکه بندِ نامرتبط را «عین کتاب» بنامیم
+  const sec = matchBookSection(lessonId, sectionTitle)
   if (!sec) return null
   const para = sec.paras.find((p) => p.length >= 80) ?? sec.paras[0]
   return para ?? null
 }
+
+/** بخش‌های محتوایی کتاب (بی‌شماره‌های پرسش و پاسخ‌نامه) به ترتیب صفحه */
+export const contentSectionsOf = (lessonId: number): BookSection[] =>
+  (bookSections.get(lessonId) ?? []).filter(
+    (s) => !/سؤال|پاسخ|امتحان|پرسش/.test(s.title) && s.paras.length > 0
+  )
 
 /** همهٔ متن کتاب یک درس — برای شمارش و جست‌وجو */
 export const bookTextOf = (lessonId: number): string =>
