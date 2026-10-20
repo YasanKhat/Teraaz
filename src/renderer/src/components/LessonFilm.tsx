@@ -21,7 +21,7 @@ import {
   VolumeX
 } from 'lucide-react'
 import type { Lesson, Section } from '../data/types'
-import type { Panel, LessonPlan } from '../data/plans/types'
+import type { Beat, Panel, LessonPlan } from '../data/plans/types'
 import type { Chapter } from '../data/types'
 import { storyByLesson } from '../data/story'
 import { art } from '../art'
@@ -166,6 +166,41 @@ function sectionFrames(section: Section, kicker: string): Frame[] {
   return frames
 }
 
+/** واژه‌های معنادار یک متن، برای جفت‌کردن پرسش با صحنه */
+const keyWords = (text: string) =>
+  new Set(
+    text
+      .replace(/[^\u0600-\u06FF\s]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length > 3)
+  )
+
+/** بهترین پرسشِ استفاده‌نشدهٔ درس برای یک صحنه: بر پایهٔ هم‌پوشانی واژه‌ها */
+function pickCheck(lesson: Lesson, scene: Beat, used: Set<string>): Lesson['quiz'][number] | null {
+  const target = keyWords(
+    (scene.sections ?? [])
+      .map((n) => {
+        const sec = lesson.sections[n]
+        if (!sec) return ''
+        return [sec.title, ...sec.blocks.map((b) => JSON.stringify(b))].join(' ')
+      })
+      .join(' ')
+  )
+  if (!target.size) return null
+  let best: Lesson['quiz'][number] | null = null
+  let bestScore = -1
+  for (const q of lesson.quiz ?? []) {
+    if (used.has(q.prompt)) continue
+    let score = 0
+    for (const w of keyWords(`${q.prompt} ${q.explain}`)) if (target.has(w)) score++
+    if (score > bestScore) {
+      bestScore = score
+      best = q
+    }
+  }
+  return best
+}
+
 export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<typeof storyByLesson>): Frame[] {
   const frames: Frame[] = [{ kind: 'cover', art: art[plan.art] }]
   if (lesson.why)
@@ -178,6 +213,9 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
     })
   const scenes = plan.scenes
   const total = scenes.length
+  /** پرسش‌هایی که در صحنه‌ها آمده‌اند تا سؤال تکراری نپرسیم */
+  const usedChecks = new Set<string>()
+  scenes.forEach((sc) => sc.panels.forEach((p) => { if (p.kind === 'check') usedChecks.add(p.prompt) }))
 
   scenes.forEach((scene, si) => {
     const beat = story?.beats[si]
@@ -214,6 +252,18 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
         }
         frames.push({ kind: 'panel', panel })
       })
+
+    // یادآوری فعال: هر صحنهٔ دارای محتوا دست‌کم یک پرسش کوتاه داشته باشد
+    if (!scene.panels.some((p) => p.kind === 'check') && (scene.sections ?? []).length > 0) {
+      const q = pickCheck(lesson, scene, usedChecks)
+      if (q) {
+        usedChecks.add(q.prompt)
+        frames.push({
+          kind: 'panel',
+          panel: { kind: 'check', prompt: q.prompt, options: q.options, answer: q.answer, explain: q.explain }
+        })
+      }
+    }
 
     if (scene.takeaway) frames.push({ kind: 'takeaway', text: scene.takeaway, scene: scene.title })
   })
