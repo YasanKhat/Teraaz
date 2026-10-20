@@ -66,6 +66,11 @@ const PAD = 26
 const topo: any = world
 const countriesFC: any = feature(topo, topo.objects.countries)
 const landFC: any = feature(topo, topo.objects.land)
+/** خشکی بی‌جنوبگان: قطب جنوب در اطلس تاریخی فقط قاب را شلوغ می‌کند */
+const landNoAntarctica: any = {
+  type: 'FeatureCollection',
+  features: countriesFC.features.filter((f: any) => String(f.id) !== '010')
+}
 const borderMesh: any = (mesh as any)(topo, topo.objects.countries, (a: any, b: any) => a !== b)
 
 const shapeById = new Map<string, any>()
@@ -155,6 +160,42 @@ function extentOf(spec: MapSpec) {
     pts.push(...(base.length ? base : ([[30, 20], [70, 48]] as [number, number][])))
   }
   return frameBox(pts)
+}
+
+type Box = { minLon: number; maxLon: number; minLat: number; maxLat: number; wide: boolean }
+
+/** تصویر مرکاتوری: گسترهٔ نقشه را دقیقاً در قاب می‌نشاند (بدون تکیه بر fitExtent) */
+export function projectionFor(b: Box) {
+  const minLat = Math.max(-56, b.minLat)
+  const maxLat = Math.min(78, b.maxLat)
+  let minLon = b.minLon
+  let maxLon = b.maxLon
+  if (maxLon - minLon > 360) {
+    const c = (minLon + maxLon) / 2
+    minLon = c - 180
+    maxLon = c + 180
+  }
+  const cLon = (minLon + maxLon) / 2
+  const cLat = (minLat + maxLat) / 2
+  const unit = geoMercator().center([cLon, cLat]).scale(1).translate([0, 0])
+  const corners: [number, number][] = [
+    [minLon, minLat],
+    [maxLon, minLat],
+    [maxLon, maxLat],
+    [minLon, maxLat]
+  ]
+  const pts = corners.map((c) => unit(c)).filter((p): p is [number, number] => !!p)
+  const xs = pts.map((p) => p[0])
+  const ys = pts.map((p) => p[1])
+  const wSpan = Math.max(1e-6, Math.max(...xs) - Math.min(...xs))
+  const hSpan = Math.max(1e-6, Math.max(...ys) - Math.min(...ys))
+  const s = Math.min((W - 2 * PAD) / wSpan, (H - 2 * PAD) / hSpan)
+  const cx = (Math.max(...xs) + Math.min(...xs)) / 2
+  const cy = (Math.max(...ys) + Math.min(...ys)) / 2
+  return geoMercator()
+    .center([cLon, cLat])
+    .scale(s)
+    .translate([W / 2 - cx * s, H / 2 - cy * s])
 }
 
 /** دوربین یک گام: مقیاس و جابه‌جایی لازم تا گسترهٔ همان گام قاب را پر کند */
@@ -519,30 +560,20 @@ export function AtlasMap({
   /* ── دوربین و مسیرها ─────────────────────────────────────────────────── */
   const box = useMemo(() => extentOf(spec), [spec])
   const zoomedIn = !box.wide
-  const projection = useMemo(() => {
-    const b = box
-    const frame = {
-      type: 'Polygon',
-      coordinates: [[
-        [b.minLon, b.maxLat],
-        [b.maxLon, b.maxLat],
-        [b.maxLon, b.minLat],
-        [b.minLon, b.minLat],
-        [b.minLon, b.maxLat]
-      ]]
-    } as any
-    return geoMercator().fitExtent([[PAD, PAD], [W - PAD, H - PAD]], frame)
-  }, [box])
+  const projection = useMemo(() => projectionFor(box), [box])
 
   /* ── دوربین هر گام: روی همان گامی که روایت می‌شود زوم و مرکز می‌کند ──── */
   const camera = useMemo(
-    () => cameraFor(phase, projection, wrapW < 560 ? 1.45 : 2.05),
+    () => cameraFor(phase, projection, wrapW < 560 ? 1.3 : 1.7),
     [phase, projection, wrapW]
   )
 
+  /* متن‌ها با زوم کم‌تر بزرگ می‌شوند تا از حد خوانا نگذرند */
+  const lk = Math.pow(camera.k, -0.78)
+
   const path = useMemo(() => geoPath(projection), [projection])
   const graticulePath = useMemo(() => path(geoGraticule().step([5, 5])() as any) ?? '', [path])
-  const landPath = useMemo(() => path(landFC) ?? '', [path])
+  const landPath = useMemo(() => path(landNoAntarctica) ?? '', [path])
   const borderPath = useMemo(() => path(borderMesh as any) ?? '', [path])
   const spherePath = useMemo(() => path({ type: 'Sphere' } as any) ?? '', [path])
 
@@ -574,51 +605,87 @@ export function AtlasMap({
       .filter((v): v is { id: string; label: string; x: number; y: number; ghost: boolean; on: boolean } => !!v)
   }, [phase, projection])
 
+  /** برچسبی که با دوربینِ گام از قاب بیرون می‌زند، نیمه‌بریده دیده می‌شود؛ پس کنارش می‌گذاریم */
+  const inFrame = (box: { x: number; y: number; w: number; h: number }) => {
+    const x0 = box.x * camera.k + camera.x
+    const y0 = box.y * camera.k + camera.y
+    const x1 = x0 + box.w * camera.k
+    const y1 = y0 + box.h * camera.k
+    return x0 >= 3 && y0 >= 3 && x1 <= W - 3 && y1 <= H - 3
+  }
+
+  /** نشانه‌های گام؛ برچسبشان با پرهیز از هم‌پوشانی چیده می‌شود */
+  const placedPins = useMemo(() => {
+    const items = (phase.pins ?? [])
+      .map((pin) => {
+        const p = projection([pin.lon, pin.lat])
+        return p ? { ...pin, x: p[0], y: p[1] } : null
+      })
+      .filter((v): v is typeof v & { x: number; y: number } => !!v)
+    return placeLabels(items as ({ label: string; x: number; y: number } & typeof items[number])[], unit, [])
+  }, [phase, projection, unit])
+
+  /** کادر برچسب نشانه‌ها؛ مانعِ چیدن برچسب نواحی و کشورها */
+  const pinBoxes = useMemo(
+    () =>
+      placedPins.map((p) => {
+        const w = (p.label.length * 7.4 + 6) * unit * lk
+        const x0 = p.anchor === 'start' ? p.x + p.dx : p.x + p.dx - w
+        return { x: x0 - 4, y: p.y + p.dy - 14 * unit * lk - 3, w: w + 8, h: 18 * unit * lk + 6 }
+      }),
+    [placedPins, unit]
+  )
+
   const seaLabels = useMemo(
     () => seas.filter((s) => inView(s.lon, s.lat)).map((s) => ({ ...s, p: projection([s.lon, s.lat])! })),
     [projection]
   )
 
+  /* برچسب قلمروها: اندازهٔ خوانا + پرهیز از هم‌پوشانی */
+  const placedRegionLabels = useMemo(() => {
+    const out: { id: string; label: string; x: number; y: number; ghost: boolean; on: boolean; fs: number }[] = []
+    const boxes: { x: number; y: number; w: number; h: number }[] = pinBoxes.map((b) => ({ ...b }))
+    for (const r of regionLabels) {
+      const fs = (r.on ? 14 : 12) * lk
+      const w = labelWidth(r.label, fs) * 1.14 + 8
+      const h = fs * 2.1 + 6
+      const box = { x: r.x - w / 2, y: r.y - h / 2, w, h }
+      if (!inFrame(box)) continue
+      if (boxes.some((b) => box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y)) continue
+      boxes.push(box)
+      out.push({ ...r, fs })
+    }
+    return out
+  }, [regionLabels, pinBoxes, camera, lk])
+
   const geoLabels = useMemo(() => {
     const placed: { text: string; x: number; y: number; fs: number; kind: 'country' | 'sea'; rotate?: number }[] = []
-    const boxes: { x: number; y: number; w: number; h: number }[] = []
+    const boxes: { x: number; y: number; w: number; h: number }[] = [
+      ...pinBoxes.map((b) => ({ ...b })),
+      ...placedRegionLabels.map((r) => ({ x: r.x - labelWidth(r.label, r.fs) / 2, y: r.y - r.fs, w: labelWidth(r.label, r.fs), h: r.fs * 2.1 }))
+    ]
     const push = (text: string, x: number, y: number, fs: number, kind: 'country' | 'sea', rotate?: number) => {
       const w = (rotate ? fs * 1.3 : labelWidth(text, fs)) * 1.12
       const h = rotate ? labelWidth(text, fs) : fs * 1.9
       const box = rotate
         ? { x: x - w / 2, y: y - h / 2, w, h }
         : { x: x - w / 2, y: y - h / 2, w, h }
+      if (!inFrame(box)) return
       if (boxes.some((b) => box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y)) return
       boxes.push(box)
       placed.push({ text, x, y, fs, kind, rotate })
     }
     // اول دریاها: در پس‌زمینه و کج، مثل اطلس‌های چاپی
-    for (const s of seaLabels) push(s.label, s.p[0], s.p[1], 9.5, 'sea', -52)
+    for (const s of seaLabels) push(s.label, s.p[0], s.p[1], 9.5 * lk, 'sea', -52)
     // بعد نام سرزمین‌های امروز
     if (!zoomedIn) return placed
     for (const c of countryLabels) {
       if (!inView(c.lon, c.lat)) continue
       const p = projection([c.lon, c.lat])!
-      push(c.label, p[0], p[1], 10, 'country')
+      push(c.label, p[0], p[1], 10 * lk, 'country')
     }
     return placed
-  }, [projection, seaLabels, zoomedIn])
-
-  /* برچسب قلمروها: اندازهٔ خوانا + پرهیز از هم‌پوشانی */
-  const placedRegionLabels = useMemo(() => {
-    const out: { id: string; label: string; x: number; y: number; ghost: boolean; on: boolean; fs: number }[] = []
-    const boxes: { x: number; y: number; w: number; h: number }[] = []
-    for (const r of regionLabels) {
-      const fs = r.on ? 14 : 12
-      const w = labelWidth(r.label, fs) * 1.14
-      const h = fs * 2.1
-      const box = { x: r.x - w / 2, y: r.y - h / 2, w, h }
-      if (boxes.some((b) => box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y)) continue
-      boxes.push(box)
-      out.push({ ...r, fs })
-    }
-    return out
-  }, [regionLabels])
+  }, [projection, seaLabels, zoomedIn, pinBoxes, placedRegionLabels, camera, lk])
 
   const fs = clampFs(W / 62)
   const stepCount = spec.phases.length
@@ -834,7 +901,7 @@ export function AtlasMap({
                         x={(x0 + x1) / 2 + dx * 0.05}
                         y={(y0 + y1) / 2 + dy * 0.05 - 8}
                         textAnchor="middle"
-                        fontSize={11 * unit}
+                        fontSize={11 * unit * lk}
                         fontWeight={700}
                         fill="#f7ecd2"
                         stroke="#0b1b2b"
@@ -852,12 +919,9 @@ export function AtlasMap({
 
             {/* شهرها و نقطه‌های کلیدی */}
             <g>
-              {(phase.pins ?? []).map((pin, k) => {
-                const p = projection([pin.lon, pin.lat])
-                if (!p) return null
-                const [x, y] = p
+              {placedPins.map((pin, k) => {
+                const { x, y } = pin
                 const tone = TONES[pin.tone ?? 'gold']
-                const labelX = x + 11
                 return (
                   <motion.g
                     key={`p-${k}`}
@@ -868,13 +932,14 @@ export function AtlasMap({
                     <circle cx={x} cy={y} r={11} fill={tone} fillOpacity="0.16" />
                     <circle cx={x} cy={y} r={4.2} fill={tone} stroke="#0d1f30" strokeWidth="1.1" />
                     <text
-                      x={labelX}
-                      y={y + 5 * unit}
-                      fontSize={12 * unit}
+                      x={x + pin.dx}
+                      y={y + pin.dy}
+                      textAnchor={pin.anchor}
+                      fontSize={12 * unit * lk}
                       fontWeight={800}
                       fill="#0f1f2f"
                       stroke="#f6ecd4"
-                      strokeWidth="4"
+                      strokeWidth={4 * lk * unit}
                       paintOrder="stroke"
                       style={{ fontFamily: 'Estedad, sans-serif' }}
                     >
@@ -897,7 +962,7 @@ export function AtlasMap({
                   fontWeight={800}
                   letterSpacing="0.3"
                   fill={r.ghost ? '#6d5c3d' : r.on ? '#241a06' : '#5a4a2b'}
-                  fillOpacity={r.ghost ? 0.55 : r.on ? 0.95 : 0.58}
+                  fillOpacity={r.ghost ? 0.6 : r.on ? 0.97 : 0.74}
                   stroke="#f6ecd6"
                   strokeOpacity={r.on ? 0.75 : 0.45}
                   strokeWidth="2.6"
@@ -920,7 +985,7 @@ export function AtlasMap({
                   fontSize={l.fs * unit}
                   letterSpacing={l.kind === 'sea' ? l.fs * 0.22 : l.fs * 0.06}
                   fill={l.kind === 'sea' ? '#9cc2e2' : '#6a5738'}
-                  fillOpacity={l.kind === 'sea' ? 0.5 : 0.55}
+                  fillOpacity={l.kind === 'sea' ? 0.62 : 0.62}
                   transform={l.rotate ? `rotate(${l.rotate} ${l.x} ${l.y})` : undefined}
                   style={{ fontFamily: 'Estedad, sans-serif' }}
                 >
