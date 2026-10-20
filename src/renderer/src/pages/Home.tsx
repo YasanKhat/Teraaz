@@ -8,6 +8,7 @@ import { navigate } from '../lib/router'
 import { cn, daysUntil, fas, greeting, jalali, readingTime, todayKey } from '../lib/utils'
 import { useProgress, useStreak } from '../store/useProgress'
 import { bankCounts } from '../data/bank'
+import { DailyQuestion } from '../components/DailyQuestion'
 import { figures } from '../data/figures'
 import { timeline as timelineAll } from '../data/timeline'
 import { badges, dailyQuests } from '../data/exams'
@@ -142,6 +143,7 @@ export function Home() {
             )
           })}
         </div>
+        <DailyQuestion />
       </section>
 
       {/* ── پردهٔ فصل‌ها ────────────────────────────────────────── */}
