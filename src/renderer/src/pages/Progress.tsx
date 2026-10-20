@@ -8,6 +8,7 @@ import { navigate } from '../lib/router'
 import { cn, daysAgoKey, fas, jalali, pct, timeAgo, todayKey } from '../lib/utils'
 import { streakLength, useLevel, useProgress } from '../store/useProgress'
 import { bankCounts } from '../data/bank'
+import { BadgeGlyph } from '../components/BadgeGlyph'
 
 export function Progress() {
   const s = useProgress()
@@ -172,8 +173,8 @@ export function Progress() {
             const has = earns.includes(b.id)
             return (
               <div key={b.id} className={cn('flex items-start gap-2.5', !has && 'opacity-35')}>
-                <span className={cn('grid size-8 shrink-0 place-items-center rounded-full border text-[0.95rem]', has ? 'border-gold/45 bg-gold/8' : 'border-line')}>
-                  {b.icon}
+                <span className={cn('grid size-8 shrink-0 place-items-center rounded-full border', has ? 'border-gold/45 bg-gold/8 text-gold' : 'border-line text-faint')}>
+                  <BadgeGlyph icon={b.icon} />
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate text-[0.68rem] font-semibold">{b.title}</span>

@@ -51,7 +51,7 @@ export interface QuizQ {
   explain: string
   level: QLevel
   source: 'کتاب درسی' | 'امتحان نهایی' | 'تألیفی'
-  /** نشانهٔ سؤال دشوار (🚀 در کتاب) */
+  /** نشانهٔ سؤال دشوار (نماد موشک در کتاب) */
   rocket?: boolean
 }
 

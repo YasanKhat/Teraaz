@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, X, ArrowLeft, RotateCcw, Trophy, ChevronLeft, ChevronRight, Clock, Sparkles, Target } from 'lucide-react'
+import { Rocket, Check, X, ArrowLeft, RotateCcw, Trophy, ChevronLeft, ChevronRight, Clock, Sparkles, Target } from 'lucide-react'
 import type { QuizQ } from '../data/types'
 import { cn, faDigits, fas, pct, shuffle } from '../lib/utils'
 import { Bar, ProgressRing } from './ui'
@@ -238,7 +238,11 @@ export function QuizRunner({ questions, title, subtitle, mode, minutes = 20, onF
                     <p className="text-muted">{item.explain}</p>
                     <div className="flex flex-wrap gap-2 pt-1 text-[0.65rem]">
                       <span className="tag">{item.source}</span>
-                      {item.rocket && <span className="tag">🚀 سؤال دشوار</span>}
+                      {item.rocket && (
+              <span className="tag flex items-center gap-1">
+                <Rocket size={11} /> سؤال دشوار
+              </span>
+            )}
                     </div>
                   </div>
                 </details>
@@ -280,7 +284,11 @@ export function QuizRunner({ questions, title, subtitle, mode, minutes = 20, onF
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <span className="tag">{q.source}</span>
             <span className="tag">{q.level === 1 ? 'پایه' : q.level === 2 ? 'متوسط' : 'دشوار'}</span>
-            {q.rocket && <span className="tag">🚀</span>}
+            {q.rocket && (
+              <span className="tag" title="سؤال دشوار">
+                <Rocket size={11} />
+              </span>
+            )}
           </div>
           <h2 className="text-lg font-bold leading-9 md:text-xl">{q.prompt}</h2>
 

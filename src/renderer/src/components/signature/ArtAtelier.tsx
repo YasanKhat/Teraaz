@@ -1,13 +1,16 @@
 import { useState } from 'react'
+import { Feather, Landmark, Palette, ScrollText } from 'lucide-react'
 import { fas } from '../../lib/utils'
 import { SignatureStage, Tag } from './kit'
 
 const BRANCHES = [
-  { id: 'arch', n: 'معماری', icon: '⌂', work: 'گنبد، ایوان، کاشی و گچ‌بری؛ مسجد گوهرشاد و آرامگاه‌ها', who: 'استادان خراسان و سمرقند', note: 'نقشهٔ چهارایوانی به نماد معماری ایرانی-اسلامی تبدیل شد.' },
-  { id: 'paint', n: 'نگارگری', icon: '✧', work: 'مکتب هرات و تبریز؛ رنگ و ترکیب‌بندی ظریف', who: 'کمال‌الدین بهزاد و شاگردان', note: 'نگارگری، روایت شاهنامه و مجالس را تصویری کرد.' },
-  { id: 'call', n: 'خوشنویسی', icon: 'ق', work: 'خط نستعلیق و تذهیب نسخه‌ها', who: 'میرعلی تبریزی (روایت مشهور)', note: 'کتاب، هم اثر هنری شد و هم رسانهٔ دانش.' },
-  { id: 'lit', n: 'ادب و تاریخ', icon: '✎', work: 'شاهنامه، مثنوی، تاریخ‌نگاری درباری', who: 'فردوسی، مولوی، رشیدالدین', note: 'تاریخ‌نگاری از فهرست پادشاهان به روایت جامعه تبدیل شد.' }
+  { id: 'arch', n: 'معماری', icon: 'landmark', work: 'گنبد، ایوان، کاشی و گچ‌بری؛ مسجد گوهرشاد و آرامگاه‌ها', who: 'استادان خراسان و سمرقند', note: 'نقشهٔ چهارایوانی به نماد معماری ایرانی-اسلامی تبدیل شد.' },
+  { id: 'paint', n: 'نگارگری', icon: 'palette', work: 'مکتب هرات و تبریز؛ رنگ و ترکیب‌بندی ظریف', who: 'کمال‌الدین بهزاد و شاگردان', note: 'نگارگری، روایت شاهنامه و مجالس را تصویری کرد.' },
+  { id: 'call', n: 'خوشنویسی', icon: 'pen', work: 'خط نستعلیق و تذهیب نسخه‌ها', who: 'میرعلی تبریزی (روایت مشهور)', note: 'کتاب، هم اثر هنری شد و هم رسانهٔ دانش.' },
+  { id: 'lit', n: 'ادب و تاریخ', icon: 'scroll', work: 'شاهنامه، مثنوی، تاریخ‌نگاری درباری', who: 'فردوسی، مولوی، رشیدالدین', note: 'تاریخ‌نگاری از فهرست پادشاهان به روایت جامعه تبدیل شد.' }
 ]
+
+const GLYPH = { landmark: Landmark, palette: Palette, pen: Feather, scroll: ScrollText } as const
 
 export function ArtAtelier() {
   const [id, setId] = useState('paint')
@@ -30,7 +33,12 @@ export function ArtAtelier() {
             >
               <div className="sig-ornament pointer-events-none absolute inset-0" />
               <div className="relative">
-                <div className={`mb-1 text-[1.1rem] ${x.id === id ? 'text-gold' : 'text-faint'}`}>{x.icon}</div>
+                <div className={`mb-1 ${x.id === id ? 'text-gold' : 'text-faint'}`}>
+                  {(() => {
+                    const Icon = GLYPH[x.icon as keyof typeof GLYPH] ?? Landmark
+                    return <Icon size={17} strokeWidth={1.6} />
+                  })()}
+                </div>
                 <div className="text-[0.82rem] font-bold">{x.n}</div>
                 <div className="mt-0.5 text-[0.6rem] leading-5 text-faint">{x.who}</div>
               </div>

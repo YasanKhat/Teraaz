@@ -732,7 +732,9 @@ function renderStage(
       return (
         <div className="film-frame film-center film-frame--note">
           <div className={cn('film-note', frame.tone === 'warn' && 'film-note--warn')}>
-            <span className="film-note__watermark" aria-hidden="true">{frame.tone === 'warn' ? '!' : '✦'}</span>
+            <span className="film-note__watermark" aria-hidden="true">
+              {frame.tone === 'warn' ? <TriangleAlert size={70} strokeWidth={1.1} /> : <Sparkles size={70} strokeWidth={1.1} />}
+            </span>
             <div className="film-note__head">
               {frame.tone === 'warn' ? <TriangleAlert size={16} /> : <Sparkles size={16} />}
               {frame.title ?? (frame.tone === 'warn' ? 'دقت کن' : 'نکته')}
@@ -891,7 +893,7 @@ function renderStage(
       return (
         <div className="film-frame film-center film-frame--stage">
           <div className="film-echo">
-            <span className="film-echo__mark" aria-hidden="true">❝</span>
+            <span className="film-echo__mark" aria-hidden="true"><QuoteIcon size={22} /></span>
             <p>{frame.text}</p>
           </div>
         </div>

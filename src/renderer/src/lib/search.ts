@@ -5,12 +5,14 @@ import { chapters } from '../data/chapters'
 import { bankItems, kindLabel } from '../data/bank'
 import { normalizeFa } from './utils'
 
+export type HitIcon = 'lesson' | 'term' | 'figure' | 'event' | 'question' | 'chapter'
+
 export interface SearchHit {
   type: 'درس' | 'چهره' | 'رویداد' | 'واژه' | 'بخش' | 'پرسش'
   title: string
   sub: string
   route: string
-  icon: string
+  icon: HitIcon
 }
 
 let cache: { text: string; hit: SearchHit }[] | null = null
@@ -21,25 +23,25 @@ function build() {
   lessons.forEach((l) => {
     rows.push({
       text: normalizeFa(`${l.title} ${l.subtitle} ${l.tagline} ${l.keyPoints.join(' ')} درس ${l.id}`),
-      hit: { type: 'درس', title: l.title, sub: `درس ${l.id} · ${l.era}`, route: `lesson/${l.id}`, icon: '📖' }
+      hit: { type: 'درس', title: l.title, sub: `درس ${l.id} · ${l.era}`, route: `lesson/${l.id}`, icon: 'lesson' }
     })
     l.terms.forEach((t) => {
       rows.push({
         text: normalizeFa(`${t.term} ${t.def} ${l.title}`),
-        hit: { type: 'واژه', title: t.term, sub: t.def.slice(0, 60), route: `lesson/${l.id}?q=${encodeURIComponent(t.term)}`, icon: '🔖' }
+        hit: { type: 'واژه', title: t.term, sub: t.def.slice(0, 60), route: `lesson/${l.id}?q=${encodeURIComponent(t.term)}`, icon: 'term' }
       })
     })
   })
   figures.forEach((f) => {
     rows.push({
       text: normalizeFa(`${f.name} ${f.title} ${f.bio} ${f.works.join(' ')}`),
-      hit: { type: 'چهره', title: f.name, sub: f.title, route: `archive/figures/${f.id}`, icon: '👤' }
+      hit: { type: 'چهره', title: f.name, sub: f.title, route: `archive/figures/${f.id}`, icon: 'figure' }
     })
   })
   timeline.forEach((e) => {
     rows.push({
       text: normalizeFa(`${e.title} ${e.desc} ${e.date} ${e.place ?? ''}`),
-      hit: { type: 'رویداد', title: e.title, sub: `${e.date} · ${e.cat}`, route: `archive/timeline/${e.id}`, icon: '🕰️' }
+      hit: { type: 'رویداد', title: e.title, sub: `${e.date} · ${e.cat}`, route: `archive/timeline/${e.id}`, icon: 'event' }
     })
   })
   bankItems.forEach((item) => {
@@ -50,14 +52,14 @@ function build() {
         title: item.q.length > 78 ? `${item.q.slice(0, 76)}…` : item.q,
         sub: `درس ${item.lesson} · ${kindLabel(item.kind)}`,
         route: `bank/${item.lesson}?q=${encodeURIComponent(item.q.slice(0, 40))}`,
-        icon: '❓'
+        icon: 'question'
       }
     })
   })
   chapters.forEach((c) => {
     rows.push({
       text: normalizeFa(`${c.title} ${c.subtitle} ${c.hint} فصل`),
-      hit: { type: 'بخش', title: `فصل ${c.id}: ${c.title}`, sub: c.hint, route: `chapter/${c.id}`, icon: '🏛️' }
+      hit: { type: 'بخش', title: `فصل ${c.id}: ${c.title}`, sub: c.hint, route: `chapter/${c.id}`, icon: 'chapter' }
     })
   })
   cache = rows

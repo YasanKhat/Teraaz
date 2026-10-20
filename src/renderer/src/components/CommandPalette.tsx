@@ -1,5 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Search, CornerDownLeft, X } from 'lucide-react'
+import { BookOpen, Bookmark, Clock3, CornerDownLeft, HelpCircle, Landmark, Search, User, X } from 'lucide-react'
+import type { HitIcon } from '../lib/search'
+
+const HIT = {
+  lesson: BookOpen,
+  term: Bookmark,
+  figure: User,
+  event: Clock3,
+  question: HelpCircle,
+  chapter: Landmark
+} as const
+
+function HitGlyph({ icon }: { icon: HitIcon }) {
+  const Icon = HIT[icon] ?? BookOpen
+  return <Icon size={16} strokeWidth={1.7} />
+}
 import { searchAll, type SearchHit } from '../lib/search'
 import { searchFilm, type FilmHit } from '../lib/filmSearch'
 import { fas } from '../lib/utils'
@@ -144,8 +159,8 @@ export function CommandPalette({ onNavigate }: { onNavigate: (route: string) => 
                 i === active ? 'bg-gold/10' : 'hover:bg-ink/5'
               }`}
             >
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-surface2 text-base">
-                {hit.icon}
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-surface2 text-faint">
+                <HitGlyph icon={hit.icon} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold">{hit.title}</span>

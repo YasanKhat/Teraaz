@@ -3839,10 +3839,15 @@ html[data-film-full='on'] body { overflow: hidden; }
 }
 
 .film-scene__goals li::before {
-  content: '✦';
-  color: var(--c-gold);
-  font-size: 0.6em;
-  margin-inline-end: 0.35rem;
+  content: '';
+  display: inline-block;
+  width: 0.38rem;
+  height: 0.38rem;
+  margin-inline-end: 0.4rem;
+  background: var(--c-gold);
+  transform: rotate(45deg);
+  border-radius: 1px;
+  vertical-align: middle;
 }
 
 /* ── نقشهٔ راه درس ─────────────────────────────────────────────────────── */

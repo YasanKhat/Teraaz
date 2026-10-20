@@ -91,30 +91,34 @@ export const exams: ExamDef[] = [
   }
 ]
 
+export type BadgeIcon =
+  | 'seed' | 'compass' | 'landmark' | 'pen' | 'award' | 'flame' | 'bolt'
+  | 'star' | 'cards' | 'target' | 'clock' | 'film' | 'user' | 'crown'
+
 export interface BadgeDef {
   id: string
   title: string
   desc: string
-  icon: string
+  icon: BadgeIcon
   /** شرط، در منطق برنامه بررسی می‌شود */
   rule: 'first-lesson' | 'five-lessons' | 'all-lessons' | 'first-quiz' | 'perfect-quiz' | 'streak-3' | 'streak-7' | 'xp-1000' | 'all-cards' | 'exam-80' | 'timeline' | 'map' | 'figures' | 'final-exam'
 }
 
 export const badges: BadgeDef[] = [
-  { id: 'b1', title: 'نخستین قدم', desc: 'یک درس را کامل بخوان', icon: '🌱', rule: 'first-lesson' },
-  { id: 'b2', title: 'مسافر زمان', desc: 'پنج درس را کامل کن', icon: '🧭', rule: 'five-lessons' },
-  { id: 'b3', title: 'تاریخ‌نگار', desc: 'هر ۱۶ درس را کامل کن', icon: '🏛️', rule: 'all-lessons' },
-  { id: 'b4', title: 'آزمون‌اول', desc: 'نخستین آزمون درس را بده', icon: '📝', rule: 'first-quiz' },
-  { id: 'b5', title: 'بیست‌گرفته', desc: 'یک آزمون را کامل درست پاسخ بده', icon: '💯', rule: 'perfect-quiz' },
-  { id: 'b6', title: 'سه روز پیوسته', desc: 'سه روز پشت سر هم مطالعه کن', icon: '🔥', rule: 'streak-3' },
-  { id: 'b7', title: 'هفت روز پیوسته', desc: 'هفت روز پشت سر هم مطالعه کن', icon: '⚡', rule: 'streak-7' },
-  { id: 'b8', title: 'هزار امتیاز', desc: 'به ۱۰۰۰ امتیاز برس', icon: '🌟', rule: 'xp-1000' },
-  { id: 'b9', title: 'کارت‌شناس', desc: 'همهٔ کارت‌های یک درس را بلد شو', icon: '🃏', rule: 'all-cards' },
-  { id: 'b10', title: 'امتحان‌باز', desc: 'در یک آزمون جامع بالای ۸۰٪ بگیر', icon: '🎯', rule: 'exam-80' },
-  { id: 'b11', title: 'خط‌زمان‌خوان', desc: 'خط زمان را باز کن و کشف کن', icon: '🕰️', rule: 'timeline' },
-  { id: 'b12', title: 'قاب‌گرد', desc: 'یک درس را تا آخرین قاب ببین', icon: '🎞️', rule: 'map' },
-  { id: 'b13', title: 'چهره‌شناس', desc: 'چهره‌های تاریخی را ببین', icon: '👤', rule: 'figures' },
-  { id: 'b14', title: 'فاتح نهایی', desc: 'آزمون نهایی را بالای ۸۰٪ بده', icon: '👑', rule: 'final-exam' }
+  { id: 'b1', title: 'نخستین قدم', desc: 'یک درس را کامل بخوان', icon: 'seed', rule: 'first-lesson' },
+  { id: 'b2', title: 'مسافر زمان', desc: 'پنج درس را کامل کن', icon: 'compass', rule: 'five-lessons' },
+  { id: 'b3', title: 'تاریخ‌نگار', desc: 'هر ۱۶ درس را کامل کن', icon: 'landmark', rule: 'all-lessons' },
+  { id: 'b4', title: 'آزمون‌اول', desc: 'نخستین آزمون درس را بده', icon: 'pen', rule: 'first-quiz' },
+  { id: 'b5', title: 'بیست‌گرفته', desc: 'یک آزمون را کامل درست پاسخ بده', icon: 'award', rule: 'perfect-quiz' },
+  { id: 'b6', title: 'سه روز پیوسته', desc: 'سه روز پشت سر هم مطالعه کن', icon: 'flame', rule: 'streak-3' },
+  { id: 'b7', title: 'هفت روز پیوسته', desc: 'هفت روز پشت سر هم مطالعه کن', icon: 'bolt', rule: 'streak-7' },
+  { id: 'b8', title: 'هزار امتیاز', desc: 'به ۱۰۰۰ امتیاز برس', icon: 'star', rule: 'xp-1000' },
+  { id: 'b9', title: 'کارت‌شناس', desc: 'همهٔ کارت‌های یک درس را بلد شو', icon: 'cards', rule: 'all-cards' },
+  { id: 'b10', title: 'امتحان‌باز', desc: 'در یک آزمون جامع بالای ۸۰٪ بگیر', icon: 'target', rule: 'exam-80' },
+  { id: 'b11', title: 'خط‌زمان‌خوان', desc: 'خط زمان را باز کن و کشف کن', icon: 'clock', rule: 'timeline' },
+  { id: 'b12', title: 'قاب‌گرد', desc: 'یک درس را تا آخرین قاب ببین', icon: 'film', rule: 'map' },
+  { id: 'b13', title: 'چهره‌شناس', desc: 'چهره‌های تاریخی را ببین', icon: 'user', rule: 'figures' },
+  { id: 'b14', title: 'فاتح نهایی', desc: 'آزمون نهایی را بالای ۸۰٪ بده', icon: 'crown', rule: 'final-exam' }
 ]
 
 export const studyPlan = [

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Compass, Minus, Move, Plus, RotateCcw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Compass, Minus, Move, Pause, Play, Plus, RotateCcw } from 'lucide-react'
 import {
   H,
   W,
@@ -615,7 +615,7 @@ export function AtlasView({ spec, autoPlay, chrome = true, onDone, initialPhase 
           <div className="atlasx__nav atlas-ui">
             <button onClick={() => nav(-1)} disabled={i === 0} aria-label="گام قبل"><ChevronRight size={15} /></button>
             <button onClick={() => setPlaying((p) => !p)} aria-label={playing ? 'توقف' : 'پخش'} className={cn(playing && 'is-on')}>
-              {playing ? '❙❙' : '▶'}
+              {playing ? <Pause size={14} /> : <Play size={14} />}
             </button>
             <button onClick={() => nav(1)} disabled={i >= stepCount - 1} aria-label="گام بعد"><ChevronLeft size={15} /></button>
           </div>

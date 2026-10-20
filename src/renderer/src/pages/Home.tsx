@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, ArrowUpLeft, Clock3, Flame, Play, Sparkles, Target } from 'lucide-react'
+import { ArrowLeft, ArrowUpLeft, Check, Clock3, Flame, Play, Sparkles, Target } from 'lucide-react'
 import { chapterPlans, planByLesson, planChapterOfLesson } from '../data/plans'
 import { lessons } from '../data/lessons'
 import { art } from '../art'
@@ -11,6 +11,7 @@ import { bankCounts } from '../data/bank'
 import { DailyQuestion } from '../components/DailyQuestion'
 import { figures } from '../data/figures'
 import { timeline as timelineAll } from '../data/timeline'
+import { BadgeGlyph } from '../components/BadgeGlyph'
 import { badges, dailyQuests } from '../data/exams'
 
 const reveal = {
@@ -132,7 +133,7 @@ export function Home() {
             return (
               <div key={q.id} className="todaystrip__cell">
                 <span className={cn('grid size-6 shrink-0 place-items-center rounded-full border text-[0.56rem]', done ? 'border-turq/50 bg-turq/15 text-turq' : 'border-line text-faint')}>
-                  {done ? '✓' : '·'}
+                  {done ? <Check size={9} /> : '·'}
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className={cn('truncate text-[0.74rem] font-medium', done && 'text-faint line-through')}>{q.title}</div>
@@ -217,7 +218,9 @@ export function Home() {
           </div>
           <div className="mt-5 flex flex-wrap items-center gap-1.5">
             {badges.slice(0, 8).map((b) => (
-              <span key={b.id} className="grid size-7 place-items-center rounded-full border border-line text-[0.72rem]" title={b.title}>{b.icon}</span>
+              <span key={b.id} className="grid size-7 place-items-center rounded-full border border-line text-faint" title={b.title}>
+                <BadgeGlyph icon={b.icon} size={12} />
+              </span>
             ))}
             <button className="ms-1 text-[0.6rem] text-faint hover:text-gold" onClick={() => navigate('me')}>کارنامهٔ کامل</button>
           </div>

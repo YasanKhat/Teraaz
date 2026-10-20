@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Sprout, Star, Trophy } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { RotateCcw, Volume2, Sparkles, ArrowLeft, ArrowRight } from 'lucide-react'
 import type { Lesson } from '../data/types'
@@ -117,7 +118,9 @@ export function Flashcards({ lessons, title }: { lessons: Lesson[]; title: strin
     const pctKnown = Math.round((known / queue.length) * 100)
     return (
       <div className="surface flex flex-col items-center gap-3 px-6 py-12 text-center">
-        <div className="text-5xl">{pctKnown >= 80 ? '🏆' : pctKnown >= 50 ? '🌟' : '🌱'}</div>
+        <div className="grid size-14 place-items-center rounded-full border border-gold/35 bg-gold/10 text-gold">
+          {pctKnown >= 80 ? <Trophy size={26} /> : pctKnown >= 50 ? <Star size={26} /> : <Sprout size={26} />}
+        </div>
         <h3 className="text-xl font-bold">دور مرور تمام شد</h3>
         <p className="text-sm text-muted">
           {fas(known)} از {fas(queue.length)} کارت را بلد بودی ({fas(pctKnown)}٪)
