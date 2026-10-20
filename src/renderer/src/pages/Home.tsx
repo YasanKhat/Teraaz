@@ -80,8 +80,8 @@ export function Home() {
           </button>
 
           <div className="mt-3 flex flex-wrap items-center gap-3 text-[0.66rem]">
-            <button className="flex items-center gap-1 text-gold/90 transition hover:text-gold" onClick={() => navigate(`film/${current.id}`)}>
-              <Play size={11} /> تماشای فیلم درس {fas(current.id)}
+            <button className="flex items-center gap-1 text-gold/90 transition hover:text-gold" onClick={() => navigate(`bank/${current.id}`)}>
+              <Target size={11} /> سؤال‌های درس {fas(current.id)}
             </button>
             <span className="flex items-center gap-1 text-faint">
               <Sparkles size={11} /> روایت صوتی هر قاب
