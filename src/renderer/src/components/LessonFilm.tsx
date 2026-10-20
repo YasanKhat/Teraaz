@@ -28,7 +28,8 @@ import type { Beat, Panel, LessonPlan } from '../data/plans/types'
 import type { Chapter } from '../data/types'
 import { storyByLesson } from '../data/story'
 import { bookQuote } from '../data/book/sections'
-import { bookQuestionsOf, examQuestionsOf, type BookQuestion } from '../data/book/examQuestions'
+import { bookQuestionsOf, type BookQuestion } from '../data/book/examQuestions'
+import { QuestionCards } from './BookQuestions'
 import { art } from '../art'
 import { navigate } from '../lib/router'
 import { cn, fas } from '../lib/utils'
@@ -66,6 +67,7 @@ type FrameBody =
     }
   | { kind: 'roadmap'; items: { n: number; title: string; goal: string }[] }
   | { kind: 'legend' }
+  | { kind: 'terms'; items: { term: string; def: string }[]; part: number; parts: number }
   | { kind: 'qbank'; items: BookQuestion[]; scene?: string }
   | { kind: 'head'; kicker: string; title: string }
   | { kind: 'text'; kicker?: string; title?: string; body: string }
@@ -281,7 +283,7 @@ function leadOf(lesson: Lesson, idx: number, max = 240): string | null {
 }
 
 export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<typeof storyByLesson>): Frame[] {
-  const frames: Frame[] = [{ kind: 'cover', art: art[plan.art] }]
+  const frames: Frame[] = [{ kind: 'cover', src: 'guide', art: art[plan.art] }]
   if (lesson.why)
     frames.push({
       kind: 'why',
@@ -459,6 +461,10 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
     }))
   })
 
+  chunk(lesson.terms, 3).forEach((items, i, all) => {
+    frames.push({ kind: 'terms', src: 'book', items, part: i + 1, parts: all.length })
+  })
+
   chunk(lesson.keyPoints, 5).forEach((items, i, all) => {
     frames.push({ kind: 'keypoints', src: 'exam', items, part: i + 1, parts: all.length })
   })
@@ -585,45 +591,6 @@ function BookQuote({ text }: { text: string }) {
       </button>
       {open && <p className="film-quote__text">{text}</p>}
     </div>
-  )
-}
-
-/** پرسش‌های رسمی کتاب، با پاسخِ بازشو */
-function QuestionCards({ items }: { items: BookQuestion[] }) {
-  const [open, setOpen] = useState<number[]>([])
-  const toggle = (i: number) => setOpen((v) => (v.includes(i) ? v.filter((x) => x !== i) : [...v, i]))
-  return (
-    <ol className="film-qbank">
-      {items.map((q, i) => {
-        const isOpen = open.includes(i)
-        return (
-          <li key={q.id}>
-            <div className="film-qbank__head">
-              <span className="film-qbank__n">{fas(q.n)}</span>
-              <span className="film-qbank__kind">{q.kindLabel}</span>
-            </div>
-            <p className="film-qbank__q">{q.q}</p>
-            {q.options && q.options.length > 1 && (
-              <div className="film-qbank__opts">
-                {q.options.map((o, k) => (
-                  <span key={k} className="film-qbank__opt">
-                    <b>{fas(k + 1)}</b> {o}
-                  </span>
-                ))}
-              </div>
-            )}
-            <button className={cn('film-qbank__reveal', isOpen && 'is-open')} onClick={() => toggle(i)}>
-              {isOpen ? 'بستن پاسخ' : 'نمایش پاسخ'}
-            </button>
-            {isOpen && (
-              <p className="film-qbank__a">
-                <Check size={12} /> {q.answer}
-              </p>
-            )}
-          </li>
-        )
-      })}
-    </ol>
   )
 }
 
@@ -952,6 +919,26 @@ function renderStage(
         <div className="film-frame film-frame--scroll">
           <div className="film-body film-body--wide">
             <PanelView panel={frame.panel} accent={accent} />
+          </div>
+        </div>
+      )
+
+    case 'terms':
+      return (
+        <div className="film-frame film-frame--scroll film-frame--copy">
+          <div className="film-body">
+            <div className="film-kicker">
+              اصطلاح‌های همین درس {frame.parts > 1 ? `· بخش ${fas(frame.part)} از ${fas(frame.parts)}` : ''}
+            </div>
+            <h3 className="film-h3">این‌ها را باید بتوانی تعریف کنی</h3>
+            <dl className="film-terms">
+              {frame.items.map((t) => (
+                <div key={t.term} className="film-terms__row">
+                  <dt>{t.term}</dt>
+                  <dd>{t.def}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </div>
       )

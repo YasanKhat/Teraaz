@@ -4548,3 +4548,33 @@ html[data-film-full='on'] body { overflow: hidden; }
   .film-scope button { padding: 0.16rem 0.4rem; font-size: 0.55rem; }
   .film-stage__tag { inset-block-start: 0.55rem; inset-inline-end: 0.6rem; }
 }
+
+/* اصطلاح‌های درس در فیلم */
+.film-terms { display: flex; flex-direction: column; gap: 0.55rem; margin-top: 0.75rem; }
+
+.film-terms__row {
+  display: grid;
+  grid-template-columns: minmax(6rem, 8rem) 1fr;
+  gap: 0.7rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.7rem;
+  border: 1px solid color-mix(in oklab, var(--c-line) 80%, transparent);
+  background: color-mix(in oklab, var(--c-surface) 45%, transparent);
+}
+
+.film-terms__row dt {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--c-gold);
+  line-height: 1.9;
+}
+
+.film-terms__row dd {
+  font-size: 0.78rem;
+  line-height: 2;
+  color: color-mix(in oklab, var(--c-ink) 82%, transparent);
+}
+
+@media (max-width: 560px) {
+  .film-terms__row { grid-template-columns: 1fr; gap: 0.2rem; }
+}
