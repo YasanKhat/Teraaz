@@ -44,7 +44,7 @@ import { MindMap, type MindBranch } from './scene/MindMap'
 type Frame =
   | { kind: 'cover'; art: string }
   | { kind: 'why'; title: string; text: string; essence?: string; outline?: string[] }
-  | { kind: 'scene'; n: number; total: number; title: string; kicker?: string; beat: string; art: string }
+  | { kind: 'scene'; n: number; total: number; title: string; kicker?: string; beat: string; ask?: string; art: string }
   | { kind: 'head'; kicker: string; title: string }
   | { kind: 'text'; kicker?: string; title?: string; body: string }
   | { kind: 'list'; kicker?: string; title?: string; items: string[]; numbered?: boolean }
@@ -205,6 +205,20 @@ function pickCheck(lesson: Lesson, scene: Beat, used: Set<string>): Lesson['quiz
   return best
 }
 
+/** نخستین جملهٔ معنادار یک بخش — برای وقتی که روایتِ دست‌نویس نداریم */
+function leadOf(lesson: Lesson, idx: number, max = 240): string | null {
+  const sec = lesson.sections[idx]
+  if (!sec) return null
+  const first = sec.blocks.find((b) => b.t === 'p') as { t: 'p'; text: string } | undefined
+  const raw = first?.text ?? (sec.blocks.find((b) => b.t === 'bullets') as { t: 'bullets'; items: string[] } | undefined)?.items?.[0]
+  if (!raw) return null
+  const clean = raw.replace(/\s+/g, ' ').trim()
+  if (clean.length <= max) return clean
+  const cut = clean.slice(0, max)
+  const stop = Math.max(cut.lastIndexOf('.'), cut.lastIndexOf('؟'), cut.lastIndexOf('؛'))
+  return stop > 80 ? cut.slice(0, stop + 1) : `${cut.trim()}…`
+}
+
 export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<typeof storyByLesson>): Frame[] {
   const frames: Frame[] = [{ kind: 'cover', art: art[plan.art] }]
   if (lesson.why)
@@ -223,16 +237,17 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
 
   scenes.forEach((scene, si) => {
     const beat = story?.beats[si]
+    // پرسش راهنما: پیش از خواندن مطرح می‌شود و پاسخش در همان صحنه پیدا می‌شود
+    const ask = scene.panels.find((p): p is Extract<Panel, { kind: 'check' }> => p.kind === 'check')?.prompt
+    const derived = leadOf(lesson, (scene.sections ?? [])[0] ?? -1)
     frames.push({
       kind: 'scene',
       n: si + 1,
       total,
       title: scene.title,
       kicker: scene.kicker,
-      beat:
-        beat ??
-        scene.takeaway ??
-        'در این بخش، مهم‌ترین نکته‌های این صحنه را با هم مرور می‌کنیم.',
+      beat: beat ?? scene.takeaway ?? derived ?? `در این صحنه، «${scene.title}» را از نزدیک می‌بینیم و می‌فهمیم چرا مهم است.`,
+      ask,
       art: art[plan.art]
     })
 
@@ -269,7 +284,12 @@ export function buildReel(lesson: Lesson, plan: LessonPlan, story: ReturnType<ty
       }
     }
 
-    if (scene.takeaway) frames.push({ kind: 'takeaway', text: scene.takeaway, scene: scene.title })
+    // جمع‌بندی صحنه: اگر جمع‌بندیِ دست‌نویس نبود، از توضیحِ پرسش‌ها استفاده می‌کنیم
+    const fallbackTake = [...scene.panels]
+      .reverse()
+      .find((p): p is Extract<Panel, { kind: 'check' }> => p.kind === 'check' && !!p.explain)?.explain
+    const take = scene.takeaway ?? fallbackTake
+    if (take) frames.push({ kind: 'takeaway', text: take, scene: scene.title })
   })
 
   // بخش‌های کتاب که در هیچ صحنه‌ای نیامده‌اند — هیچ چیز جا نمی‌ماند
@@ -435,6 +455,13 @@ function renderStage(
             <h2 className="film-scene__title">{frame.title}</h2>
             {frame.kicker && <div className="film-scene__kicker">{frame.kicker}</div>}
             <p className="film-prose film-prose--lead">{frame.beat}</p>
+            {frame.ask && (
+              <div className="film-ask">
+                <span className="film-ask__label">پرسش راهنما</span>
+                <span className="film-ask__q">{frame.ask}</span>
+                <span className="film-ask__hint">پاسخش را در همین صحنه پیدا کن.</span>
+              </div>
+            )}
           </div>
         </div>
       )

@@ -364,25 +364,61 @@ function CityPlan({ spec, phase, index }: { spec: MapSpec; phase: MapPhase; inde
       y: (l.from[1] * 6.2 + l.to[1] * 6.2) / 2 - 9 * unit,
       label: l.label!
     }))
-  /** بافت شهری: بلوک‌های ریز نمادین، دور از محور و میدان و رود */
+  /** بافت شهری: بلوک‌های ریزِ ردیف‌شده در محله‌ها، دور از محور و میدان و رود */
   const blocks = useMemo(() => {
-    if (!isCity) return [] as { x: number; y: number; w: number; h: number }[]
-    const out: { x: number; y: number; w: number; h: number }[] = []
+    if (!isCity) return [] as { x: number; y: number; w: number; h: number; rot: number; court?: boolean }[]
+    const out: { x: number; y: number; w: number; h: number; rot: number; court?: boolean }[] = []
     let seed = 20240517
     const rnd = () => {
       seed = (seed * 1103515245 + 12345) % 2147483648
       return seed / 2147483648
     }
-    for (let n = 0; n < 420; n++) {
-      const x = -off + 26 + rnd() * (vbW - 64)
-      const y = 54 + rnd() * 512
-      if (y > 396 && y < 528) continue
-      if (Math.abs(x - 390) < 40) continue
-      if (x > 404 && x < 606 && y > 216 && y < 388) continue
-      out.push({ x, y, w: 16 + rnd() * 30, h: 11 + rnd() * 19 })
+    /** تقریب مسیر زاینده‌رود روی بوم، برای خالی گذاشتن بستر رود */
+    const riverY = (x: number) =>
+      x < 380 ? 470 + (x / 380) * 35 : x < 560 ? 505 - ((x - 380) / 180) * 47 : 458 - ((x - 560) / 460) * 33
+    const linesB = lines.map((l) => ({
+      x1: l.from[0] * 10,
+      y1: l.from[1] * 6.2,
+      x2: l.to[0] * 10,
+      y2: l.to[1] * 6.2
+    }))
+    const distToLine = (x: number, y: number, l: (typeof linesB)[number]) => {
+      const dx = l.x2 - l.x1
+      const dy = l.y2 - l.y1
+      const len2 = dx * dx + dy * dy || 1
+      let t = ((x - l.x1) * dx + (y - l.y1) * dy) / len2
+      t = Math.max(0, Math.min(1, t))
+      return Math.hypot(x - (l.x1 + t * dx), y - (l.y1 + t * dy))
+    }
+    const x0 = -off + 18
+    const x1 = vbW - 26
+    for (let y = 54; y < 570; y += 27) {
+      const jitterRow = (rnd() - 0.5) * 7
+      for (let x = x0; x < x1; x += 34) {
+        const bx = x + (rnd() - 0.5) * 9
+        const by = y + jitterRow + (rnd() - 0.5) * 6
+        const w = 16 + rnd() * 15
+        const h = 10 + rnd() * 9
+        const cx = bx + w / 2
+        const cy = by + h / 2
+        // فاصلهٔ محله‌ها: با یک میدانِ نرم، بعضی جاها خالی می‌ماند و شهر یک‌دست نمی‌شود
+        const field = 0.5 + 0.5 * Math.sin(cx / 118 + 1.4) * Math.cos(cy / 84 - 0.6) + (rnd() - 0.5) * 0.34
+        if (field < 0.3) continue
+        if (Math.abs(cy - riverY(cx)) < 40) continue
+        if (cx > 402 && cx < 618 && cy > 220 && cy < 386) continue
+        if (linesB.some((l) => distToLine(cx, cy, l) < 20)) continue
+        // راستای قطعه‌ها کمی می‌چرخد تا بافت شهری «کاغذ شطرنجی» نشود
+        const rot = (field - 0.5) * 7
+        if (field > 0.82 && rnd() > 0.55) {
+          // حیاط‌های بزرگ: بلوک توخالی
+          out.push({ x: bx - 3, y: by - 2, w: w + 8, h: h + 7, rot, court: true } as any)
+          continue
+        }
+        out.push({ x: bx, y: by, w, h, rot } as any)
+      }
     }
     return out
-  }, [isCity, off, vbW])
+  }, [isCity, off, vbW, lines])
 
   const marks = [
     ...(spec.artifacts ?? []).map((a) => ({
@@ -447,7 +483,16 @@ function CityPlan({ spec, phase, index }: { spec: MapSpec; phase: MapPhase; inde
         {isCity && (
           <g fill="#4a6a83" fillOpacity="0.2">
             {blocks.map((b, k) => (
-              <rect key={`b-${k}`} x={b.x} y={b.y} width={b.w} height={b.h} rx="2" />
+              <rect
+                key={`b-${k}`}
+                x={b.x}
+                y={b.y}
+                width={b.w}
+                height={b.h}
+                rx="2"
+                fillOpacity={b.court ? 0.28 : undefined}
+                transform={`rotate(${b.rot} ${b.x + b.w / 2} ${b.y + b.h / 2})`}
+              />
             ))}
           </g>
         )}
@@ -582,7 +627,7 @@ function CityPlan({ spec, phase, index }: { spec: MapSpec; phase: MapPhase; inde
           <text y="15" textAnchor="middle" fontSize="8.5" fill="#e6c579" style={{ fontFamily: 'Estedad, sans-serif' }}>ش</text>
         </g>
         <g transform="translate(38, 578)" opacity="0.95">
-          <rect x="-12" y="-18" width="150" height="32" rx="8" fill="#0a1622" fillOpacity="0.6" />
+          <rect x="-12" y="-18" width="172" height="32" rx="8" fill="#0a1622" fillOpacity="0.6" />
           <line x1="0" y1="0" x2="118" y2="0" stroke="#e6c579" strokeWidth="1.6" />
           <line x1="0" y1="-5" x2="0" y2="5" stroke="#e6c579" strokeWidth="1.6" />
           <line x1="118" y1="-5" x2="118" y2="5" stroke="#e6c579" strokeWidth="1.6" />

@@ -3656,3 +3656,29 @@ html[data-film-full='on'] .film-frame { border-radius: 1.05rem; }
   font-size: 0.55rem;
   font-weight: 800;
 }
+
+/* پرسش راهنمای صحنه — پیش‌سازمان‌دهنده پیش از خواندن */
+.film-ask {
+  margin-top: 1rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 0.85rem;
+  border: 1px solid color-mix(in oklab, var(--c-gold) 34%, transparent);
+  background: color-mix(in oklab, #0b1b2b 62%, transparent);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.6rem;
+  max-width: 46rem;
+  backdrop-filter: blur(3px);
+}
+.film-ask__label {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #10202e;
+  background: var(--c-gold);
+  padding: 0.1rem 0.45rem;
+  border-radius: 99px;
+}
+.film-ask__q { font-size: 0.86rem; font-weight: 700; color: #f6ecd6; }
+.film-ask__hint { font-size: 0.66rem; color: rgba(246, 236, 214, 0.62); }
