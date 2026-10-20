@@ -2882,13 +2882,25 @@ a:focus-visible {
 
 /* نقل و نکته */
 .film-quote { max-width: 46rem; }
+.film-quote { text-align: start; }
 .film-quote p {
   font-family: 'Noto Nastaliq Urdu', 'Estedad', serif;
   font-size: clamp(1.1rem, 2vw, 1.5rem);
   line-height: 2.6;
   color: color-mix(in oklab, var(--c-gold) 85%, white 6%);
+  /* نقل‌قول بلند راست‌چین می‌شود تا خواندنش راحت باشد */
+  text-align: start;
+  text-wrap: pretty;
 }
 .film-quote cite { display: block; margin-top: 0.8rem; font-size: 0.72rem; color: var(--c-faint); font-style: normal; }
+/* نقل‌قول بلند با خط خوانا، نه نستعلیقِ فشرده */
+.film-quote--long p {
+  font-family: 'Estedad', 'Vazirmatn', sans-serif;
+  font-size: clamp(0.92rem, 1.35vw, 1.06rem);
+  line-height: 2.15;
+  color: color-mix(in oklab, var(--c-ink) 88%, transparent);
+}
+.film-quote--long cite { text-align: start; }
 
 .film-note {
   max-width: 46rem;

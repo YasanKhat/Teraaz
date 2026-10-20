@@ -66,10 +66,30 @@ const SENTENCE = /(?<=[.!؟…])\s+/
 function chunkText(text: string, max = 330): string[] {
   const clean = text.replace(/\s+/g, ' ').trim()
   if (clean.length <= max) return [clean]
+
+  // جمله‌های بسیار بلند را از محل ویرگول و نقطه‌ویرگول هم می‌شکنیم
+  const pieces: string[] = []
+  for (const sentence of clean.split(SENTENCE)) {
+    if (sentence.length <= max) {
+      pieces.push(sentence)
+      continue
+    }
+    let part = ''
+    for (const clause of sentence.split(/(?<=[،؛:])\s+/)) {
+      if (part && (part + ' ' + clause).length > max) {
+        pieces.push(part.trim())
+        part = clause
+      } else {
+        part = (part + ' ' + clause).trim()
+      }
+    }
+    if (part) pieces.push(part.trim())
+  }
+
   const out: string[] = []
   let buf = ''
-  for (const s of clean.split(SENTENCE)) {
-    if ((buf + ' ' + s).trim().length > max && buf) {
+  for (const s of pieces) {
+    if (buf && (buf + ' ' + s).length > max) {
       out.push(buf.trim())
       buf = s
     } else {
@@ -102,11 +122,26 @@ function sectionFrames(section: Section, kicker: string): Frame[] {
           frames.push({ kind: 'text', kicker, title: i === 0 ? head() : undefined, body: part })
         })
         break
-      case 'bullets':
-        chunk(b.items, 5).forEach((items, i) => {
+      case 'bullets': {
+        // شمار بندها را با طول متن تنظیم می‌کنیم تا قاب از صفحه بلندتر نشود
+        const groups: string[][] = []
+        let cur: string[] = []
+        let len = 0
+        for (const it of b.items) {
+          if (cur.length && (cur.length >= 3 || len + it.length > 430)) {
+            groups.push(cur)
+            cur = []
+            len = 0
+          }
+          cur.push(it)
+          len += it.length
+        }
+        if (cur.length) groups.push(cur)
+        groups.forEach((items, i) => {
           frames.push({ kind: 'list', kicker, title: i === 0 ? head() : undefined, items })
         })
         break
+      }
       case 'table':
         frames.push({ kind: 'table', kicker, title: head(), head: b.head, rows: b.rows, caption: b.caption })
         break
@@ -448,8 +483,8 @@ function renderStage(
     case 'quote':
       return (
         <div className="film-frame film-center film-frame--stage">
-          <blockquote className="film-quote">
-            <QuoteIcon size={22} className="mx-auto mb-3 text-gold/70" />
+          <blockquote className={cn('film-quote', frame.text.length > 190 && 'film-quote--long')}>
+            <QuoteIcon size={22} className="mb-3 text-gold/70" />
             <p>{frame.text}</p>
             {frame.source && <cite>— {frame.source}</cite>}
           </blockquote>
