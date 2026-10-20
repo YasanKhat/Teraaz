@@ -12,6 +12,7 @@ import {
   Layers,
   Pause,
   List,
+  Library,
   ListChecks,
   Maximize2,
   Minimize2,
@@ -1439,6 +1440,14 @@ export function LessonFilm({
               <span>×</span>
             </button>
           )}
+          <button
+            className="film__back"
+            onClick={() => navigate(`book/${lesson.id}`)}
+            aria-label="متن کامل کتاب"
+            title="متن کامل کتاب درسی، خط‌به‌خط و خلاصه"
+          >
+            <Library size={15} />
+          </button>
           <button
             className="film__back"
             onClick={cycleRead}

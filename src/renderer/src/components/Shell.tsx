@@ -4,6 +4,7 @@ import {
   BookOpen,
   Flame,
   ListChecks,
+  Library,
   Home,
   Menu,
   Moon,
@@ -24,6 +25,7 @@ import { CommandPalette } from './CommandPalette'
 const NAV = [
   { key: 'home', label: 'خانه', icon: Home },
   { key: 'chapters', label: 'فصل‌ها', icon: BookOpen },
+  { key: 'book', label: 'متن کتاب', icon: Library },
   { key: 'bank', label: 'سؤال‌ها', icon: ListChecks },
   { key: 'archive', label: 'آرشیو', icon: Archive },
   { key: 'exams', label: 'آزمون‌ها', icon: Target },
@@ -42,6 +44,7 @@ export function Shell({ current, children }: { current: string; children: ReactN
   const level = useLevel()
   const streak = useStreak()
   const [mobileMenu, setMobileMenu] = useState(false)
+  const lastLesson = useProgress((s) => s.lastLesson)
 
   useEffect(() => { applyTheme(theme) }, [theme])
   useEffect(() => { document.documentElement.dataset.motion = motion ? 'on' : 'off' }, [motion])
@@ -54,6 +57,7 @@ export function Shell({ current, children }: { current: string; children: ReactN
     current === 'lesson' || current === 'chapter' || current === 'recap' ? 'chapters'
       : current === 'timeline' || current === 'map' || current === 'figures' ? 'archive'
       : current === 'bank' ? 'bank'
+      : current === 'book' ? 'book'
       : current === 'quiz' ? 'exams'
       : current === 'progress' ? 'me'
       : current
@@ -80,7 +84,7 @@ export function Shell({ current, children }: { current: string; children: ReactN
               key={item.key}
               className="rail__btn"
               data-on={on}
-              onClick={() => navigate(item.key)}
+              onClick={() => navigate(item.key === 'book' ? `book/${lastLesson || 1}` : item.key)}
               aria-label={item.label}
               aria-current={on ? 'page' : undefined}
             >
@@ -148,7 +152,7 @@ export function Shell({ current, children }: { current: string; children: ReactN
           return (
             <button
               key={item.key}
-              onClick={() => navigate(item.key)}
+              onClick={() => navigate(item.key === 'book' ? `book/${lastLesson || 1}` : item.key)}
               className={cn('flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2 text-[0.58rem]', on ? 'bg-gold/12 text-gold' : 'text-muted')}
             >
               <Icon size={17} />

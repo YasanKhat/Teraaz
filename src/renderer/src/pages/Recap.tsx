@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useState as useReactState } from 'react'
-import { ArrowLeft, ArrowUpLeft, BookOpen, Check, ChevronDown, Layers, ListChecks, Moon, Sparkles, Target } from 'lucide-react'
+import { ArrowLeft, ArrowUpLeft, BookOpen, Check, ChevronDown, Layers, Library, ListChecks, Moon, Sparkles, Target } from 'lucide-react'
 import { chapterPlans } from '../data/plans'
 import { lessonById, allQuestions } from '../data/lessons'
 import { chapterById, baramTable } from '../data/chapters'
@@ -316,6 +316,9 @@ function LessonDrill({ lessonId }: { lessonId: number }) {
             </button>
             <button className="chip" onClick={() => navigate(`bank/${l.id}`)}>
               <ListChecks size={11} /> {fas(l.quiz.length + qs.length)} سؤال
+            </button>
+            <button className="chip" onClick={() => navigate(`book/${l.id}`)}>
+              <Library size={11} /> متن و خلاصهٔ کتاب
             </button>
             <span className="ms-auto text-[0.56rem] text-faint">
               {l.chapter ? chapterById(l.chapter).title : ''}
