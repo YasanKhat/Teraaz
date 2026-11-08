@@ -1,8 +1,22 @@
-/** URL of a vocab image served through the watermarking proxy. Everything a
- *  student sees should go through this so the file they can download already
- *  carries the سروا watermark. Empty/placeholder values pass through unchanged;
- *  the admin panel keeps using the raw URL so editors see their originals. */
+/**
+ * نشانیِ تصویرِ واژه.
+ *
+ * ⚠️ چرا تغییر کرد: این تابع هر نشانی را به `/api/vocab-image?src=…` می‌پیچاند،
+ * چون روی سایت یک سرور هست که تصویر را واترمارک می‌کند و برمی‌گرداند. برنامه‌ی
+ * الکترون سرور ندارد — آن مسیر را کسی سرو نمی‌کند، برای همین هر درخواست ۴۰۴
+ * می‌گرفت و **هیچ** تصویری از واژه‌یاب دیده نمی‌شد: نه سه تایِ پیش‌نمایشِ
+ * صفحهٔ اصلی، نه ۱۱۴۱ تایِ خودِ بازی (مانیفست هم مسیرهای محلی می‌دهد و آن‌ها
+ * هم پیچانده می‌شدند).
+ *
+ * تصویرها پیش‌تر با `scripts/fetch-assets.mjs` به `public/vocab-images/`
+ * ریخته شده‌اند، پس برنامه خودشان را دارد و نیازی به پروکسی نیست. واترمارک هم
+ * در سمتِ سرور می‌ماند: در برنامه، تصویری که دیده شود بهتر از جای‌گزینِ
+ * «تصویر در دسترس نیست» است.
+ */
 export function vocabImageUrl(src: string): string {
-  if (!src || src.startsWith("/api/vocab-image")) return src;
-  return `/api/vocab-image?src=${encodeURIComponent(src)}`;
+  if (!src) return src;
+  // نشانیِ مطلق (http://، https://، یا طرحِ سفارشیِ برنامه) — بی‌تغییر می‌ماند
+  if (/^[a-z][a-z0-9+.-]*:/i.test(src)) return src;
+  // مسیرِ نسبی به ریشه، مثلِ `/vocab-images/...` یا `vocab-images/...`
+  return src.startsWith("/") ? src : "/" + src;
 }

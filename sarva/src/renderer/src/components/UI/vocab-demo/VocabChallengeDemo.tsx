@@ -14,17 +14,17 @@ type Round = { src: string; options: string[]; correctIndex: number };
 
 const ROUNDS: Round[] = [
   {
-    src: "https://raw.githubusercontent.com/ramtin1111/testPics/main/تیمار.webp",
+    src: "vocab-images/grade-10/2/تیمار.webp",
     options: ["اورنگ", "تیمار"],
     correctIndex: 1,
   },
   {
-    src: "https://raw.githubusercontent.com/ramtin1111/testPics/main/داد.webp",
+    src: "vocab-images/grade-10/2/داد.webp",
     options: ["ننگ", "داد"],
     correctIndex: 1,
   },
   {
-    src: "https://raw.githubusercontent.com/ramtin1111/testPics/main/غبطه.webp",
+    src: "vocab-images/grade-10/2/غبطه.webp",
     options: ["آرزو", "غبطه"],
     correctIndex: 1,
   },
@@ -182,12 +182,13 @@ export default function VocabChallengeDemo() {
             {/* ⚠️ دو تغییر، هر دو به یک دلیل: این کارت روی صفحهٔ اصلی است و
                 اولین چیزی است که یک بازدیدکنندهٔ تازه می‌بیند.
 
-                ۱) آدرس از `vocabImageUrl` می‌گذرد. تنها جای سایت بود که
-                   مستقیم به raw.githubusercontent.com وصل می‌شد — یعنی
-                   صفحهٔ اصلی به یک مخزنِ شخصیِ شخصِ دیگری بند بود، تصویر
-                   بی‌واترمارک می‌آمد، و IP هر بازدیدکننده به گیت‌هاب می‌رفت.
-                   بقیهٔ سایت (بازی، پنل، نشان‌شده‌ها) همه از همین helper
-                   استفاده می‌کنند.
+                ۱) آدرس از دارایی‌هایِ خودِ برنامه می‌آید، نه از
+                   raw.githubusercontent.com. پیش‌تر این سه نشانی به مخزنِ
+                   شخصیِ شخصِ دیگری بند بود **و** از `/api/vocab-image`
+                   می‌گذشت — مسیری که در برنامه (بی‌سرور) کسی سرو نمی‌کند.
+                   هر سه تصویر در `public/vocab-images/grade-10/2/` از پیش
+                   هست (همان‌هایی که مانیفست برای خودِ بازی می‌دهد)، پس
+                   صفحهٔ اصلی دیگر به هیچ چیزِ بیرونی وابسته نیست.
 
                 ۲) اگر باز هم نیامد، به‌جای آیکونِ عکسِ شکسته یک جای‌گزینِ
                    آرام نشان داده می‌شود. کارت ارتفاع ثابت دارد، پس چیدمان
