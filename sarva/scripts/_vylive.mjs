@@ -31,12 +31,17 @@ globalThis.window = window; globalThis.document = window.document; globalThis.se
 // شروع نمی‌شود و هیچ‌کدام از رفتارهایِ صدا سنجیده نمی‌شد.
 class FakeAudioContext {
   constructor() {
-    this.currentTime = 0
+    /* زمان باید واقعاً جلو برود. ساعت در صحنه خوانده می‌شود
+       (`clk.ctx.currentTime - clk.start`) و جایِ توپ از روی آن حساب می‌شود؛
+       با یک عددِ ثابت توپ هیچ‌گاه از خانه‌ی نخست جلو نمی‌رفت و رفتارِ «توقف
+       در میانه» اصلاً پدید نمی‌آمد. */
+    this._t0 = Date.now()
     this.destination = {}
     this.outputLatency = 0
     this.state = 'running'
     this.sampleRate = 44100
   }
+  get currentTime() { return (Date.now() - this._t0) / 1000 }
   resume() { return Promise.resolve() }
   close() { return Promise.resolve() }
   createBuffer(channels, length, sampleRate) {
@@ -317,6 +322,13 @@ const playBtn = () => $$('button').find((b) => /کوک ساز|توقف|پخش ر
     .filter((b) => b.getAttribute('aria-pressed') === 'true')
   check('و همان کارت انتخاب می‌ماند', nowPressed.length === 1 && nowPressed[0] === other, `${nowPressed.length} انتخاب`)
 }
+
+// یادداشت: آزمونِ «توقف در میانه و تغییرِ وزن» اینجا نیست، چون در jsdom
+// کارگر نداریم و ساختِ پارتیتور نخِ اصلی را می‌بندد؛ برای همین حالتِ
+// «کوک ساز…» هرگز با یک قابِ کشیده‌شده دیده نمی‌شود و جایِ توپ در همان لحظه
+// سنجیده نمی‌شود. آن رفتار در `scripts/_stageball.mjs` با یک ساعتِ دستی
+// سنجیده می‌شود — صحنه را جدا بالا می‌آورد و می‌تواند پخش را جلو ببرد،
+// ناگهان متوقف کند و بعد وزن را عوض کند.
 
 console.log(report.join('\n'))
 const bad = report.filter((r) => r.startsWith('❌')).length
