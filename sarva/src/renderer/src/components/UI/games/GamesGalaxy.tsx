@@ -1,0 +1,404 @@
+"use client";
+
+import { Link } from "@/app/router";
+import { useEffect, useRef, useState } from "react";
+import dynamic from "@/app/dynamic";
+import { motion, MotionConfig } from "motion/react";
+import PlanetStop, { type Stop } from "@/components/UI/galaxy/PlanetStop";
+import SpaceCable from "@/components/UI/galaxy/SpaceCable";
+import {
+  RevealGroup,
+  RevealItem,
+  RevealLine,
+  RevealWords,
+} from "@/components/UI/aruz/reveal";
+import { detectQuality, type QualityProfile } from "@/components/UI/galaxy/quality";
+import { galaxyClock } from "@/components/UI/galaxy/scheduler";
+import styles from "./games-galaxy.module.css";
+
+// ⚠️ ستاره‌ها دیگر canvas دوم ندارند: به‌عنوان `THREE.Points` داخلِ همین
+// صحنه رفتند. دلیلش در GalaxyScene نوشته شده — دو canvas تمام‌صفحه با دو
+// حلقهٔ مستقل، هزینهٔ ثابتِ هر فریمِ اسکرول بودند.
+// one shared WebGL context — and one scene — for every planet on the page
+const GalaxyScene = dynamic(
+  () => import("@/components/UI/galaxy/runtime").then((m) => m.GalaxyScene),
+  { ssr: false },
+);
+
+/** The games hub as a galaxy map: every game is a planet, and one meandering
+ *  space cable threads them together from the top of the page down. */
+const STOPS: Stop[] = [
+  {
+    index: "۰۱",
+    tag: "نقش‌ها",
+    title: "دروغگو کیست؟",
+    desc: "یک بیت، چهار نفر، چهار ادعا! کی داره دروغ میگه؟ بکشش",
+    steps: [
+      "وارد سالن جاسوس‌یاب شو",
+      "یک *در* را انتخاب کن",
+      "جاسوس دروغگو را نشانه بگیر و شلیک کن",
+    ],
+    href: "/game/jasoos",
+    cta: "شروع جاسوس نقش‌ها",
+    accent: "#7b8fd4",
+    planet: { color: "#7b8fd4", moon: true, distort: 0.2 },
+  },
+  {
+    index: "۰۲",
+    tag: "دستور زبان یا آب خوردن؟",
+    title: "فِرز باش",
+    desc: "فقط کلماتی که نقش مورد نظر را دارن بُرِش بزن",
+    steps: [
+      "دسته‌ای از کلماتی که باید برش بزنی را ببین",
+      "مثلا قید؛ کلمات پر تکرار قید را در خاطر بسپار",
+      "حالا از بین کلماتی که به بالا پرتاب می‌شوند؛ فقط قیدها رو برش بزن",
+    ],
+    href: "/game/ninja",
+    cta: "شروع نینجای دستور",
+    accent: "#00b3ad",
+    planet: { color: "#00b3ad", ring: true, distort: 0.24 },
+  },
+  {
+    index: "۰۳",
+    tag: "یادگیری تاریخ ادبیات",
+    title: "کتاب و نویسنده رو جور کن",
+    desc: "چند کارت برعکس هستند و باید با تعداد حرکات کمتر کارت‌ها را برگردانی و کتاب و نویسنده را جفت کنی",
+    steps: [
+      "آثار و پدیدآورندگان را مرور کن",
+      "کارت‌ها برمی‌گردند؛ جای هرکدام را به یاد بسپار",
+      "هر اثر را به خالقش جفت کن",
+    ],
+    href: "/game/pairs",
+    cta: "شروع جفت‌های ادبی",
+    accent: "#d9a441",
+    planet: { color: "#d9a441", ring: true, distort: 0.18 },
+  },
+  {
+    index: "۰۴",
+    tag: "تقطیع عروضی",
+    title: "کوتاه یا بلند؟",
+    desc: "یک مصراع اعراب‌گذاری‌شده را چند ثانیه می‌بینی، بعد پوشانده می‌شود و باید هجاها را یکی‌یکی تقطیع کنی. یک اشتباه، و از اول.",
+    steps: [
+      "مصراع را با اعراب کامل ببین و در ذهنت تقطیعش کن",
+      "متن پوشیده می‌شود و واحدها یکی‌یکی می‌آیند",
+      "هر پاسخ درست کمی از مصراع را باز می‌کند؛ یک اشتباه، و از اول",
+    ],
+    href: "/game/aruz-rapid",
+    cta: "شروع تقطیع سریع",
+    accent: "#e0684a",
+    planet: { color: "#e0684a", ring: true, distort: 0.22 },
+  },
+  {
+    index: "۰۵",
+    tag: "حفظ واژگان با تصویر",
+    title: "واژه‌یاب",
+    desc: "تصویر را می‌بینی و از میان سه واژه، واژهٔ درست را انتخاب می‌کنی؛ بعد معنی کاملش را یاد می‌گیری.",
+    steps: [
+      "پایه و درس موردنظرت را انتخاب کن",
+      "تصویر را ببین و واژهٔ مربوط را بزن",
+      "معنی کامل را بخوان و اشتباه‌ها را در پنل مرور کن",
+    ],
+    href: "/game/vocab",
+    cta: "شروع واژه‌یاب",
+    accent: "#c79be0",
+    planet: { color: "#c79be0", moon: true, distort: 0.26 },
+  },
+  {
+    index: "۰۶",
+    tag: "وزن و عروض",
+    title: "پل وزن",
+    desc: "روی پل شیشه‌ای، وزن هر واژه را تشخیص بده و روی شیشهٔ امن بپر. اشتباه کنی، شیشه زیر پایت می‌شکند.",
+    steps: [
+      "دو وزن روی دو شیشهٔ پیش رو می‌بینی",
+      "واژه برای لحظه‌ای نشان داده می‌شود؛ وزنش را تشخیص بده",
+      "قبل از تمام شدن وقت، روی شیشهٔ درست بپر",
+    ],
+    href: "/game/aruz-bridge",
+    cta: "شروع پل وزن",
+    accent: "#4fd1c5",
+    planet: { color: "#4fd1c5", ring: true, distort: 0.22 },
+  },
+  {
+    index: "۰۷",
+    tag: "نقش واژه‌ها، شکل مدار",
+    title: "مدار دستور",
+    desc: "زیر هر واژه یک سوکت خالی است؛ نقشش را وصل کن تا مدار بسته شود و لامپ روشن شود.",
+    steps: [
+      "یک نقش را از سینی بردار و روی واژه بگذار",
+      "آن را به سوکت زیر واژهٔ درست وصل کن",
+      "با بسته‌شدن آخرین شکاف، جریان راه می‌افتد و لامپ روشن می‌شود",
+    ],
+    href: "/game/grammar-circuit",
+    cta: "شروع مدار دستور",
+    accent: "#00a5a6",
+    planet: { color: "#00a5a6", ring: true, distort: 0.22 },
+  },
+  {
+    index: "۰۸",
+    tag: "نقش، در مدار",
+    title: "شکار نقش‌ها",
+    desc: "یک مصراع در مرکز و واژه‌هایش دور آن می‌چرخند. نقشی که روی نمایشگر رمزگشایی می‌شود را روی واژهٔ درست شکار کن.",
+    steps: [
+      "مصراع را بخوان و واژه‌های در حال چرخش را ببین",
+      "نمایشگر پایین، نقش این دور را رمزگشایی می‌کند",
+      "واژه‌ای که همان نقش را دارد بزن",
+    ],
+    href: "/game/role-hunt",
+    cta: "شروع شکار نقش‌ها",
+    accent: "#5fd3c4",
+    planet: { color: "#5fd3c4", moon: true, distort: 0.2 },
+  },
+  {
+    index: "۰۹",
+    tag: "ساختن وزن",
+    title: "کیمیای وزن",
+    desc: "ریتم بیت را بشنو و ارکان عروضی را مثل جوهر رنگی به مخزن تزریق کن. ترکیب درست پایدار می‌شود، غلط گِل‌آلود.",
+    steps: [
+      "بیت را بخوان و ریتم وزنش را گوش کن",
+      "از رَکِ پایین، ارکان را به ترتیب به مخزن تزریق کن",
+      "«آزمایش ترکیب» را بزن تا ببینی وزن درست است یا نه",
+    ],
+    href: "/game/kimia",
+    cta: "شروع کیمیای وزن",
+    /* ⚠️ همان فیروزهٔ روشنی که «مفاعیلن» روی رَکِ بازی دارد — سیارهٔ
+       کهکشان و مادهٔ داخلِ بازی باید یک رنگ حس شوند. */
+    accent: "#58d7f1",
+    planet: { color: "#58d7f1", ring: true, distort: 0.24 },
+  },
+  {
+    index: "۱۰",
+    tag: "آرایه‌های ادبی",
+    title: "رنگ‌آرا",
+    desc: "هر آرایه یک رنگ دارد. واژهٔ درست بیت را با رنگ همان آرایه رنگ کن؛ اشتباه بزنی، با دستمالش پاکش می‌کند.",
+    steps: [
+      "آرایه‌ای که خواسته شده را در حباب ببین",
+      "رنگ همان آرایه را از پالت بردار",
+      "روی واژهٔ درست بیت بزن و توضیحش را بخوان",
+    ],
+    href: "/game/rang-ara",
+    cta: "شروع رنگ‌آرا",
+    accent: "#e0879b",
+    planet: { color: "#e0879b", moon: true, distort: 0.2 },
+  },
+];
+
+export default function GamesGalaxy() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [forceMotion, setForceMotion] = useState(false);
+  const [systemReduced, setSystemReduced] = useState(false);
+
+  /** سطحِ کیفیت یک بار — بعد از mount، چون به `matchMedia` و
+   *  `navigator.hardwareConcurrency` نیاز دارد و هیچ‌کدام روی سرور نیستند.
+   *  مقدارِ اولیه عمداً `null` است تا رندرِ سرور و اولین رندرِ مرورگر یکی
+   *  بمانند. */
+  const [quality, setQuality] = useState<QualityProfile | null>(null);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const apply = () => {
+      setSystemReduced(mq.matches);
+      setQuality(detectQuality(forceMotion));
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, [forceMotion]);
+
+  // The animated heading kept repainting the document at 60 Hz after it had
+  // scrolled away. Pause only invisible CSS loops, preserving their phase.
+  useEffect(() => {
+    const host = rootRef.current;
+    if (!host || !quality) return;
+    const visible = new Map<HTMLElement, boolean>();
+    const apply = () => {
+      for (const [el, inView] of visible) {
+        el.style.setProperty("animation-play-state", inView && !document.hidden ? "running" : "paused", "important");
+      }
+    };
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) visible.set(entry.target as HTMLElement, entry.isIntersecting);
+      apply();
+    });
+    host.querySelectorAll<HTMLElement>("[data-galaxy-loop]").forEach(el => observer.observe(el));
+    document.addEventListener("visibilitychange", apply);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", apply);
+      for (const el of visible.keys()) el.style.removeProperty("animation-play-state");
+    };
+  }, [quality]);
+
+  /**
+   * وقتی ناحیهٔ کهکشان از دیدرس بیرون می‌رود، هیچ فریمی لازم نیست.
+   *
+   * روی خودِ ریشه است و نه روی کابل یا canvas: هر دوی آن‌ها ممکن است به
+   * دلایلِ دیگری مخفی شوند و آن‌وقت خاموش شدنِ صحنه یک اثرِ جانبیِ پنهان
+   * می‌شود. ریشه تنها چیزی است که «صفحه دیده می‌شود یا نه» را واقعاً
+   * نمایندگی می‌کند.
+   *
+   * برگرداندنِ `setActive(true)` در پاکسازی الزامی است: بدونش، ناوبری به یک
+   * بازی و برگشت، حلقه را برای همیشه خاموش رها می‌کرد.
+   */
+  useEffect(() => {
+    const host = rootRef.current;
+    if (!host) return;
+    const io = new IntersectionObserver(
+      ([entry]) => galaxyClock.setActive(entry?.isIntersecting ?? true),
+      { rootMargin: "200px" },
+    );
+    io.observe(host);
+    return () => {
+      io.disconnect();
+      galaxyClock.setActive(true);
+    };
+  }, []);
+
+  const reduced = quality?.reducedMotion ?? false;
+
+  /** three.js already lives in its own async chunk, so it is not part of this
+   *  route's first load. But `next/dynamic` starts fetching that chunk the
+   *  moment the component renders — during hydration — so ~870 kB of download,
+   *  parse and WebGL context setup competes with making the page interactive.
+   *  That is the cost felt on first entry.
+   *
+   *  Holding the mount until the main thread goes idle guarantees the text, the
+   *  buttons and hydration are done first; the scene then fades in over its
+   *  already-laid-out placeholder boxes, so nothing shifts.
+   *
+   *  A viewport gate was tried here and deliberately rejected: the launch pad is
+   *  88vh, so the first planet is at the fold on every viewport and an
+   *  IntersectionObserver fires at scroll 0 anyway — it cannot gate. Idle is the
+   *  only lever that actually moves this work off the critical path.
+   *  requestIdleCallback is unavailable in Safari, hence the timeout fallback. */
+  const [sceneReady, setSceneReady] = useState(false);
+  useEffect(() => {
+    type IdleWindow = Window & {
+      requestIdleCallback?: (
+        cb: () => void,
+        opts?: { timeout: number },
+      ) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    const w = window as IdleWindow;
+    const show = () => setSceneReady(true);
+    if (typeof w.requestIdleCallback === "function") {
+      const id = w.requestIdleCallback(show, { timeout: 1500 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const id = window.setTimeout(show, 300);
+    return () => window.clearTimeout(id);
+  }, []);
+
+  return (
+    <MotionConfig reducedMotion={forceMotion ? "never" : "user"}>
+      <div ref={rootRef} className={`relative overflow-hidden bg-background ${forceMotion ? styles.fullMotion : ""}`}>
+        {/* deep-space wash + drifting stars */}
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_20%_10%,color-mix(in_oklch,var(--color-primary)_14%,transparent),transparent_55%),radial-gradient(ellipse_at_80%_60%,color-mix(in_oklch,var(--color-gold)_10%,transparent),transparent_55%)]"
+        />
+        {sceneReady && quality && (
+          <GalaxyScene eventSource={rootRef} quality={quality} />
+        )}
+
+        <div className="relative">
+          {quality && <SpaceCable planets={STOPS.length} quality={quality} />}
+
+          {/* ---------- launch pad ---------- */}
+          <section
+            dir="rtl"
+            className="relative z-20 container flex min-h-[88vh] items-center justify-center py-24 text-center"
+          >
+            <RevealGroup stagger={0.12} className="relative z-20">
+              <RevealItem>
+                <span className="mb-4 inline-block text-sm font-bold text-primary">کهکشان سروا</span>
+              </RevealItem>
+
+              <h1 className="text-4xl leading-[1.15] font-black sm:text-5xl md:text-6xl">
+                <RevealLine className="text-foreground" delay={0.08}>
+                  هر بازی
+                </RevealLine>
+                <span data-galaxy-loop="heading" className={styles.heading}>
+                  <RevealLine className={`aruz-gradient-text ${styles.gradient}`} delay={0.2}>
+                    یک سیاره است
+                  </RevealLine>
+                </span>
+              </h1>
+
+              <RevealItem>
+                <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+                  اینجا خبری از کتاب نیست! فقط با بازی کردن می‌توانی مهارت‌هایی
+                  را کسب کنی که نیازمند ساعت‌ها مطالعست:)
+                </p>
+              </RevealItem>
+              {systemReduced && (
+                <div className="mt-6 text-sm text-muted-foreground">
+                  <p>تنظیم دستگاه شما روی کاهش حرکت است.</p>
+                  <button
+                    type="button"
+                    aria-pressed={forceMotion}
+                    onClick={() => setForceMotion(on => !on)}
+                    className="mt-2 min-h-11 rounded-xl border border-primary/30 px-4 font-bold text-primary"
+                  >
+                    {forceMotion ? "پیروی از تنظیم دستگاه" : "پخش انیمیشن‌های این صفحه"}
+                  </button>
+                </div>
+              )}
+            </RevealGroup>
+          </section>
+
+          {/* ---------- game planets ---------- */}
+          {STOPS.map((s, i) => (
+            <PlanetStop
+              key={s.index}
+              stop={s}
+              flip={i % 2 === 1}
+              reduced={reduced}
+            />
+          ))}
+
+          {/* ---------- end of the line ---------- */}
+          <section dir="rtl" className="relative z-20 container py-24">
+            <motion.div
+              initial={reduced ? false : { opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.4 }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              className="relative z-20 mx-auto max-w-3xl overflow-hidden rounded-[2.5rem] border border-primary/30 bg-card p-10 text-center shadow-2xl sm:p-16"
+            >
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full"
+                style={{
+                  background:
+                    "radial-gradient(closest-side, color-mix(in oklch, var(--color-primary) 28%, transparent), transparent)",
+                }}
+              />
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -bottom-24 -left-24 size-72 rounded-full"
+                style={{
+                  background:
+                    "radial-gradient(closest-side, color-mix(in oklch, var(--color-gold) 22%, transparent), transparent)",
+                }}
+              />
+              <h2 className="relative z-20 text-3xl font-black text-foreground sm:text-4xl">
+                <RevealWords text="امتیازت را ثبت کن" />
+              </h2>
+              <p className="relative z-20 mx-auto mt-4 max-w-lg text-muted-foreground">
+                برای پیگیری عملکردت در سایت ثبت نام کن
+              </p>
+              <div className="relative z-20 mt-8 flex flex-wrap justify-center gap-3">
+                <Link
+                  href="/auth"
+                  className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-primary px-8 text-lg font-bold text-primary-foreground shadow-lg shadow-primary/30 transition-all hover:brightness-95 active:scale-95"
+                >
+                  ساخت حساب
+                </Link>
+              </div>
+            </motion.div>
+          </section>
+        </div>
+      </div>
+    </MotionConfig>
+  );
+}

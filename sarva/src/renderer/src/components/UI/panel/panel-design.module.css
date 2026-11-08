@@ -1,0 +1,273 @@
+.shell {
+  position: relative;
+  isolation: isolate;
+  background: radial-gradient(ellipse at 80% 0%, color-mix(in oklch, var(--primary) 13%, transparent), transparent 48%), radial-gradient(ellipse at 0% 65%, color-mix(in oklch, var(--gold) 7%, transparent), transparent 48%), var(--background);
+}
+/* رنگِ الگو از --pattern-color می‌آید (globals.css)، نه از اینجا. */
+.pattern { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.sidebar { margin: 16px 16px 16px 0; top: 16px; height: calc(100dvh - 32px); width: 256px; border: 1px solid color-mix(in oklch, var(--primary) 17%, var(--border)); border-radius: 26px; background: color-mix(in oklch, var(--card) 90%, transparent); box-shadow: 0 12px 48px #00000009; }
+.brand { border-bottom: 1px solid var(--border); padding: 8px 8px 21px; }
+/* مربعِ نشانِ سایدبار. گرادیانش هم مثل خودِ لوگو از --logo-1 و --primary
+   می‌آید، وگرنه تنها تکهٔ فیروزه‌ای‌مانده وسطِ پنلِ پالت‌شده بود. */
+.brandMark { width: 46px; height: 46px; border-radius: 16px; background: linear-gradient(140deg, var(--logo-1), var(--primary)); color: #fff; box-shadow: 0 5px 18px color-mix(in oklch, var(--primary) 15%, transparent); }
+.nav { display: flex; flex-direction: column; gap: 18px; }
+.navScroll { scrollbar-width: thin; scrollbar-color: color-mix(in oklch, var(--muted-foreground) 25%, transparent) transparent; }
+.shell :global(.text-gold) { color: var(--gold-ink); }
+.navLabel { padding: 0 14px; margin-bottom: 7px; font-size: 10px; font-weight: 600; color: var(--muted-foreground); letter-spacing: .025em; }
+.navLink { display: flex; min-height: 43px; align-items: center; gap: 11px; padding: 5px 12px; border: 1px solid transparent; border-radius: 12px; color: var(--muted-foreground); font-size: 12px; font-weight: 500; transition: background 160ms, color 160ms, border-color 160ms; }
+.navLink:hover { background: color-mix(in oklch, var(--primary) 7%, transparent); color: var(--foreground); }
+.navLink[aria-current="page"] { background: linear-gradient(100deg, color-mix(in oklch, var(--primary) 9%, transparent), color-mix(in oklch, var(--primary) 20%, transparent)); border-color: color-mix(in oklch, var(--primary) 28%, transparent); color: var(--primary); font-weight: 700; }
+.navIcon { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; }
+.navTag { margin-inline-start: auto; padding: 1px 8px; border-radius: 6px; background: color-mix(in oklch, var(--gold) 12%, transparent); color: var(--gold-ink); font-size: 10px; }
+/* ⚠️ نوارِ بالا — چرایِ هر عدد در PanelTopbar.tsx نوشته شده.
+   خلاصه: ارتفاع از ۸۲ به ۶۴ آمد، مرز و پس‌زمینه فقط بعد از اسکرول ظاهر
+   می‌شوند، و محتوایش به همان ستونی تراز شد که `<main>` دارد. */
+.topbar { height: 64px; border-bottom: 1px solid transparent; background: transparent; transition: background 200ms, border-color 200ms, box-shadow 200ms, backdrop-filter 200ms; }
+/* ⚠️ `backdrop-filter` هم پشتِ همین شرط است و نه همیشه روشن: یک لایهٔ
+   blur دائمی روی کلِ عرضِ صفحه، حتی وقتی چیزی زیرش نیست، در هر اسکرول
+   دوباره کشیده می‌شود — هزینه‌ای که فقط وقتی ارزشش را دارد که واقعاً
+   محتوایی زیرِ نوار رد شود. */
+.topbar[data-scrolled] { border-bottom-color: color-mix(in oklch, var(--primary) 12%, var(--border)); background: color-mix(in oklch, var(--background) 82%, transparent); backdrop-filter: blur(14px) saturate(140%); box-shadow: 0 6px 20px -12px #00000024; }
+
+.topAction { display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px; border: 1px solid var(--border); border-radius: 12px; font-size: 12px; background: color-mix(in oklch, var(--card) 65%, transparent); color: var(--muted-foreground); transition: color 150ms, border-color 150ms; }
+.topAction:hover { color: var(--primary); border-color: var(--primary); }
+.content { gap: 28px; padding-top: 28px; padding-bottom: 48px; }
+/* ⚠️ رنگ‌های هاردکد (#102d38، #c2f0d9، …) از اینجا رفتند.
+
+   سروا یک کلیدِ پالت دارد که کلِ سایت را رنگ می‌زند — ولی این یک کادر
+   هر پالتی را نادیده می‌گرفت و فیروزه‌ای می‌ماند: درست در بالای صفحهٔ
+   خانه، بزرگ‌ترین عنصرِ صفحه، تنها چیزی بود که به بقیهٔ سایت شباهت
+   نداشت. حالا همه‌اش `--primary`، `--gold` و `--card` است. */
+.hero { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 24px; overflow: hidden; padding: 30px 34px; border: 1px solid color-mix(in oklch, var(--primary) 26%, var(--border)); border-radius: 24px; background: radial-gradient(ellipse at 12% 110%, color-mix(in oklch, var(--gold) 12%, transparent), transparent 60%), linear-gradient(118deg, color-mix(in oklch, var(--primary) 10%, var(--card)), color-mix(in oklch, var(--primary) 22%, var(--card))); box-shadow: 0 4px 0 color-mix(in oklch, var(--primary) 13%, transparent), 0 14px 34px #00000010; }
+.hero::before { content: ""; position: absolute; width: 340px; height: 340px; inset-inline-start: -90px; top: -100px; border: 1px solid color-mix(in oklch, var(--primary) 16%, transparent); border-radius: 50%; box-shadow: 0 0 0 45px color-mix(in oklch, var(--primary) 5%, transparent), 0 0 0 90px color-mix(in oklch, var(--primary) 3%, transparent); pointer-events: none; }
+.heroCopy { position: relative; z-index: 1; max-width: 620px; }
+.eyebrow { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 13px; padding: 4px 11px 4px 9px; border-radius: 999px; border: 1px solid color-mix(in oklch, var(--primary) 24%, transparent); background: color-mix(in oklch, var(--primary) 10%, transparent); color: var(--primary); font-size: 11px; font-weight: 600; }
+.hero h1 { font-size: clamp(23px, 2.3vw, 31px); font-weight: 700; text-wrap: balance; overflow-wrap: anywhere; }
+.heroDescription { margin-top: 10px; font-size: 13px; line-height: 1.85; color: var(--muted-foreground); max-width: 540px; }
+/* ⚠️ این بلوک پیش‌تر چهار قاعده بود که سه‌تایش پایین‌تر در همین
+   فایل خنثی می‌شدند (`border: none`، `::before { display: none }`، …) —
+   یعنی چهار رنگِ هاردکدِ فیروزه‌ای که هیچ‌وقت دیده نمی‌شدند و
+   فقط خواندنِ فایل را سخت می‌کردند. الان یک قاعده است. */
+.heroArt { position: relative; display: grid; place-items: center; flex-shrink: 0; margin-inline-end: 8px; }
+.heroArt .buddy { width: 172px; height: 172px; }
+.workspace { display: grid; gap: 24px; align-items: start; }
+.shell :global([data-panel-card]) { border-radius: 20px; background: color-mix(in oklch, var(--card) 91%, transparent); border-color: color-mix(in oklch, var(--primary) 8%, var(--border)); box-shadow: 0 5px 22px #00000004; }
+.stats { gap: 16px; }
+.focus { border: 1px solid color-mix(in oklch, var(--primary) 16%, var(--border)); border-radius: 22px; background: color-mix(in oklch, var(--card) 94%, transparent); padding: 23px; }
+.sectionHeading { display: flex; align-items: center; gap: 10px; }
+.sectionIcon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; background: color-mix(in oklch, var(--primary) 10%, transparent); color: var(--primary); }
+.resumeLink { background: color-mix(in oklch, var(--primary) 3%, var(--card)); border-color: color-mix(in oklch, var(--border) 75%, transparent); }
+.resumeCta { display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px; border: 1px solid color-mix(in oklch, var(--primary) 25%, transparent); border-radius: 10px; color: var(--primary); background: color-mix(in oklch, var(--primary) 9%, transparent); font-size: 12px; font-weight: 600; }
+.areas { padding: 23px; border: 1px solid var(--border); border-radius: 22px; background: color-mix(in oklch, var(--card) 91%, transparent); }
+.areaLink { display: flex; align-items: center; gap: 13px; padding: 13px 0; border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent); transition: color 150ms; }
+.areaLink:last-child { border-bottom: 0; padding-bottom: 0; }
+.areaLink:hover { color: var(--primary); }
+.areaArrow { margin-inline-start: auto; color: var(--muted-foreground); flex-shrink: 0; }
+.shell :is(a, button):focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; }
+@media (min-width: 1280px) { .workspace { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); } }
+@media (max-width: 767px) {
+  .hero { padding: 25px 22px; border-radius: 21px; }
+  .content { gap: 22px; padding-top: 20px; }
+  .topbar { height: 56px; }
+  .focus, .areas { padding: 18px; }
+  .resumeCta { padding: 7px 9px; }
+}
+@media (prefers-reduced-motion: reduce) { .shell *, .shell *::before { transition: none !important; animation: none !important; } }
+/* Friendly panel vocabulary, scoped to the panel in both themes. */
+.shell { --panel-mint: #278879; --panel-lilac: #8261b3; --panel-rose: #af626e; --panel-gold: #987322; }
+:global(.dark) .shell { --panel-mint: #8ed8c2; --panel-lilac: #baa5e0; --panel-rose: #e0a0ac; --panel-gold: #e0c280; }
+.shell { --panel-tone: var(--panel-mint); }
+.shell [data-tone="mint"] { --panel-tone: var(--panel-mint); }
+.shell [data-tone="lilac"] { --panel-tone: var(--panel-lilac); }
+.shell [data-tone="rose"] { --panel-tone: var(--panel-rose); }
+.shell [data-tone="gold"] { --panel-tone: var(--panel-gold); }
+.buddy { width: 166px; height: 166px; flex-shrink: 0; overflow: visible; transform: rotate(-5deg); transition: transform 250ms ease; }
+.buddySmall { width: 106px; height: 106px; }
+/* ⚠️ همان شعاع، همان حاشیه و همان سایهٔ ۴ پیکسلیِ `[data-panel-card]`.
+   گوشهٔ نامتقارن (`28px 28px 12px 28px`) رفت: در کلِ سایت هیچ سطحِ
+   دیگری چنین نبود و همین باعث می‌شد سرصفحه به صفحه نچسبد. */
+.pageHeader { display: flex; align-items: center; gap: 22px; padding: 22px 26px; border: 1px solid color-mix(in oklch, var(--panel-tone) 22%, var(--border)); border-radius: 24px; background: linear-gradient(112deg, color-mix(in oklch, var(--panel-tone) 5%, var(--card)), color-mix(in oklch, var(--panel-tone) 13%, var(--card))); box-shadow: 0 4px 0 color-mix(in oklch, var(--panel-tone) 11%, transparent), 0 8px 22px #00000004; }
+.pageHeader:hover .buddy { transform: rotate(3deg) translateY(-3px); }
+.pageEyebrow { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 8px; color: var(--panel-tone); font-size: 11px; font-weight: 600; }
+.pageEyebrowDot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+/* ⚠️ `overflow-wrap: anywhere` تا یک واژهٔ بلندِ فارسی یا یک آدرس،
+   سرصفحه را از کادر بیرون نزند. */
+.pageTitle { font-size: clamp(20px, 1.9vw, 26px); font-weight: 700; text-wrap: balance; overflow-wrap: anywhere; }
+.pageArt { flex-shrink: 0; }
+.pageStack { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.practiceStats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.practiceStat { padding: 22px; }
+.sticker { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 16px 16px 10px 16px; color: var(--panel-tone, var(--primary)); background: color-mix(in oklch, var(--panel-tone, var(--primary)) 13%, var(--card)); border: 1px solid color-mix(in oklch, var(--panel-tone, var(--primary)) 22%, transparent); box-shadow: 0 3px 0 color-mix(in oklch, var(--panel-tone, var(--primary)) 12%, transparent); transform: rotate(-5deg); }
+.shell :global([data-panel-card]) { border-radius: 24px; box-shadow: 0 4px 0 color-mix(in oklch, var(--border) 38%, transparent), 0 8px 22px #00000004; }
+.shell :global([data-panel-card][data-tone]) { border-color: color-mix(in oklch, var(--panel-tone) 22%, var(--border)); background: linear-gradient(145deg, color-mix(in oklch, var(--panel-tone) 5%, var(--card)), var(--card)); }
+.navIcon { background: color-mix(in oklch, var(--primary) 8%, transparent); border-radius: 10px; width: 31px; height: 31px; transition: transform 160ms; }
+.navLink { font-size: 13px; border-radius: 15px; }
+.navLink:hover .navIcon { transform: rotate(-9deg); }
+.navLink[aria-current="page"] { box-shadow: 0 3px 0 color-mix(in oklch, var(--primary) 10%, transparent); }
+.navLink:nth-child(2n) .navIcon { background: color-mix(in oklch, var(--gold) 11%, transparent); }
+.sectionIcon { border-radius: 13px 13px 8px 13px; transform: rotate(-5deg); box-shadow: 0 3px 0 color-mix(in oklch, var(--primary) 9%, transparent); }
+.resumeCta { border-radius: 14px; box-shadow: 0 3px 0 color-mix(in oklch, var(--primary) 16%, transparent); }
+.emptyState { display: flex; flex-direction: column; align-items: center; padding: 28px 22px; text-align: center; border: 1px dashed color-mix(in oklch, var(--primary) 28%, var(--border)); border-radius: 24px; background: color-mix(in oklch, var(--primary) 3%, var(--card)); }
+.emptyState .buddy { width: 88px; height: 88px; margin-bottom: 10px; }
+.formGrid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); align-items: start; gap: 24px; }
+.formIntro { display: flex; align-items: center; gap: 13px; padding: 22px 22px 0; }
+.formIntro h2 { font-size: 16px; font-weight: 700; }
+.formIntro p { font-size: 12px; color: var(--muted-foreground); margin-top: 4px; }
+.formCard { padding: 24px; border: 1px solid var(--border); border-radius: 24px; background: var(--card); }
+/* `data-bare`: ورودی‌ای که داخلِ قابِ خودش نشسته (جست‌وجوی انتخابگر). بدونِ این استثنا ۴۴ پیکسل ارتفاع و حلقهٔ فوکوس می‌گیرد و از قابش بیرون می‌زند. */
+.shell :is(input:not([type="checkbox"]):not([type="radio"]):not([data-bare]), select, textarea, [aria-haspopup="listbox"]) { border-radius: 14px; background-color: color-mix(in oklch, var(--primary) 3%, var(--card)); }
+.shell :is(input:not([type="checkbox"]):not([type="radio"]):not([data-bare]), select, [aria-haspopup="listbox"]) { min-height: 44px; }
+.shell :is(input:not([data-bare]), select, textarea):focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.shell :global([data-panel-button="default"]), .shell :global([data-panel-button="push"]) { border-radius: 14px; box-shadow: 0 3px 0 var(--primary-deep); }
+.shell :global([data-panel-button]):active { transform: translateY(2px); box-shadow: none; }
+.composerTrigger { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 16px; text-align: start; padding: 22px; border: 1px dashed color-mix(in oklch, var(--primary) 40%, var(--border)); border-radius: 23px; background: color-mix(in oklch, var(--primary) 6%, var(--card)); transition: background 180ms; }
+.composerTrigger:hover { background: color-mix(in oklch, var(--primary) 10%, var(--card)); }
+.recordGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; }
+.record { padding: 22px; border: 1px solid var(--border); border-radius: 23px; background: var(--card); }
+.statusPill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border: 1px solid color-mix(in oklch, currentColor 20%, transparent); background: color-mix(in oklch, currentColor 5%, transparent); border-radius: 9px; font-size: 11px; font-weight: 600; }
+.message { max-width: 88%; margin-inline-end: auto; border: 1px solid var(--border); border-radius: 22px 8px 22px 22px; background: var(--card); padding: 20px; }
+.message[data-support="true"] { margin-inline-start: auto; margin-inline-end: 0; border-radius: 8px 22px 22px 22px; border-color: color-mix(in oklch, var(--primary) 24%, var(--border)); background: color-mix(in oklch, var(--primary) 7%, var(--card)); }
+.detailsGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.detailField { border-radius: 15px; padding: 15px; border: 1px solid color-mix(in oklch, var(--border) 65%, transparent); background: color-mix(in oklch, var(--primary) 3%, var(--card)); overflow-wrap: anywhere; }
+.quickLinks { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; }
+.quickLinks a { padding: 10px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); text-decoration: none; }
+.filterBar { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--card); }
+.previewTabs { display: flex; flex-wrap: wrap; gap: 7px; }
+.previewTabs a { padding: 5px 11px; border-radius: 9px; border: 1px solid var(--border); font-size: 11px; }
+.previewTabs a[aria-current="page"] { background: var(--primary); color: var(--primary-foreground); }
+@media (max-width: 1023px) { .practiceStats { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 767px) {
+  .pageHeader { padding: 22px; gap: 10px; }
+  .pageHeader .buddySmall { width: 64px; height: 64px; }
+  .pageHeader h1 { font-size: 21px; }
+  .pageEyebrow { font-size: 10px; }
+  .practiceStat { padding: 17px; }
+  .practiceStats { gap: 12px; }
+  .formGrid, .recordGrid { grid-template-columns: minmax(0,1fr); }
+  .message { max-width: 96%; padding: 16px; }
+  .heroArt { display: grid; margin: 0; }
+  .heroArt .buddy { width: 88px; height: 88px; }
+  .hero { gap: 8px; }
+  .hero h1 { font-size: 23px; }
+  .detailsGrid { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width: 374px) { .heroArt { display: none; } .pageHeader .buddySmall { width: 49px; height: 49px; } }
+@media (prefers-reduced-motion: reduce) { .buddy, .navIcon, .sectionIcon { transition: none; } .pageHeader:hover .buddy, .navLink:hover .navIcon { transform: none; } }
+@media print { .sidebar, .topbar, .pattern { display: none !important; } .shell { background: white; } .shell :global(#receipt) { background: white; color: black; border: 1px solid #aaa; box-shadow: none; } }
+
+/* ══ خانهٔ پنل — نسخهٔ بنتو ═══════════════════════════════════════════════
+   همه‌چیز از توکن‌های سایت (--primary، --gold، --card) رنگ می‌گیرد، پس با
+   کلیدِ پالت و تم هم‌راه است. */
+.heroDots { position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(color-mix(in oklch, var(--primary) 22%, transparent) 1px, transparent 1.2px); background-size: 18px 18px; mask-image: radial-gradient(ellipse 60% 90% at 15% 50%, #000, transparent 75%); opacity: .8; }
+.eyebrowGold { border-color: color-mix(in oklch, var(--gold) 40%, transparent); background: color-mix(in oklch, var(--gold) 14%, transparent); color: var(--gold-ink); }
+.hero h1 { letter-spacing: -.01em; }
+.heroActions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 20px; }
+.heroGhost { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 16px; border-radius: 14px; border: 1px solid color-mix(in oklch, var(--primary) 28%, var(--border)); background: color-mix(in oklch, var(--card) 70%, transparent); color: var(--foreground); font-size: 13px; font-weight: 600; transition: border-color 150ms, color 150ms, transform 150ms; }
+.heroGhost:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-1px); }
+
+.level { margin-top: 16px; max-width: 420px; }
+.levelChip { display: inline-block; margin-inline-end: 4px; padding: 1px 8px; border-radius: 7px; background: var(--primary); color: var(--primary-foreground); font-size: 11px; font-weight: 700; }
+.levelTrack { position: relative; display: block; height: 10px; margin-top: 8px; overflow: hidden; border-radius: 999px; background: color-mix(in oklch, var(--primary) 12%, var(--card)); box-shadow: inset 0 1px 2px #0000000d; }
+.levelFill { position: absolute; inset-block: 0; inset-inline-start: 0; overflow: hidden; border-radius: inherit; background: linear-gradient(270deg, var(--primary), color-mix(in oklch, var(--primary) 45%, var(--gold))); transform-origin: right; animation: panelGrow 1.1s cubic-bezier(.22,1,.36,1) both .15s; }
+.levelFill::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, #ffffff59 50%, transparent 70%); background-size: 200% 100%; animation: panelShine 2.8s ease-in-out infinite 1.3s; }
+@keyframes panelGrow { from { transform: scaleX(0); } }
+@keyframes panelShine { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+
+.stats { gap: 16px; }
+.statCard { border-radius: 22px; padding: 20px; box-shadow: 0 4px 0 color-mix(in oklch, var(--border) 38%, transparent), 0 10px 26px -18px #0000002a; transition: transform 200ms cubic-bezier(.22,1,.36,1); }
+.statCard:hover { transform: translateY(-2px); }
+.statLabel { font-size: 12.5px; font-weight: 600; color: var(--muted-foreground); }
+.statValue { margin-top: 2px; font-size: 34px; font-weight: 800; line-height: 1.15; letter-spacing: -.02em; }
+.statUnit { margin-inline-start: 6px; font-size: 14px; font-weight: 500; color: var(--muted-foreground); letter-spacing: 0; }
+.statIcon { display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 13px; color: var(--primary); background: color-mix(in oklch, var(--primary) 11%, transparent); transform: rotate(-6deg); }
+.statIcon[data-tone="gold"] { color: var(--gold-ink); background: color-mix(in oklch, var(--gold) 16%, transparent); }
+.statIcon[data-live] svg { transform-origin: 50% 90%; animation: panelFlicker 1.6s ease-in-out infinite; }
+@keyframes panelFlicker { 0%,100% { transform: scale(1) rotate(0); } 30% { transform: scale(1.08, .94) rotate(-4deg); } 60% { transform: scale(.95, 1.07) rotate(3deg); } }
+
+.streakDot { display: grid; place-items: center; width: 100%; max-width: 30px; aspect-ratio: 1; border-radius: 10px; font-size: 12px; font-weight: 700; color: var(--gold-ink); border: 1.5px dashed color-mix(in oklch, var(--border) 90%, transparent); background: color-mix(in oklch, var(--foreground) 3%, transparent); }
+.streakDot[data-done] { border: 0; color: #fff; background: linear-gradient(145deg, color-mix(in oklch, var(--gold) 88%, #fff), color-mix(in oklch, var(--gold) 80%, #b35c00)); box-shadow: 0 3px 0 color-mix(in oklch, var(--gold) 45%, #6b3a00); }
+.streakDot[data-today]:not([data-done]) { border-style: solid; border-color: var(--gold); animation: panelPulse 2s ease-in-out infinite; }
+@keyframes panelPulse { 50% { box-shadow: 0 0 0 5px color-mix(in oklch, var(--gold) 18%, transparent); } }
+
+.delta { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700; color: var(--destructive); background: color-mix(in oklch, var(--destructive) 11%, transparent); }
+.delta[data-up] { color: #15803d; background: #16a34a1f; }
+:global(.dark) .delta[data-up] { color: #4ade80; }
+.spark { display: flex; align-items: flex-end; gap: 5px; height: 44px; margin-top: 12px; }
+.spark span { flex: 1; min-height: 3px; border-radius: 5px 5px 2px 2px; background: linear-gradient(180deg, var(--primary), color-mix(in oklch, var(--primary) 45%, transparent)); transform-origin: bottom; animation: panelRise .7s cubic-bezier(.22,1,.36,1) both; }
+.spark span[data-empty] { background: var(--border); }
+@keyframes panelRise { from { transform: scaleY(0); } }
+
+.goalPicker { display: flex; gap: 6px; margin-top: 14px; }
+.goalPicker button { flex: 1; min-height: 32px; border-radius: 10px; border: 1px solid var(--border); font-size: 12px; color: var(--muted-foreground); transition: background 150ms, color 150ms, border-color 150ms; }
+.goalPicker button:hover { color: var(--foreground); }
+.goalPicker button[aria-checked="true"] { border-color: color-mix(in oklch, var(--primary) 45%, transparent); background: color-mix(in oklch, var(--primary) 11%, transparent); color: var(--primary); font-weight: 700; }
+
+.planStrip { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 18px; border: 1px solid color-mix(in oklch, var(--gold) 30%, transparent); background: linear-gradient(100deg, color-mix(in oklch, var(--gold) 13%, var(--card)), color-mix(in oklch, var(--gold) 5%, var(--card))); }
+.chartsRow { display: grid; gap: 24px; align-items: stretch; }
+@media (min-width: 1280px) { .chartsRow { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); } }
+
+.segmented { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: color-mix(in oklch, var(--foreground) 5%, transparent); }
+.segmented button { position: relative; min-height: 30px; padding: 0 12px; border-radius: 9px; font-size: 12px; color: var(--muted-foreground); }
+.segmented button[aria-checked="true"] { color: var(--foreground); font-weight: 700; }
+.segmentedPill { position: absolute; inset: 0; border-radius: inherit; background: var(--card); box-shadow: 0 1px 3px #00000018, 0 0 0 1px color-mix(in oklch, var(--border) 70%, transparent); }
+
+.heatWrap { display: flex; gap: 6px; margin-top: 20px; overflow-x: auto; padding: 4px 2px; }
+.heatDays { display: grid; grid-template-rows: repeat(7, 1fr); gap: 4px; font-size: 9.5px; line-height: 1; color: var(--muted-foreground); }
+.heatDays span { display: grid; align-items: center; }
+.heat { display: grid; flex: 1; grid-template-rows: repeat(7, auto); grid-auto-flow: column; grid-auto-columns: minmax(11px, 1fr); gap: 4px; }
+.heat li, .heatSwatch { display: block; aspect-ratio: 1; border-radius: 4px; background: color-mix(in oklch, var(--foreground) 6%, transparent); transition: transform 120ms; }
+.heatSwatch { width: 11px; }
+.heat li:hover { transform: scale(1.35); outline: 1.5px solid var(--primary); outline-offset: 1px; }
+.heat [data-level="1"], .heatSwatch[data-level="1"] { background: color-mix(in oklch, var(--primary) 25%, var(--card)); }
+.heat [data-level="2"], .heatSwatch[data-level="2"] { background: color-mix(in oklch, var(--primary) 48%, var(--card)); }
+.heat [data-level="3"], .heatSwatch[data-level="3"] { background: color-mix(in oklch, var(--primary) 72%, var(--card)); }
+.heat [data-level="4"], .heatSwatch[data-level="4"] { background: var(--primary); }
+
+.areaGlyph { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 14px; font-size: 21px; background: color-mix(in oklch, var(--primary) 7%, var(--card)); border: 1px solid color-mix(in oklch, var(--border) 70%, transparent); transition: transform 180ms; }
+.areaLink:hover .areaGlyph { transform: rotate(-8deg) scale(1.06); }
+
+.badge { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; overflow: hidden; padding: 18px 14px 16px; text-align: center; border-radius: 20px; border: 1px solid color-mix(in oklch, var(--border) 70%, transparent); background: color-mix(in oklch, var(--card) 80%, transparent); transition: transform 200ms cubic-bezier(.22,1,.36,1); }
+.badge:hover { transform: translateY(-3px); }
+.badge[data-earned] { border-color: color-mix(in oklch, var(--gold) 40%, transparent); background: radial-gradient(circle at 50% 0%, color-mix(in oklch, var(--gold) 18%, transparent), transparent 70%), var(--card); }
+.badge[data-earned]::after { content: ""; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 35%, #ffffff40 50%, transparent 65%); background-size: 250% 100%; animation: panelShine 4s ease-in-out infinite; pointer-events: none; }
+.badgeGlyph { display: grid; place-items: center; width: 54px; height: 54px; margin-bottom: 4px; border-radius: 50%; font-size: 26px; border: 1px solid var(--border); background: color-mix(in oklch, var(--foreground) 4%, transparent); filter: grayscale(1); opacity: .5; }
+.badge[data-earned] .badgeGlyph { filter: none; opacity: 1; border-color: color-mix(in oklch, var(--gold) 45%, transparent); background: color-mix(in oklch, var(--gold) 14%, transparent); box-shadow: 0 0 0 5px color-mix(in oklch, var(--gold) 7%, transparent); }
+.badge:hover .badgeGlyph { animation: panelWiggle .5s ease-in-out; }
+@keyframes panelWiggle { 25% { transform: rotate(-10deg) scale(1.08); } 75% { transform: rotate(8deg) scale(1.08); } }
+.badgeTrack { display: block; width: 72%; height: 5px; margin-top: 6px; overflow: hidden; border-radius: 999px; background: color-mix(in oklch, var(--foreground) 7%, transparent); }
+.badgeTrack span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(270deg, var(--gold), color-mix(in oklch, var(--gold) 55%, var(--primary))); }
+
+/* نهال: پلک، تکانِ برگ، «ز»های خواب و جرقه‌ها — فقط CSS. */
+.buddyEyes { transform-box: fill-box; transform-origin: center; animation: panelBlink 5s infinite; }
+@keyframes panelBlink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+.buddyLeaves { transform-box: fill-box; transform-origin: 50% 100%; animation: panelSway 4s ease-in-out infinite; }
+@keyframes panelSway { 50% { transform: rotate(4deg); } }
+.buddy[data-mood="proud"] .buddyBody { animation: panelBounce 2.4s ease-in-out infinite; }
+@keyframes panelBounce { 50% { transform: translateY(-4px); } }
+.buddyZ text { animation: panelFloat 3s ease-in-out infinite; }
+.buddyZ text:nth-child(2) { animation-delay: .5s; }
+.buddyZ text:nth-child(3) { animation-delay: 1s; }
+@keyframes panelFloat { 0%, 100% { opacity: .25; transform: translateY(2px); } 50% { opacity: 1; transform: translateY(-3px); } }
+.buddySparks > * { transform-box: fill-box; transform-origin: center; animation: panelTwinkle 2.2s ease-in-out infinite; }
+.buddySparks > :nth-child(2) { animation-delay: .7s; }
+.buddySparks > :nth-child(3) { animation-delay: 1.3s; }
+@keyframes panelTwinkle { 50% { transform: scale(.55) rotate(25deg); opacity: .6; } }
+
+/* نشانگرِ صفحهٔ فعال در سایدبار — یک قرص که با motion بینِ آیتم‌ها سُر می‌خورد. */
+.navActive { position: absolute; inset: -1px; z-index: -1; border-radius: inherit; background: linear-gradient(100deg, color-mix(in oklch, var(--primary) 9%, transparent), color-mix(in oklch, var(--primary) 20%, transparent)); border: 1px solid color-mix(in oklch, var(--primary) 28%, transparent); box-shadow: 0 3px 0 color-mix(in oklch, var(--primary) 10%, transparent); }
+.navLink { position: relative; isolation: isolate; }
+.navLink[aria-current="page"] { background: none; border-color: transparent; box-shadow: none; }
+
+.searchTrigger { display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 10px 0 12px; border-radius: 12px; border: 1px solid var(--border); background: color-mix(in oklch, var(--card) 65%, transparent); color: var(--muted-foreground); font-size: 12px; transition: color 150ms, border-color 150ms; }
+.searchTrigger:hover { color: var(--foreground); border-color: color-mix(in oklch, var(--primary) 40%, var(--border)); }
+.searchTrigger kbd { padding: 1px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); font-family: inherit; font-size: 10.5px; }
+
+@media (max-width: 767px) {
+  .statCard { padding: 17px; }
+  .statValue { font-size: 29px; }
+  .heroActions { margin-top: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .levelFill, .levelFill::after, .spark span, .statIcon[data-live] svg, .streakDot, .badge::after, .buddyEyes, .buddyLeaves, .buddyBody, .buddyZ text, .buddySparks > *, .badge:hover .badgeGlyph { animation: none !important; }
+  .statCard:hover, .badge:hover, .heroGhost:hover { transform: none; }
+}

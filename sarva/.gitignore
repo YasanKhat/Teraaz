@@ -1,0 +1,20 @@
+# وابستگی‌ها و خروجیِ ساخت
+node_modules
+out
+dist
+*.log
+
+# دارایی‌های حجیم با `npm run fetch:assets` گرفته می‌شوند، نه با گیت.
+# (۱۱۴۱ تصویرِ واژه‌یاب + عکسِ شعرها + دارایی‌های بازی‌ها ≈ ۳۲۰ مگابایت)
+public/vocab-images
+public/poempic
+public/games
+public/literary-timeline
+public/audio
+public/vocab-manifest.json
+
+# فایل‌های شخصی
+.DS_Store
+.env
+.env.*
+!.env.example

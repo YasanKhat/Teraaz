@@ -1,0 +1,109 @@
+"use client";
+
+// دسترسی دادهٔ بازی واژه‌یاب، از سمت مرورگر.
+//
+// قبلاً مستقیم با کلاینت Supabase به دیتابیس می‌زد. حالا از /api/v1/vocab/*
+// رد می‌شود. امضای هر سه تابع دست‌نخورده مانده تا VocabGame.tsx تغییری لازم
+// نداشته باشد.
+import { apiGet, apiPost } from "@/lib/api/client";
+import type { VocabWord } from "@/lib/vocab-data";
+
+type WordPayload = {
+  words: { id: string; word: string; meaning: string; image: string; lesson: number }[];
+};
+
+/** همهٔ واژه‌های یک درس، به ترتیب. */
+export async function fetchLessonWords(grade: string, lesson: number): Promise<VocabWord[]> {
+  const result = await apiGet<WordPayload>(
+    `/api/v1/vocab/words?grade=${encodeURIComponent(grade)}&lesson=${lesson}`,
+  );
+
+  if (!result.ok) {
+    console.error("vocab words fetch failed:", result.errors.join(" "));
+    return [];
+  }
+
+  return result.data.words.map((w) => ({
+    id: w.id,
+    word: w.word,
+    meaning: w.meaning,
+    image: w.image,
+  }));
+}
+
+export type GradeWord = { lesson: number; word: VocabWord };
+
+/** هر واژهٔ *تصویردارِ* یک کتاب، با شمارهٔ درسش. هم فهرست درس‌ها (تعداد هر
+ *  درس) را می‌سازد و هم مخزن مشترک گزینه‌های نادرست را، تا درسی که فقط یکی دو
+ *  واژهٔ تصویردار دارد هم قابل بازی بماند. */
+/**
+ * ⚠️ نتیجه به‌ازای هر پایه کش می‌شود.
+ *
+ * پیش از این، برگشتن به فهرستِ پایه‌ها و انتخابِ *همان* پایه، کلِ واژه‌ها را
+ * دوباره دانلود می‌کرد. این محتوای عمومیِ منتشرشده است و در طولِ یک نشست
+ * عوض نمی‌شود، پس بارِ دوم هیچ درخواستی لازم ندارد.
+ *
+ * درخواست‌های هم‌زمانِ یک پایه هم یک درخواست می‌سازند، نه چند تا.
+ */
+const gradeCache = new Map<string, Promise<GradeWord[]>>();
+
+export function clearVocabGradeCache(): void {
+  gradeCache.clear();
+}
+
+export async function fetchGradePicturedWords(grade: string): Promise<GradeWord[]> {
+  const hit = gradeCache.get(grade);
+  if (hit) return hit;
+  const job = fetchGradePicturedWordsUncached(grade);
+  gradeCache.set(grade, job);
+  try {
+    const out = await job;
+    // پاسخِ خالی را نگه نمی‌داریم: می‌تواند نتیجهٔ یک خطای گذرای شبکه باشد و
+    // کش کردنش یعنی پایه تا پایانِ نشست خالی بماند.
+    if (out.length === 0) gradeCache.delete(grade);
+    return out;
+  } catch (err) {
+    gradeCache.delete(grade);
+    throw err;
+  }
+}
+
+async function fetchGradePicturedWordsUncached(grade: string): Promise<GradeWord[]> {
+  const result = await apiGet<WordPayload>(
+    // pictured=1: فیلتر روی سرور انجام می‌شود، نه اینکه همهٔ واژه‌ها منتقل
+    // شوند و اینجا دور ریخته شوند.
+    `/api/v1/vocab/words?grade=${encodeURIComponent(grade)}&pictured=1`,
+  );
+
+  if (!result.ok) {
+    console.error("vocab grade fetch failed:", result.errors.join(" "));
+    return [];
+  }
+
+  return result.data.words.map((w) => ({
+    lesson: w.lesson,
+    word: { id: w.id, word: w.word, meaning: w.meaning, image: w.image },
+  }));
+}
+
+/** ثبت یک پاسخ، بدون منتظر ماندن — تا دانش‌آموز واژه‌های ازدست‌رفته‌اش را در
+ *  پنل ببیند.
+ *
+ *  پارامتر userId دیگر استفاده نمی‌شود: سرور کاربر را از کوکی سشن می‌شناسد و
+ *  به شناسه‌ای که مرورگر ادعا می‌کند اعتماد نمی‌کند. برای دست‌نخورده ماندن
+ *  محلِ فراخوانی در VocabGame.tsx نگه داشته شده. */
+export function logVocabAnswer(
+  _userId: string,
+  input: {
+    grade: string;
+    lesson: number;
+    word: string;
+    meaning: string;
+    image: string;
+    isCorrect: boolean;
+  },
+) {
+  void apiPost("/api/v1/vocab/answer", input).then((result) => {
+    if (!result.ok) console.error("vocab answer save failed:", result.errors.join(" "));
+  });
+}

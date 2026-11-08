@@ -1,0 +1,674 @@
+
+import { query, queryOne, execute } from "@/lib/db";
+
+/* ⚠️ گروه‌ها در یک فایلِ بی‌import جدا هستند تا کامپوننتِ کلاینتِ صفحهٔ
+   تنظیمات بتواند بخواندشان بدونِ اینکه این ماژول — و با آن `lib/db` و
+   `mysql2` — وارد بستهٔ مرورگر شود. جزئیاتش در `./groups`. */
+import { SETTING_GROUPS, type SettingGroup } from "./groups";
+
+export { SETTING_GROUPS, type SettingGroup };
+
+/**
+ * تنظیماتی که ادمین بدون deploy عوض می‌کند.
+ *
+ * ترتیب حل مقدار همیشه یکی است: جدول app_settings → متغیر محیطی → null.
+ *
+ * چرا این ترتیب: سرورِ تازه بدون هیچ ردیفی در دیتابیس بالا می‌آید و از env
+ * کار می‌کند؛ لحظه‌ای که ادمین از پنل مقداری ست کرد، آن مقدار برنده می‌شود و
+ * دیگر به deploy نیازی نیست. برای برگشتن به مقدار env کافی است ردیف را پاک
+ * کند.
+ *
+ * انگیزهٔ مستقیمش: آدرس فرستندهٔ ایمیل تا امروز `noreply@aruzino.ir` بود که در
+ * app/api/send-otp/route.ts هاردکد شده بود.
+ */
+
+export type SettingKey =
+  | "site.maintenance"
+  | "site.maintenance_message"
+  | "site.maintenance_bypass_key"
+  | "mail.from"
+  | "sms.driver"
+  | "sms.api_key"
+  | "sms.sender"
+  | "sms.template_id"
+  | "home.supporters_enabled"
+  | "home.supporters_title"
+  | "home.supporters_subtitle"
+  | "home.supporters_cta_url"
+  | "home.supporters_cta_label"
+  | "plus.enabled"
+  | "plus.expiring_soon_days"
+  | "plus.payment_provider"
+  | "plus.aqayepardakht_pin"
+  | "plus.purchase_terms"
+  | "plus.pilot_grant_enabled"
+  | "notify.enabled"
+  | "sms.template_welcome"
+  | "sms.template_plus_activated"
+  | "sms.template_plus_renewed"
+  | "sms.template_plus_expiring"
+  | "sms.template_plus_expired"
+  | "seo.same_as"
+  | "seo.contact_email"
+  | "seo.brand_summary"
+  | "seo.ai_crawlers"
+  | "seo.verify_bing"
+  | "seo.verify_yandex"
+  | "seo.indexnow_key"
+  | "seo.state"
+  | "alerts.enabled"
+  | "alerts.recipients"
+  | "alerts.signup"
+  | "alerts.purchase"
+  | "alerts.teacher_request"
+  | "alerts.content_report"
+  | "alerts.ticket"
+  | "alerts.club_post"
+  | "alerts.server_error";
+
+type SettingSpec = {
+  /** متغیر محیطی که وقتی ردیفی در دیتابیس نیست خوانده می‌شود */
+  envVar: string;
+  /** برچسب فارسی برای پنل ادمین */
+  label: string;
+  description: string;
+  /** گروه‌بندی در صفحهٔ تنظیمات */
+  group: SettingGroup;
+  /**
+   * راز است؟
+   *
+   * مقدارِ رازها هرگز به مرورگر فرستاده نمی‌شود — پنل فقط می‌بیند که «مقداری
+   * ثبت شده» و می‌تواند رویش بنویسد. بدون این، هر کسی که یک لحظه به صفحهٔ باز
+   * تنظیمات دسترسی پیدا کند کلید API را می‌خواند.
+   */
+  secret?: boolean;
+  /**
+   * در صفحهٔ تنظیمات نمایش داده نمی‌شود.
+   *
+   * برای مقدارهایی که خودِ سایت می‌سازد و نگه می‌دارد (کلیدِ IndexNow،
+   * وضعیتِ چک‌لیستِ سئو) و نه چیزی که مدیر تایپ کند. همان جدول و همان کش،
+   * بدونِ یک migrationِ تازه.
+   */
+  hidden?: boolean;
+  /** ورودی از فهرست، نه متن آزاد. */
+  options?: { value: string; label: string }[];
+  /**
+   * مقداری که کدِ مصرف‌کننده وقتی چیزی ثبت نشده فرض می‌کند — فقط برای
+   * نمایش در پنل. ⚠️ خودِ `getSetting` همچنان `null` می‌دهد؛ این فیلد
+   * رفتار را عوض نمی‌کند، فقط نمی‌گذارد فرم «یکی را انتخاب کنید» نشان
+   * بدهد وقتی در واقع چیزی روشن است.
+   */
+  defaultValue?: string;
+  placeholder?: string;
+};
+
+export const SETTING_SPECS: Record<SettingKey, SettingSpec> = {
+  // ── وضعیت سایت ───────────────────────────────────────────────────────────
+  // ⚠️ این سه کلید تنها چیزی هستند که بین «سایت بالاست» و «سایت در حال
+  // بروزرسانی است» فرق می‌گذارند. هیچ deploy، هیچ ری‌استارت و هیچ فایلِ
+  // پرچمی لازم نیست — چون لحظه‌ای که واقعاً لازم می‌شوند، همان لحظه‌ای است
+  // که چیزی خراب شده و وقتِ deploy نیست.
+  "site.maintenance": {
+    envVar: "SITE_MAINTENANCE",
+    group: "site",
+    label: "حالت «در حال بروزرسانی»",
+    description:
+      "وقتی روشن باشد، بازدیدکننده به‌جای سایت یک صفحهٔ کوتاه می‌بیند و پاسخ با کد ۵۰۳ برمی‌گردد (یعنی گوگل صفحه‌ها را حذف‌شده حساب نمی‌کند). ⚠️ مدیرِ واردشده استثناست و سایت را عادی می‌بیند. ⚠️ اثرش تا حدود یک دقیقه طول می‌کشد (تنظیمات کشِ کوتاه دارند).",
+    options: [
+      { value: "off", label: "خاموش (سایت باز است)" },
+      { value: "on", label: "روشن (سایت بسته است)" },
+    ],
+  },
+  "site.maintenance_message": {
+    envVar: "SITE_MAINTENANCE_MESSAGE",
+    group: "site",
+    label: "متن صفحهٔ بروزرسانی",
+    description:
+      "یک یا دو جمله که زیرِ عنوان نوشته می‌شود. خالی بگذارید تا متنِ پیش‌فرض بیاید.",
+    placeholder: "تا نیم ساعت دیگر برمی‌گردیم.",
+  },
+  /* ⚠️ کلیدِ عبورِ موقت. با `?bypass=<این مقدار>` یک کوکی روی مرورگر می‌نشیند
+     و آن مرورگر تا پایانِ بروزرسانی سایت را عادی می‌بیند.
+
+     وجود دارد چون «مدیر استثناست» همهٔ نیاز را پوشش نمی‌دهد: تستِ مسیرِ
+     ثبت‌نام و خرید باید با حسابِ *غیرمدیر* انجام شود، و گاهی کسی باید صفحه
+     را ببیند که اصلاً حساب ندارد (یک همکار، یک مرورگرِ موبایل).
+
+     ⚠️ راز حساب می‌شود و در پنل نمایش داده نمی‌شود — کسی که این رشته را
+     داشته باشد، در حالتِ بسته هم به سایت می‌رسد. */
+  "site.maintenance_bypass_key": {
+    envVar: "SITE_MAINTENANCE_BYPASS_KEY",
+    group: "site",
+    label: "کلید عبور از حالت بروزرسانی",
+    description:
+      "برای امتحانِ سایت در حالتِ بسته، بدونِ اینکه با حسابِ مدیر وارد شده باشید. آدرس را با ‎?bypass=<کلید>‎ باز کنید؛ کوکی‌اش تا ۱۲ ساعت می‌ماند. خالی یعنی این راه بسته است و فقط مدیر رد می‌شود.",
+    secret: true,
+    placeholder: "یک رشتهٔ تصادفی و طولانی",
+  },
+
+  "mail.from": {
+    envVar: "MAIL_FROM",
+    group: "mail",
+    label: "آدرس فرستندهٔ ایمیل",
+    description:
+      'نامی که گیرنده می‌بیند. مثال: «سروا <noreply@example.com>». دامنه باید در سرویس ایمیل تأیید شده باشد.',
+    placeholder: "سروا <noreply@example.com>",
+  },
+
+  // ── پیامک ───────────────────────────────────────────────────────────────
+  // سرویس، SMS.ir است. برای راه‌اندازی دو مقدار لازم است و هر دو از همین صفحه
+  // وارد می‌شوند: کلید API و شناسهٔ قالب. «شمارهٔ خط» فقط برای پیامکِ متنِ
+  // آزاد است و کدِ ورود بدونش هم می‌رود.
+  "sms.driver": {
+    envVar: "SMS_DRIVER",
+    group: "sms",
+    label: "سرویس پیامک",
+    description:
+      "تا وقتی روی «غیرفعال» باشد هیچ پیامکی فرستاده نمی‌شود و فقط در گزارش ثبت می‌شود. تنها سرویسِ پیاده‌سازی‌شده SMS.ir است.",
+    options: [
+      { value: "mock", label: "غیرفعال (فقط ثبت در گزارش)" },
+      { value: "smsir", label: "اس‌ام‌اس دات آی‌آر (SMS.ir)" },
+    ],
+  },
+  "sms.api_key": {
+    envVar: "SMS_API_KEY",
+    group: "sms",
+    label: "کلید API پیامک",
+    description:
+      "کلیدی که پنل SMS.ir در بخش «برنامه‌نویسان → لیست کلیدهای API» می‌دهد. بعد از ذخیره دیگر نمایش داده نمی‌شود؛ برای تغییر، مقدار تازه را بنویسید.",
+    secret: true,
+    placeholder: "کلید را اینجا بچسبانید",
+  },
+  /* ⚠️ کدِ ورود با «قالبِ تأییدشده» فرستاده می‌شود و نه متنِ آزاد.
+     خطِ خدماتی متنِ دلخواه نمی‌پذیرد: متن باید از قالبی بیاید که پنلِ سرویس
+     تأیید کرده و فقط متغیرش پر شود. با شناسهٔ اشتباه، سرویس خطا می‌دهد و هیچ
+     کدی فرستاده نمی‌شود. */
+  "sms.template_id": {
+    envVar: "SMS_TEMPLATE_ID",
+    group: "sms",
+    label: "شناسهٔ قالب کد ورود",
+    description:
+      "عددی که در پنل SMS.ir زیرِ «لیست قالب‌ها» کنارِ قالبِ تأییدشده نوشته شده. قالب باید دقیقاً یک متغیر به نامِ Code داشته باشد (#CODE#) که کد در آن می‌نشیند.",
+    placeholder: "۴۱۴۰۲۶",
+  },
+  "sms.sender": {
+    envVar: "SMS_SENDER",
+    group: "sms",
+    label: "شمارهٔ خط (اختیاری)",
+    description:
+      "فقط برای پیامکِ متنِ آزاد لازم است. کدِ ورود از قالب می‌رود و خودِ SMS.ir خطِ خدماتی را انتخاب می‌کند، پس برای ورود با موبایل می‌توانید این را خالی بگذارید.",
+    placeholder: "۳۰۰۰۵۰۵۰",
+  },
+
+  // ── اطلاع‌رسانی ──────────────────────────────────────────────────────────
+  //
+  // ⚠️ اینجا **شناسهٔ قالب** گرفته می‌شود و نه متنِ پیامک، و این یک تصمیمِ
+  // ناگزیر است: خطِ خدماتی متنِ آزاد نمی‌پذیرد. متن باید در پنلِ SMS.ir
+  // ساخته و تأیید شود و ما فقط متغیرهایش را پر کنیم. متنِ پیشنهادیِ هر
+  // قالب — با نامِ دقیقِ متغیرهایش — در `lib/notify/messages.ts` نوشته شده.
+  //
+  // ⚠️ و قالبِ ثبت‌نشده یعنی «این پیامک نمی‌رود»، نه «از راهِ دیگری برود».
+  // چرایی‌اش بالای `lib/notify/events.ts`.
+  "notify.enabled": {
+    envVar: "NOTIFY_ENABLED",
+    group: "notify",
+    label: "ارسال پیامک و ایمیلِ رویدادها",
+    description:
+      "کلیدِ سراسری. وقتی خاموش باشد هیچ پیامک و ایمیلِ اطلاع‌رسانی‌ای فرستاده نمی‌شود (کدِ ورود و بازیابیِ رمز مستقل‌اند و همیشه می‌روند). اعلان‌های درون‌سایتی هم مثل قبل ثبت می‌شوند.",
+    options: [
+      { value: "on", label: "روشن" },
+      { value: "off", label: "خاموش" },
+    ],
+  },
+  "sms.template_welcome": {
+    envVar: "SMS_TEMPLATE_WELCOME",
+    group: "notify",
+    label: "قالب پیامکِ خوش‌آمد",
+    description: "شناسهٔ قالبِ تأییدشده برای پیامکِ بعد از ثبت‌نام. یک متغیر: Name",
+    placeholder: "مثلاً ۱۲۳۴۵۶",
+  },
+  "sms.template_plus_activated": {
+    envVar: "SMS_TEMPLATE_PLUS_ACTIVATED",
+    group: "notify",
+    label: "قالب پیامکِ فعال‌سازی اشتراک",
+    description: "شناسهٔ قالبِ پیامکِ «اشتراکت فعال شد». دو متغیر: Name و Date",
+    placeholder: "مثلاً ۱۲۳۴۵۷",
+  },
+  "sms.template_plus_renewed": {
+    envVar: "SMS_TEMPLATE_PLUS_RENEWED",
+    group: "notify",
+    label: "قالب پیامکِ تمدید اشتراک",
+    description:
+      "شناسهٔ قالبِ پیامکِ «اشتراکت تمدید شد». دو متغیر: Name و Date. اگر قالبِ جداگانه‌ای نساخته‌اید، می‌توانید همان شناسهٔ فعال‌سازی را بگذارید.",
+    placeholder: "مثلاً ۱۲۳۴۵۸",
+  },
+  "sms.template_plus_expiring": {
+    envVar: "SMS_TEMPLATE_PLUS_EXPIRING",
+    group: "notify",
+    label: "قالب پیامکِ نزدیک پایان",
+    description: "شناسهٔ قالبِ یادآوریِ تمدید. دو متغیر: Name و Days",
+    placeholder: "مثلاً ۱۲۳۴۵۹",
+  },
+  "sms.template_plus_expired": {
+    envVar: "SMS_TEMPLATE_PLUS_EXPIRED",
+    group: "notify",
+    label: "قالب پیامکِ پایان اشتراک",
+    description: "شناسهٔ قالبِ پیامکِ «اشتراکت تمام شد». یک متغیر: Name",
+    placeholder: "مثلاً ۱۲۳۴۶۰",
+  },
+
+  // ── صفحهٔ اصلی ───────────────────────────────────────────────────────────
+  // بخش حامیان از همین‌جا روشن و خاموش می‌شود و نه با تغییر کد. تا وقتی
+  // خاموش است، هیچ کوئری‌ای هم برای خواندن حامیان زده نمی‌شود.
+  "home.supporters_enabled": {
+    envVar: "HOME_SUPPORTERS_ENABLED",
+    group: "home",
+    label: "نمایش بخش حامیان",
+    description:
+      "وقتی روشن باشد، بخش «حامیان» در صفحهٔ اصلی دیده می‌شود. تا وقتی هیچ حامیِ قابلِ نمایشی ثبت نشده، این بخش خودبه‌خود رندر نمی‌شود — پس روشن بودنش هیچ‌وقت یک بخشِ خالی نمی‌سازد.",
+    options: [
+      { value: "on", label: "روشن" },
+      { value: "off", label: "خاموش (نمایش داده نمی‌شود)" },
+    ],
+  },
+  "home.supporters_title": {
+    envVar: "HOME_SUPPORTERS_TITLE",
+    group: "home",
+    label: "عنوان بخش حامیان",
+    description: "تیتری که بالای فهرست حامیان می‌نشیند.",
+    placeholder: "با سپاس از حامیان سروا",
+  },
+  "home.supporters_subtitle": {
+    envVar: "HOME_SUPPORTERS_SUBTITLE",
+    group: "home",
+    label: "زیرعنوان بخش حامیان",
+    description: "یک جملهٔ کوتاه زیر تیتر. خالی بگذارید تا نمایش داده نشود.",
+    placeholder: "سروا رایگان است و با حمایت شما رایگان می‌ماند.",
+  },
+  "home.supporters_cta_url": {
+    envVar: "HOME_SUPPORTERS_CTA_URL",
+    group: "home",
+    label: "آدرس دکمهٔ حمایت",
+    description:
+      "لینکی که دکمهٔ «حمایت می‌کنم» به آن می‌رود — درگاه پرداخت، صفحهٔ توضیح، هرچه. خالی بگذارید تا دکمه‌ای نباشد.",
+    placeholder: "https://…",
+  },
+  "home.supporters_cta_label": {
+    envVar: "HOME_SUPPORTERS_CTA_LABEL",
+    group: "home",
+    label: "متن دکمهٔ حمایت",
+    description: "فقط وقتی آدرس بالا پر باشد معنی دارد.",
+    placeholder: "حمایت می‌کنم",
+  },
+  // ── سروا پلاس ────────────────────────────────────────────────────────────
+  // ⚠️ کلیدِ اول، همان «یک دکمه» است که کلِ پولی‌بودنِ سایت را روشن و خاموش
+  // می‌کند. معنیِ دقیقِ خاموش بودن در lib/plus/config.ts نوشته شده و مهم است:
+  // خاموش‌کردن، دسترسیِ کسی را نمی‌گیرد — فروش را می‌بندد و قفل‌ها را باز
+  // می‌کند. یعنی اگر روزی چیزی خراب شد، مالک با یک کلیک سایت را به حالتِ
+  // «همه‌چیز رایگان» برمی‌گرداند بدون اینکه یک ردیف داده از بین برود.
+  "plus.enabled": {
+    envVar: "PLUS_ENABLED",
+    group: "plus",
+    label: "فروش و قفل‌های سروا پلاس",
+    description:
+      "وقتی خاموش باشد، سایت دقیقاً مثل قبل از پولی‌شدن کار می‌کند: هیچ صفحهٔ خریدی دیده نمی‌شود، هیچ قابلیتی قفل نیست و نشانِ پلاس در هدر نمی‌آید. اشتراک‌های ثبت‌شده پاک نمی‌شوند و با روشن‌کردن دوباره، همان‌طور که بودند برمی‌گردند. ⚠️ اثرِ این کلید تا حدود یک دقیقه طول می‌کشد تا در همهٔ صفحه‌ها دیده شود (تنظیمات یک کش کوتاه دارند)؛ اگر بلافاصله بعد از تغییر، صفحه‌ای هنوز حالت قبل را نشان داد، یک دقیقه بعد دوباره ببینید.",
+    options: [
+      { value: "on", label: "روشن (پلاس فعال است)" },
+      { value: "off", label: "خاموش (همه‌چیز رایگان)" },
+    ],
+  },
+  "plus.expiring_soon_days": {
+    envVar: "PLUS_EXPIRING_SOON_DAYS",
+    group: "plus",
+    label: "هشدارِ «نزدیک پایان» از چند روز مانده",
+    description:
+      "چند روز مانده به پایانِ اشتراک، به کاربر یادآوری آرام نشان داده شود. عددی بین ۱ تا ۳۰. خالی یعنی ۷ روز.",
+    placeholder: "۷",
+  },
+  "plus.payment_provider": {
+    envVar: "PLUS_PAYMENT_PROVIDER",
+    group: "plus",
+    label: "درگاه پرداخت",
+    description:
+      "خریدهای تازه با این درگاه انجام می‌شوند. پرداخت‌های نیمه‌کاره با همان درگاهی تأیید می‌شوند که با آن شروع شده‌اند؛ پس بعد از تغییر درگاه، تا یک روز کلید درگاه قبلی را پاک نکنید. «آزمایشی» پول جابه‌جا نمی‌کند و روی سرور اصلی فقط برای مدیر کار می‌کند.",
+    options: [
+      { value: "test", label: "آزمایشی (بدون پرداخت واقعی)" },
+      { value: "aqayepardakht", label: "آقای پرداخت" },
+    ],
+  },
+  "plus.aqayepardakht_pin": {
+    envVar: "AQAYEPARDAKHT_PIN",
+    group: "plus",
+    label: "پین درگاه آقای پرداخت",
+    description:
+      "از پنل آقای پرداخت ← درگاه پرداخت. «sandbox» یعنی حالت تست خود آقای پرداخت (بدون پول واقعی).",
+    secret: true,
+    placeholder: "پین درگاه",
+  },
+  "plus.purchase_terms": {
+    envVar: "PLUS_PURCHASE_TERMS",
+    group: "plus",
+    label: "خلاصهٔ شرایط خرید",
+    description:
+      "یک تا سه جمله که پیش از دکمهٔ پرداخت نشان داده می‌شود (مثلاً دربارهٔ مدت، تمدید و بازپرداخت). ⚠️ سروا متنِ حقوقی برای شما نمی‌نویسد؛ تا وقتی این خالی باشد، صفحهٔ پرداخت صریحاً می‌گوید شرایطی ثبت نشده است.",
+    placeholder: "اشتراک پیش‌پرداخت است و تمدید خودکار ندارد.",
+  },
+  "plus.pilot_grant_enabled": {
+    envVar: "PLUS_PILOT_GRANT_ENABLED",
+    group: "plus",
+    label: "مسیر پایلوت (فعال‌سازی بدون پرداخت)",
+    description:
+      "وقتی روشن باشد، مدیر می‌تواند یک سفارشِ در انتظار پرداخت را بدون درگاه، به‌عنوان «دسترسی آزمایشی» فعال کند. برای دورهٔ پایلوت است؛ پیش از فروش عمومی خاموشش کنید.",
+    options: [
+      { value: "off", label: "خاموش" },
+      { value: "on", label: "روشن (فقط برای پایلوت)" },
+    ],
+  },
+
+  // ── سئو و موتورهای پاسخ‌گو ─────────────────────────────────────────────
+  // ⚠️ این‌ها در صفحهٔ «سئو» پنل ویرایش می‌شوند و نه در صفحهٔ تنظیمات؛
+  // آنجا کنارِ توضیح و آزمونِ هرکدام‌اند. جزئیات در lib/seo/settings.ts.
+  "seo.same_as": {
+    envVar: "SEO_SAME_AS",
+    group: "seo",
+    label: "صفحه‌های رسمیِ سروا در شبکه‌های اجتماعی",
+    description:
+      "هر نشانی در یک خط (اینستاگرام، تلگرام، آپارات، یوتیوب، ایتا، بله، لینکدین…). فقط صفحه‌هایی که رسماً مالِ سرواست، نه حسابِ شخصی. گوگل و مدل‌های هوش مصنوعی از همین فهرست می‌فهمند این صفحه‌ها و سایت یک برندند.",
+    placeholder: "https://t.me/sarvaedu",
+  },
+  "seo.contact_email": {
+    envVar: "SEO_CONTACT_EMAIL",
+    group: "seo",
+    label: "ایمیلِ تماس با سروا",
+    description: "ایمیلی که در مشخصاتِ سازمانیِ سروا برای گوگل اعلام می‌شود.",
+    placeholder: "info@sarvaedu.ir",
+  },
+  "seo.brand_summary": {
+    envVar: "SEO_BRAND_SUMMARY",
+    group: "seo",
+    label: "معرفیِ سروا برای هوش مصنوعی",
+    description:
+      "یک تا سه جمله که در فایلِ llms.txt می‌نشیند — همان توصیفی که دوست دارید ChatGPT و Gemini از سروا بدهند. خالی بگذارید تا متنِ پیش‌فرض بیاید.",
+  },
+  "seo.ai_crawlers": {
+    envVar: "SEO_AI_CRAWLERS",
+    group: "seo",
+    label: "دسترسیِ هوش مصنوعی به سروا",
+    description:
+      "تعیین می‌کند ربات‌های ChatGPT، Claude، Gemini، Perplexity و مانندشان سروا را بخوانند یا نه. برای دیده شدن در پاسخ‌های هوش مصنوعی «همه» بهترین است.",
+    options: [
+      { value: "all", label: "همه مجازند (پیشنهادی — بیشترین دیده‌شدن)" },
+      { value: "search-only", label: "فقط جست‌وجو و پاسخ؛ آموزشِ مدل ممنوع" },
+      { value: "none", label: "هیچ ربات هوش مصنوعی‌ای مجاز نیست" },
+    ],
+  },
+  "seo.verify_bing": {
+    envVar: "SEO_VERIFY_BING",
+    group: "seo",
+    label: "کد تأیید Bing Webmaster",
+    description:
+      "فقط اگر Bing کدِ متا خواست (msvalidate.01). راهِ ساده‌تر: در Bing Webmaster گزینهٔ «Import from Google Search Console» را بزنید؛ آن‌وقت کد لازم نیست.",
+    placeholder: "1234567890ABCDEF1234567890ABCDEF",
+  },
+  "seo.verify_yandex": {
+    envVar: "SEO_VERIFY_YANDEX",
+    group: "seo",
+    label: "کد تأیید Yandex Webmaster",
+    description: "مقدارِ content در تگِ yandex-verification. اختیاری است.",
+    placeholder: "a1b2c3d4e5f6a7b8",
+  },
+  "seo.indexnow_key": {
+    envVar: "SEO_INDEXNOW_KEY",
+    group: "seo",
+    label: "کلید IndexNow",
+    description: "خودِ سایت می‌سازد؛ در /indexnow-key.txt منتشر می‌شود.",
+    hidden: true,
+  },
+  "seo.state": {
+    envVar: "SEO_STATE",
+    group: "seo",
+    label: "وضعیتِ چک‌لیستِ سئو",
+    description: "خودِ پنل می‌نویسد (JSON).",
+    hidden: true,
+  },
+
+  // ── خبر برای مدیر ─────────────────────────────────────────────────────────
+  // ⚠️ همه پیش‌فرضِ «روشن» دارند: بدونِ هیچ تنظیمی، هر مدیری که ایمیل دارد
+  // خبرها را می‌گیرد. چراییِ هر رویداد و سقفِ ساعتی‌اش در
+  // `lib/notify/admin-alert-events.ts`.
+  "alerts.enabled": {
+    defaultValue: "on",
+    envVar: "ALERTS_ENABLED",
+    group: "alerts",
+    label: "ایمیلِ خبر برای مدیر",
+    description:
+      "کلیدِ سراسری. وقتی خاموش باشد هیچ‌کدام از خبرهای پایین فرستاده نمی‌شود. ایمیل‌ها بعد از پاسخ به کاربر فرستاده می‌شوند، پس ثبت‌نام و خرید هرگز پشتِ آن‌ها منتظر نمی‌مانند.",
+    options: [
+      { value: "on", label: "روشن" },
+      { value: "off", label: "خاموش" },
+    ],
+  },
+  "alerts.recipients": {
+    envVar: "ALERTS_RECIPIENTS",
+    group: "alerts",
+    label: "گیرنده‌ها",
+    description:
+      "یک یا چند ایمیل، با ویرگول یا در خط‌های جدا (حداکثر ۱۰). خالی بگذارید تا خبرها به ایمیلِ همهٔ مدیرانِ سایت برود.",
+    placeholder: "you@example.com",
+  },
+  "alerts.signup": {
+    defaultValue: "on",
+    envVar: "ALERTS_SIGNUP",
+    group: "alerts",
+    label: "ثبت‌نامِ کاربرِ تازه",
+    description: "برای هر حسابِ تازه (ایمیل، موبایل یا گوگل). حداکثر ۳۰ ایمیل در ساعت.",
+    options: [
+      { value: "on", label: "بفرست" },
+      { value: "off", label: "نفرست" },
+    ],
+  },
+  "alerts.purchase": {
+    defaultValue: "on",
+    envVar: "ALERTS_PURCHASE",
+    group: "alerts",
+    label: "خریدِ سروا پلاس",
+    description: "بعد از تأییدِ هر پرداخت — با مبلغ، پلن، خریدار و کدِ پیگیری.",
+    options: [
+      { value: "on", label: "بفرست" },
+      { value: "off", label: "نفرست" },
+    ],
+  },
+  "alerts.teacher_request": {
+    defaultValue: "on",
+    envVar: "ALERTS_TEACHER_REQUEST",
+    group: "alerts",
+    label: "درخواستِ دبیری",
+    description: "وقتی کسی مدارکِ دبیری‌اش را می‌فرستد یا اصلاح می‌کند. کد ملی و حکم در ایمیل نمی‌آیند؛ در پنل ببینید.",
+    options: [
+      { value: "on", label: "بفرست" },
+      { value: "off", label: "نفرست" },
+    ],
+  },
+  "alerts.content_report": {
+    defaultValue: "on",
+    envVar: "ALERTS_CONTENT_REPORT",
+    group: "alerts",
+    label: "گزارشِ ایرادِ محتوا",
+    description: "وقتی کاربری می‌گوید سؤال یا محتوایی ایراد دارد.",
+    options: [
+      { value: "on", label: "بفرست" },
+      { value: "off", label: "نفرست" },
+    ],
+  },
+  "alerts.ticket": {
+    defaultValue: "on",
+    envVar: "ALERTS_TICKET",
+    group: "alerts",
+    label: "تیکتِ پشتیبانی",
+    description: "تیکتِ تازه، و پاسخِ تازهٔ کاربر در تیکتِ باز.",
+    options: [
+      { value: "on", label: "بفرست" },
+      { value: "off", label: "نفرست" },
+    ],
+  },
+  "alerts.club_post": {
+    defaultValue: "on",
+    envVar: "ALERTS_CLUB_POST",
+    group: "alerts",
+    label: "سرودهٔ تازه در کلاب",
+    description: "وقتی سروده‌ای برای بررسی فرستاده می‌شود.",
+    options: [
+      { value: "on", label: "بفرست" },
+      { value: "off", label: "نفرست" },
+    ],
+  },
+  "alerts.server_error": {
+    defaultValue: "on",
+    envVar: "ALERTS_SERVER_ERROR",
+    group: "alerts",
+    label: "خطای تازه روی سرور",
+    description: "فقط اولین بارِ هر خطا؛ تکرارِ همان خطا ایمیلِ دوباره نمی‌سازد. حداکثر ۱۰ در ساعت.",
+    options: [
+      { value: "on", label: "بفرست" },
+      { value: "off", label: "نفرست" },
+    ],
+  },
+};
+
+
+// تنظیمات به‌ندرت عوض می‌شوند ولی در هر ارسال ایمیل خوانده می‌شوند. کش کوتاه
+// یعنی یک کوئری اضافه به ازای هر ایمیل نداریم، و چون در set() باطل می‌شود،
+// تغییر از پنل بلافاصله دیده می‌شود.
+const cache = new Map<string, { value: string | null; expiresAt: number }>();
+const CACHE_TTL_MS = 60_000;
+
+/** مقدار تنظیم، با در نظر گرفتن ترتیب بالا. */
+export async function getSetting(key: SettingKey): Promise<string | null> {
+  const cached = cache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+  // ⚠️ `key` در MySQL کلمهٔ کلیدی است و بدون backtick خطای نحوی می‌دهد.
+  // (در PostgreSQL محفوظ نبود و بی‌مشکل کار می‌کرد.)
+  const row = await queryOne<{ value: unknown }>(
+    "select value from app_settings where `key` = ?",
+    [key],
+  );
+
+  // value از نوع JSON است، پس رشته‌ها به‌صورت رشتهٔ JS برمی‌گردند. هر چیز
+  // دیگری (عدد، شیء) یعنی کسی دستی ردیف را خراب کرده — نادیده گرفته می‌شود تا
+  // یک ردیفِ بد کل ارسال ایمیل را نشکند.
+  const fromDb = typeof row?.value === "string" && row.value.trim() ? row.value.trim() : null;
+  const value = fromDb ?? process.env[SETTING_SPECS[key].envVar]?.trim() ?? null;
+
+  cache.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+  return value;
+}
+
+/** مثل getSetting ولی اگر هیچ‌جا مقداری نبود خطا می‌دهد. */
+export async function requireSetting(key: SettingKey): Promise<string> {
+  const value = await getSetting(key);
+  if (!value) {
+    const spec = SETTING_SPECS[key];
+    throw new Error(
+      `تنظیم «${spec.label}» مقدار ندارد — یا از پنل مدیریت ست کنید یا ${spec.envVar} را در .env بگذارید.`,
+    );
+  }
+  return value;
+}
+
+/** ذخیرهٔ مقدار از پنل مدیریت. */
+export async function setSetting(
+  key: SettingKey,
+  value: string,
+  updatedBy: string,
+): Promise<void> {
+  // ⚠️ `to_jsonb($2::text)` یعنی «این رشته را به یک مقدارِ JSON از نوع رشته
+  // تبدیل کن» — یعنی 'abc' می‌شود "abc" و نه abc. معادلش در MySQL
+  // CAST(? AS JSON) *نیست*: آن، رشتهٔ ورودی را به‌عنوان *متنِ JSON* تفسیر
+  // می‌کند و روی مقداری مثل `smtp.example.com` خطا می‌دهد.
+  //
+  // JSON_QUOTE دقیقاً همان کارِ to_jsonb روی متن را می‌کند: نقل‌قول می‌گذارد
+  // و کاراکترهای ویژه را escape می‌کند.
+  //
+  // ⚠️ ON DUPLICATE KEY UPDATE و نه REPLACE: دومی ردیف را حذف و دوباره درج
+  // می‌کند، یعنی created_at و هر ستونِ ننوشته را از دست می‌دهد و تریگرهای
+  // حذف را هم به‌راه می‌اندازد.
+  //
+  // VALUES(col) در MySQL 8 منسوخ است؛ الگوی جدید با alias است.
+  await execute(
+    "insert into app_settings (`key`, value, updated_by)\n" +
+      "     values (?, json_quote(?), ?)\n" +
+      "     on duplicate key update\n" +
+      "       value = values(value), updated_at = now(6), updated_by = values(updated_by)",
+    [key, value, updatedBy],
+  );
+  cache.delete(key);
+}
+
+/** حذف مقدارِ دیتابیس، یعنی برگشت به مقدار env. */
+export async function clearSetting(key: SettingKey): Promise<void> {
+  await execute("delete from app_settings where `key` = ?", [key]);
+  cache.delete(key);
+}
+
+export type ListedSetting = {
+  key: SettingKey;
+  label: string;
+  description: string;
+  group: SettingSpec["group"];
+  secret: boolean;
+  options: { value: string; label: string }[] | null;
+  placeholder: string | null;
+  defaultValue: string | null;
+  /** برای رازها همیشه null است — مقدار واقعی هرگز از سرور بیرون نمی‌رود. */
+  value: string | null;
+  /** فقط برای رازها معنی دارد: «مقداری ثبت شده یا نه». */
+  hasValue: boolean;
+  source: "db" | "env" | "none";
+};
+
+/** همهٔ تنظیمات با منبعشان — برای نمایش در پنل. */
+export async function listSettings(): Promise<ListedSetting[]> {
+  // ⚠️ jsonb_object_agg معادلِ مستقیم ندارد. JSON_OBJECTAGG هست، ولی روی
+  // جدولِ خالی مقدار NULL می‌دهد (مثل خودِ jsonb_object_agg) و اگر کلید
+  // تکراری باشد بی‌صدا آخری را نگه می‌دارد.
+  //
+  // اینجا اصلاً لازم نیست: تعداد تنظیمات انگشت‌شمار است و ساختنِ شیء در
+  // TypeScript هم ساده‌تر است و هم از تلهٔ کلیدِ تکراری دور. ضمناً
+  // `key` باید backtick بخورد.
+  const rows = await query<{ key: string; value: unknown }>(
+    "select `key`, value from app_settings",
+  );
+  const stored: Record<string, unknown> = {};
+  for (const r of rows) stored[r.key] = r.value;
+
+  // ⚠️ `hidden` ها مقدارهایی‌اند که خودِ سایت می‌نویسد؛ فرمِ تنظیمات جای
+  // تایپ کردنشان نیست.
+  const visible = (Object.keys(SETTING_SPECS) as SettingKey[]).filter(
+    (key) => !SETTING_SPECS[key].hidden,
+  );
+
+  return visible.map((key) => {
+    const spec = SETTING_SPECS[key];
+    const dbValue = typeof stored[key] === "string" && stored[key] ? (stored[key] as string) : null;
+    const envValue = process.env[spec.envVar]?.trim() || null;
+    const resolved = dbValue ?? envValue;
+
+    return {
+      key,
+      label: spec.label,
+      description: spec.description,
+      group: spec.group,
+      secret: spec.secret ?? false,
+      options: spec.options ?? null,
+      placeholder: spec.placeholder ?? null,
+      defaultValue: spec.defaultValue ?? null,
+      // ⚠️ اینجاست که راز از پاسخ حذف می‌شود. اگر روزی کلیدی secret علامت
+      // بخورد ولی این شرط را رد کند، مقدارش مستقیم در HTML صفحهٔ تنظیمات
+      // می‌نشیند.
+      value: spec.secret ? null : resolved,
+      hasValue: Boolean(resolved),
+      source: dbValue ? "db" : envValue ? "env" : "none",
+    };
+  });
+}

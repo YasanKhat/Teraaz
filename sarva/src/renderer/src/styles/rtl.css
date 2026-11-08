@@ -1,0 +1,53 @@
+/* تنظیم‌هایی که مخصوصِ پوستهٔ دسکتاپ است و در globals.cssِ سروا نبود.
+   هرچه به طراحی مربوط است همان‌جا مانده؛ اینجا فقط چیزهایی است که یک
+   پنجرهٔ برنامه به آن‌ها نیاز دارد و یک صفحهٔ وب نه. */
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-vazirmatn);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* نوارِ پیمایش — در یک برنامهٔ دسکتاپ بهتر است باریک و هم‌رنگِ تم باشد. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--color-primary) 35%, transparent);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, var(--color-primary) 55%, transparent);
+}
+
+/* کاربر نباید بتواند متنِ شعر را با درگ ناخواسته انتخاب کند و همزمان
+   روی دکمه‌های بازی کلیک از دست بدهد. */
+[role='button'],
+button {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* برنامه تمام‌صفحه است؛ کشیدنِ فایل روی پنجره نباید صفحه را عوض کند. */
+body {
+  overscroll-behavior: none;
+}
+
+/* نشانگرِ بارگذاریِ سراسریِ سایت (nprogress) در بالاترین لایه می‌ماند. */
+#nprogress {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  z-index: 9999;
+  pointer-events: none;
+}

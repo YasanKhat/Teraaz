@@ -1,0 +1,517 @@
+"use client";
+
+import { useEffect, useRef, useState, useTransition } from "react";
+import { Link } from "@/app/router";
+import {
+  adminDeleteUser,
+  adminListUsers,
+  adminSetUserBanned,
+  adminSetUserRole,
+  type AdminUserRow,
+} from "@/lib/admin/user-actions";
+import { USER_PAGE_SIZE } from "@/lib/admin/log-constants";
+import { useAdminToast } from "@/components/admin/AdminToast";
+import { adminRevokeTeacher } from "@/lib/admin/teacher-actions";
+import { adminExportUsersCsv } from "@/lib/admin/user-control-actions";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import RevokeTeacherDialog from "@/components/admin/RevokeTeacherDialog";
+import type { UserRole } from "@/lib/auth/types";
+
+function formatDate(iso: string | undefined) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("fa-IR", { year: "numeric", month: "short", day: "numeric" });
+}
+
+type RoleFilter = "" | UserRole;
+
+/** نشانیِ تماسِ قابلِ نمایش — کاربرِ فقط-موبایلی ایمیل ندارد. */
+function contactOf(u: AdminUserRow): string | undefined {
+  return u.email || (u.phone ? u.phone.replace(/^98/, "0") : undefined);
+}
+
+/** ⚠️ یک `Record` روی اتحادِ بسته و نه یک شرطِ دوحالتی: با آمدنِ نقشِ
+ *  `teacher`، شرطِ قبلی (`role === "admin" ? … : "دانش‌آموز"`) هر دبیری را
+ *  «دانش‌آموز» نشان می‌داد و هیچ خطایی هم نمی‌داد. این شکل، نقشِ چهارم را
+ *  خطای کامپایل می‌کند. */
+const ROLE_TEXT: Record<UserRole, string> = {
+  student: "دانش‌آموز",
+  teacher: "دبیر",
+  admin: "مدیر",
+};
+type StatusFilter = "" | "active" | "banned" | "unverified";
+
+/** کاری که منتظر تأیید است. */
+type PendingAction =
+  | { kind: "ban"; user: AdminUserRow }
+  | { kind: "unban"; user: AdminUserRow }
+  | { kind: "delete"; user: AdminUserRow }
+  | { kind: "promote"; user: AdminUserRow }
+  | { kind: "demote"; user: AdminUserRow };
+
+export default function UserAdminPanel({
+  initialUsers,
+  initialTotal,
+}: {
+  initialUsers: AdminUserRow[];
+  initialTotal: number;
+}) {
+  const toast = useAdminToast();
+  const [users, setUsers] = useState(initialUsers);
+  const [total, setTotal] = useState(initialTotal);
+  const [query, setQuery] = useState("");
+  const [role, setRole] = useState<RoleFilter>("");
+  const [status, setStatus] = useState<StatusFilter>("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<PendingAction | null>(null);
+  /* ⚠️ جدا از `confirming` و نه یک `kind` تازه در آن: لغوِ دبیری یک متنِ
+     آزاد لازم دارد و `ConfirmDialog` فقط تأییدِ ساده یا تایپِ یک عبارتِ
+     مشخص را می‌شناسد. قاطی کردنشان یعنی آن دیالوگِ مشترک باید حالتِ
+     چهارمی بگیرد که هیچ‌جای دیگری استفاده نمی‌شود. */
+  const [revoking, setRevoking] = useState<AdminUserRow | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const load = (
+    next: { query?: string; role?: RoleFilter; status?: StatusFilter },
+    append = false,
+  ) => {
+    startTransition(async () => {
+      const result = await adminListUsers({
+        query: (next.query ?? query) || undefined,
+        role: ((next.role ?? role) || undefined) as UserRole | undefined,
+        status: ((next.status ?? status) || undefined) as StatusFilter extends "" ? never : "active" | "banned" | "unverified" | undefined,
+        limit: USER_PAGE_SIZE,
+        offset: append ? users.length : 0,
+      });
+      setTotal(result.total);
+      setUsers((prev) => (append ? [...prev, ...result.users] : result.users));
+    });
+  };
+
+  // جست‌وجو با تأخیر: بدون آن، هر حرفِ تایپ‌شده یک کوئری می‌فرستد و پاسخ‌ها
+  // می‌توانند بی‌ترتیب برسند — یعنی نتیجهٔ «عل» بعد از «علی» بنشیند.
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (debounce.current) clearTimeout(debounce.current); }, []);
+
+  const onQueryChange = (value: string) => {
+    setQuery(value);
+    if (debounce.current) clearTimeout(debounce.current);
+    debounce.current = setTimeout(() => load({ query: value }), 300);
+  };
+
+  /**
+   * لغوِ دسترسیِ دبیری.
+   *
+   * ⚠️ جدا از `run` و نه یک شاخهٔ تازه در آن: تنها اقدامِ این صفحه است که
+   * یک ورودیِ متنی می‌گیرد، و چپاندنش در آن سوییچ یعنی همهٔ شاخه‌های دیگر
+   * باید یک پارامترِ بی‌ربط را حمل کنند.
+   *
+   * ⚠️ دیالوگ **پس از موفقیت** بسته می‌شود و نه قبلش: اگر زودتر بسته
+   * می‌شد، خطای سرور روی یک صفحهٔ بی‌بافت ظاهر می‌شد و متنی که مدیر تایپ
+   * کرده بود از بین می‌رفت.
+   */
+  async function revoke(user: AdminUserRow, reason: string) {
+    setBusyId(user.id);
+    try {
+      const result = await adminRevokeTeacher(user.id, reason);
+      if (!result.ok) return toast(result.errors.join("\n"));
+
+      setRevoking(null);
+      /* نقش در همان لحظه در فهرست به‌روز می‌شود تا دکمه‌ها با واقعیت
+         بخوانند؛ `revalidatePath` سمتِ سرور هم زده شده. */
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, role: "student" } : u)));
+      toast("دسترسی دبیری لغو شد.", "success");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function run(action: PendingAction) {
+    const { user } = action;
+    setConfirming(null);
+    setBusyId(user.id);
+
+    try {
+      if (action.kind === "delete") {
+        const result = await adminDeleteUser(user.id);
+        if (!result.ok) return toast(result.errors.join("\n"));
+        setUsers((prev) => prev.filter((u) => u.id !== user.id));
+        setTotal((t) => Math.max(0, t - 1));
+        toast("کاربر حذف شد.", "success");
+        return;
+      }
+
+      if (action.kind === "ban" || action.kind === "unban") {
+        const banning = action.kind === "ban";
+        const result = await adminSetUserBanned(user.id, banning);
+        if (!result.ok) return toast(result.errors.join("\n"));
+        setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, isBanned: banning } : u)));
+        toast(banning ? "کاربر مسدود شد." : "مسدودی برداشته شد.", "success");
+        return;
+      }
+
+      const nextRole = action.kind === "promote" ? "admin" : "student";
+      const result = await adminSetUserRole(user.id, nextRole);
+      if (!result.ok) return toast(result.errors.join("\n"));
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, role: nextRole } : u)));
+      toast(nextRole === "admin" ? "به مدیر ارتقا یافت." : "به دانش‌آموز تغییر کرد.", "success");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const hasFilters = Boolean(query || role || status);
+
+  /** خروجیِ CSV با همین فیلترها. فایل در مرورگر ساخته می‌شود؛ سرور فقط متن را می‌دهد. */
+  const [exporting, setExporting] = useState(false);
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      const result = await adminExportUsersCsv({
+        query: query || undefined,
+        role: role || undefined,
+        status: status || undefined,
+      });
+      if (!result.ok) return toast(result.errors.join("\n"));
+      const blob = new Blob([result.data.csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sarva-users-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast(
+        result.data.truncated
+          ? `فقط ${result.data.count.toLocaleString("fa-IR")} کاربرِ اول در فایل آمد؛ با فیلتر محدودتر کنید.`
+          : `${result.data.count.toLocaleString("fa-IR")} کاربر در فایل آمد.`,
+        result.data.truncated ? "error" : "success",
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  return (
+    <div dir="rtl" className="flex flex-col gap-5 p-4 xs:p-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold">مدیریت کاربران</h1>
+          <p className="text-sm text-muted-foreground">
+            {hasFilters
+              ? `${total.toLocaleString("fa-IR")} کاربر با این فیلترها`
+              : `${total.toLocaleString("fa-IR")} کاربر ثبت‌شده`}
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={exporting || total === 0}
+          onClick={exportCsv}
+          className="flex min-h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm transition-colors hover:bg-muted/50 disabled:opacity-50"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-4" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14" />
+          </svg>
+          {exporting ? "در حال ساخت فایل…" : hasFilters ? "خروجی CSV (همین فیلترها)" : "خروجی CSV"}
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <input
+          dir="rtl"
+          value={query}
+          onChange={(e) => onQueryChange(e.target.value)}
+          placeholder="جست‌وجو با ایمیل، نام یا موبایل…"
+          className="min-h-11 w-full max-w-xs flex-1 rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
+        />
+        <select
+          value={role}
+          onChange={(e) => {
+            setRole(e.target.value as RoleFilter);
+            load({ role: e.target.value as RoleFilter });
+          }}
+          className="min-h-11 rounded-xl border border-border bg-card px-3 text-sm outline-none focus:border-primary"
+        >
+          <option value="">همهٔ نقش‌ها</option>
+          <option value="student">دانش‌آموز</option>
+          <option value="teacher">دبیر</option>
+          <option value="admin">مدیر</option>
+        </select>
+        <select
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value as StatusFilter);
+            load({ status: e.target.value as StatusFilter });
+          }}
+          className="min-h-11 rounded-xl border border-border bg-card px-3 text-sm outline-none focus:border-primary"
+        >
+          <option value="">همهٔ وضعیت‌ها</option>
+          <option value="active">فعال</option>
+          <option value="unverified">ایمیل تأییدنشده</option>
+          <option value="banned">مسدود</option>
+        </select>
+      </div>
+
+      {/* روی دسکتاپ جدول، روی موبایل کارت.
+          جدول قبلی min-w-[720px] داشت و روی موبایل فقط افقی اسکرول می‌شد —
+          کار می‌کرد ولی خواندنش عملاً ممکن نبود. */}
+      <div className="hidden overflow-hidden rounded-2xl border border-border bg-card md:block">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/40 text-right text-xs text-muted-foreground">
+              <th className="px-4 py-3 font-medium">کاربر</th>
+              <th className="px-4 py-3 font-medium">نقش</th>
+              <th className="px-4 py-3 font-medium">وضعیت</th>
+              <th className="px-4 py-3 font-medium">عضویت</th>
+              <th className="px-4 py-3 font-medium">آخرین ورود</th>
+              <th className="px-4 py-3 font-medium">عملیات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u) => (
+              <tr key={u.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                <td className="px-4 py-3">
+                  <Link href={`/admin/users/${u.id}`} className="flex flex-col gap-0.5 hover:text-primary">
+                    <span className="font-medium">{u.fullName || contactOf(u) || u.id}</span>
+                    <span className="text-xs text-muted-foreground" dir="ltr">
+                      {contactOf(u)}
+                    </span>
+                  </Link>
+                </td>
+                <td className="px-4 py-3">
+                  <RoleBadge role={u.role} />
+                </td>
+                <td className="px-4 py-3">
+                  <StatusBadges user={u} />
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
+                  {formatDate(u.createdAt)}
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
+                  {formatDate(u.lastSignInAt)}
+                </td>
+                <td className="px-4 py-3">
+                  <RowActions user={u} busy={busyId === u.id} onAsk={setConfirming} onRevoke={setRevoking} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {users.length === 0 && !pending && (
+          <p className="p-8 text-center text-sm text-muted-foreground">کاربری یافت نشد.</p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2 md:hidden">
+        {users.map((u) => (
+          <div key={u.id} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+            <Link href={`/admin/users/${u.id}`} className="flex flex-col gap-0.5">
+              <span className="font-medium">{u.fullName || contactOf(u) || u.id}</span>
+              <span className="text-xs text-muted-foreground" dir="ltr">
+                {contactOf(u)}
+              </span>
+            </Link>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <RoleBadge role={u.role} />
+              <StatusBadges user={u} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              عضویت {formatDate(u.createdAt)} · آخرین ورود {formatDate(u.lastSignInAt)}
+            </p>
+            <RowActions user={u} busy={busyId === u.id} onAsk={setConfirming} onRevoke={setRevoking} />
+          </div>
+        ))}
+        {users.length === 0 && !pending && (
+          <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            کاربری یافت نشد.
+          </p>
+        )}
+      </div>
+
+      {users.length < total && (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => load({}, true)}
+          className="min-h-11 rounded-xl border border-border bg-card text-sm text-muted-foreground disabled:opacity-60"
+        >
+          {pending
+            ? "در حال بارگذاری…"
+            : `نمایش بیشتر (${users.length.toLocaleString("fa-IR")} از ${total.toLocaleString("fa-IR")})`}
+        </button>
+      )}
+
+      <ConfirmDialog
+        open={confirming !== null}
+        tone={confirming?.kind === "unban" || confirming?.kind === "demote" ? "primary" : "danger"}
+        title={confirming ? CONFIRM_COPY[confirming.kind].title : ""}
+        body={
+          confirming
+            ? CONFIRM_COPY[confirming.kind].body(contactOf(confirming.user) || confirming.user.id)
+            : ""
+        }
+        consequence={confirming ? CONFIRM_COPY[confirming.kind].consequence : undefined}
+        confirmLabel={confirming ? CONFIRM_COPY[confirming.kind].confirmLabel : "تأیید"}
+        // حذف حساب تنها کاری در این صفحه است که هیچ راه برگشتی ندارد — تایپ
+        // کردن ایمیل یعنی مدیر حتماً نگاه کرده که دارد کدام حساب را حذف می‌کند.
+        requireTyping={confirming?.kind === "delete" ? contactOf(confirming.user) || confirming.user.id : undefined}
+        onConfirm={() => confirming && run(confirming)}
+        onCancel={() => setConfirming(null)}
+      />
+
+      {revoking && (
+        <RevokeTeacherDialog
+          who={revoking.fullName || revoking.email || revoking.id}
+          busy={busyId === revoking.id}
+          onConfirm={(reason) => revoke(revoking, reason)}
+          onCancel={() => setRevoking(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+const CONFIRM_COPY: Record<
+  PendingAction["kind"],
+  {
+    title: string;
+    body: (who: string) => string;
+    consequence?: string;
+    confirmLabel: string;
+  }
+> = {
+  ban: {
+    title: "مسدود کردن کاربر",
+    body: (who) => `${who} دیگر نمی‌تواند وارد حسابش شود.`,
+    consequence: "همهٔ دستگاه‌هایی که با این حساب وارد شده‌اند بلافاصله خارج می‌شوند.",
+    confirmLabel: "مسدود کن",
+  },
+  unban: {
+    title: "رفع مسدودی",
+    body: (who) => `${who} دوباره می‌تواند وارد حسابش شود.`,
+    confirmLabel: "رفع مسدودی",
+  },
+  delete: {
+    title: "حذف دائمی حساب",
+    body: (who) => `حساب ${who} برای همیشه حذف می‌شود.`,
+    consequence:
+      "همهٔ کارنامه‌ها، سروده‌ها، دیدگاه‌ها و نشان‌شده‌های این کاربر هم پاک می‌شوند. این کار هیچ راه برگشتی ندارد.",
+    confirmLabel: "برای همیشه حذف کن",
+  },
+  promote: {
+    title: "ارتقا به مدیر",
+    body: (who) => `${who} به مدیر تبدیل می‌شود.`,
+    consequence:
+      "مدیر به همهٔ بخش‌های پنل دسترسی کامل دارد: می‌تواند محتوا را حذف کند، کاربران را مسدود کند، و حتی مدیران دیگر را حذف کند.",
+    confirmLabel: "مدیرش کن",
+  },
+  demote: {
+    title: "برداشتن دسترسی مدیریت",
+    body: (who) => `${who} دیگر به پنل مدیریت دسترسی نخواهد داشت.`,
+    confirmLabel: "دانش‌آموزش کن",
+  },
+};
+
+function RoleBadge({ role }: { role: UserRole }) {
+  return (
+    <span
+      className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
+        role === "admin"
+          ? "bg-primary/15 text-primary"
+          : role === "teacher"
+            ? "bg-gold/15 text-gold-ink"
+            : "bg-muted text-muted-foreground"
+      }`}
+    >
+      {ROLE_TEXT[role]}
+    </span>
+  );
+}
+
+function StatusBadges({ user }: { user: AdminUserRow }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {user.isBanned && (
+        <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] text-destructive">
+          مسدود
+        </span>
+      )}
+      {!user.emailConfirmed && (
+        <span className="rounded-full bg-gold/15 px-2 py-0.5 text-[10px] text-gold">
+          ایمیل تأییدنشده
+        </span>
+      )}
+      {!user.isBanned && user.emailConfirmed && (
+        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">فعال</span>
+      )}
+    </div>
+  );
+}
+
+function RowActions({
+  user,
+  busy,
+  onAsk,
+  onRevoke,
+}: {
+  user: AdminUserRow;
+  busy: boolean;
+  onAsk: (a: PendingAction) => void;
+  onRevoke: (user: AdminUserRow) => void;
+}) {
+  /* ⚠️ حلقهٔ فوکوس در پایهٔ مشترک است و نه فقط روی دکمهٔ تازه: هر چهار
+     دکمهٔ این ردیف با کیبورد قابلِ رسیدن‌اند و هیچ‌کدام نشان نمی‌دادند
+     کجا هستیم. */
+  const btn =
+    "min-h-9 rounded-lg border border-border bg-card px-2.5 text-xs disabled:opacity-60 transition-colors " +
+    "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {/* تغییر نقش دیگر یک select بی‌صدا نیست. قبلاً ارتقا به مدیر — خطرناک‌ترین
+          کار کل پنل — با یک بار انتخاب از dropdown و بدون هیچ پرسشی انجام
+          می‌شد. */}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => onAsk({ kind: user.role === "admin" ? "demote" : "promote", user })}
+        className={`${btn} ${user.role === "admin" ? "text-muted-foreground" : "text-primary hover:border-primary/50"}`}
+      >
+        {user.role === "admin" ? "برداشتن مدیریت" : "ارتقا به مدیر"}
+      </button>
+
+      {/* ⚠️ فقط برای دبیر، و عمداً جدا از «ارتقا به مدیر» و «مسدود کردن».
+      
+          پیش از این هیچ راهی برای پس گرفتنِ دبیری نبود: دکمهٔ نقش برای یک
+          دبیر «ارتقا به مدیر» می‌گفت. و قاطی کردنش با مسدودسازی هم غلط
+          بود — مسدود کردن یعنی «اصلاً وارد نشو»، این یعنی «وارد شو ولی
+          دیگر دبیر نیستی». */}
+      {user.role === "teacher" && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onRevoke(user)}
+          className={`${btn} text-destructive hover:border-destructive/50`}
+        >
+          لغو دبیری
+        </button>
+      )}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => onAsk({ kind: user.isBanned ? "unban" : "ban", user })}
+        className={`${btn} ${user.isBanned ? "text-primary" : "text-muted-foreground"}`}
+      >
+        {user.isBanned ? "رفع مسدودی" : "مسدود کردن"}
+      </button>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => onAsk({ kind: "delete", user })}
+        className={`min-h-9 rounded-lg bg-destructive/10 px-2.5 text-xs text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-60 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background`}
+      >
+        حذف
+      </button>
+    </div>
+  );
+}

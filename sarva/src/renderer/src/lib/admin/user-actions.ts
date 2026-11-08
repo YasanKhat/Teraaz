@@ -1,0 +1,433 @@
+"use server";
+
+import { query, queryOne, execute, transaction } from "@/lib/db";
+import { requireAdmin } from "@/lib/require-admin";
+import { revokeAllSessions } from "@/lib/auth/session";
+import { boolArg, enumArg, uuidArg } from "@/lib/api/action-input";
+import { recordAudit } from "@/lib/admin/audit";
+import { USER_PAGE_SIZE } from "@/lib/admin/log-constants";
+import { userSearchClause } from "@/lib/admin/user-search";
+import { removeTeacherDocumentChecked } from "@/lib/teacher/documents";
+import { documentKeyFingerprint } from "@/lib/teacher/doc-paths";
+import { logger } from "@/lib/observability";
+import type { UserRole } from "@/lib/auth/types";
+
+export type AdminUserRow = {
+  id: string;
+  email: string | undefined;
+  /** شکلِ متعارفِ `989…` — کاربرِ ثبت‌نام‌کرده با موبایل ممکن است ایمیل نداشته باشد. */
+  phone: string | undefined;
+  fullName: string | undefined;
+  role: UserRole;
+  createdAt: string;
+  lastSignInAt: string | undefined;
+  emailConfirmed: boolean;
+  isBanned: boolean;
+};
+
+export type ActionResult<T> = { ok: true; data: T } | { ok: false; errors: string[] };
+
+/** فارسیِ نقش‌ها، برای خلاصهٔ لاگ. */
+const ROLE_LABEL: Record<string, string> = {
+  student: "دانش‌آموز",
+  teacher: "دبیر",
+  admin: "مدیر",
+};
+
+export type UserListParams = {
+  /** جست‌وجو در ایمیل، نام و موبایل */
+  query?: string;
+  role?: UserRole;
+  status?: "active" | "banned" | "unverified";
+  limit?: number;
+  offset?: number;
+};
+
+/**
+ * فهرست کاربران — صفحه‌بندی و جست‌وجو، هر دو سمت سرور.
+ *
+ * ⚠️ نسخهٔ قبلی **همهٔ** کاربران را یکجا می‌کشید و جست‌وجو در مرورگر روی همان
+ * آرایه انجام می‌شد. با چند ده کاربر بی‌اشکال بود؛ با چند هزار تا یعنی یک
+ * کوئری سنگین، یک پاسخ چندمگابایتی و یک صفحه که روی موبایل باز نمی‌شود. و چون
+ * هیچ خطایی نمی‌داد، تا روزی که واقعاً کند می‌شد کسی نمی‌فهمید.
+ *
+ * جست‌وجو با ILIKE است و نه full-text: الگوی «هر جای ایمیل یا نام» چیزی است
+ * که مدیر انتظار دارد، و برای این مقیاس کاملاً کافی است.
+ *
+ * «آخرین ورود» از جدول sessions می‌آید. GoTrue ستون last_sign_in_at داشت؛
+ * معادلش اینجا تازه‌ترین سشنِ ساخته‌شدهٔ کاربر است، که همان معنی را می‌دهد.
+ */
+export async function adminListUsers(
+  params: UserListParams = {},
+): Promise<{ users: AdminUserRow[]; total: number }> {
+  await requireAdmin();
+
+  const values: unknown[] = [];
+  const conditions: string[] = [];
+
+  const search = params.query?.trim();
+  if (search) {
+    // ⚠️ در MySQL هر `?` یک پارامتر مصرف می‌کند.
+    //
+    // نسخهٔ پستگرسی `$n` را دو بار می‌نوشت و *یک* مقدار می‌فرستاد، چون آنجا
+    // شماره‌گذاری است. اینجا هر مقدار به تعدادِ `?` هایش فرستاده می‌شود، وگرنه شمارِ پارامترها
+    // با شمارِ `?` ها نمی‌خواند و کوئری رد می‌شود.
+    //
+    // ⚠️ و `like` به‌جای `ilike`: ILIKE اصلاً در MySQL وجود ندارد. لازم هم
+    // نیست — ستون‌های متنی این جدول collation حساس به بزرگی و کوچکی دارند
+    // ولی جست‌وجوی مدیر نباید حساس باشد، پس هر دو طرف با lower() یکدست
+    // می‌شوند. (utf8mb4_0900_ai_ci اینجا کار نمی‌کرد: ستون email از نوع
+    // citext-معادل است و ستون full_name نیست.)
+    //
+    // الگو و شاخهٔ موبایل در `userSearchClause` ساخته می‌شوند.
+    const clause = userSearchClause(search);
+    values.push(...clause.values);
+    conditions.push(clause.sql);
+  }
+
+  if (params.role) {
+    // ⚠️ فهرست شاملِ `teacher` است ولی `adminSetUserRole` پایین عمداً
+    // نیست — فیلتر کردن یک عملِ خواندنی است، ولی *دادنِ* نقشِ دبیر باید
+    // اشتراکِ دبیری را هم روشن کند و آن کار فقط از مسیرِ تأییدِ درخواست
+    // انجام می‌شود.
+    values.push(enumArg(params.role, ["student", "teacher", "admin"], "نقش نامعتبر است."));
+    conditions.push("u.role = ?");
+  }
+
+  if (params.status === "banned") conditions.push("u.is_banned");
+  else if (params.status === "active") conditions.push("not u.is_banned and u.email_verified_at is not null");
+  else if (params.status === "unverified") conditions.push("u.email_verified_at is null");
+
+  const where = conditions.length ? `where ${conditions.join(" and ")}` : "";
+
+  const limit = Math.min(Math.max(params.limit ?? USER_PAGE_SIZE, 1), 200);
+  values.push(limit);
+  values.push(Math.max(params.offset ?? 0, 0));
+
+  const rows = await query<{
+    id: string;
+    email: string | null;
+    phone: string | null;
+    full_name: string | null;
+    role: UserRole;
+    created_at: string;
+    last_sign_in_at: string | null;
+    email_verified_at: string | null;
+    is_banned: boolean;
+    total_count: number;
+  }>(
+    `select u.id, u.email, u.phone, u.full_name, u.role, u.created_at,
+            u.email_verified_at, u.is_banned,
+            (select max(s.created_at) from sessions s where s.user_id = u.id) as last_sign_in_at,
+            count(*) over () as total_count
+       from users u
+       ${where}
+      -- id به‌عنوان شکنندهٔ تساوی: بدون آن، دو کاربر با created_at یکسان
+      -- (ثبت‌نام دسته‌جمعی یک کلاس) می‌توانند در دو صفحه تکرار یا جا بیفتند.
+      order by u.created_at desc, u.id
+      limit ? offset ?`,
+    values,
+  );
+
+  return {
+    total: rows[0]?.total_count ?? 0,
+    users: rows.map((u) => ({
+      id: u.id,
+      email: u.email ?? undefined,
+      phone: u.phone ?? undefined,
+      fullName: u.full_name ?? undefined,
+      role: u.role,
+      createdAt: u.created_at,
+      lastSignInAt: u.last_sign_in_at ?? undefined,
+      emailConfirmed: u.email_verified_at !== null,
+      isBanned: u.is_banned,
+    })),
+  };
+}
+
+/**
+ * یک کاربر.
+ *
+ * تا امروز صفحهٔ جزئیات کاربر، *کل* فهرست کاربران را می‌گرفت و بعد در
+ * جاوااسکریپت `.find()` می‌زد. با ده کاربر بی‌اشکال بود؛ با ده هزار تا یعنی
+ * کشیدن کل جدول از دیتابیس برای خواندن یک ردیف.
+ */
+export async function adminGetUser(userId: string): Promise<AdminUserRow | null> {
+  await requireAdmin();
+  const id = uuidArg(userId, "شناسهٔ کاربر نامعتبر است.");
+
+  const row = await queryOne<{
+    id: string;
+    email: string | null;
+    phone: string | null;
+    full_name: string | null;
+    role: UserRole;
+    created_at: string;
+    last_sign_in_at: string | null;
+    email_verified_at: string | null;
+    is_banned: boolean;
+  }>(
+    `select u.id, u.email, u.phone, u.full_name, u.role, u.created_at,
+            u.email_verified_at, u.is_banned,
+            (select max(s.created_at) from sessions s where s.user_id = u.id) as last_sign_in_at
+       from users u
+      where u.id = ?`,
+    [id],
+  );
+
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    email: row.email ?? undefined,
+    phone: row.phone ?? undefined,
+    fullName: row.full_name ?? undefined,
+    role: row.role,
+    createdAt: row.created_at,
+    lastSignInAt: row.last_sign_in_at ?? undefined,
+    emailConfirmed: row.email_verified_at !== null,
+    isBanned: row.is_banned,
+  };
+}
+
+/** شمارش‌های داشبورد، در یک کوئری — نه با کشیدن همهٔ ردیف‌ها و شمردنشان. */
+export async function adminUserCounts(): Promise<{
+  total: number;
+  admins: number;
+  teachers: number;
+  banned: number;
+  unverified: number;
+}> {
+  await requireAdmin();
+  const row = await queryOne<{
+    total: number;
+    admins: number;
+    teachers: number;
+    banned: number;
+    unverified: number;
+  }>(
+    // FILTER (WHERE …) → COUNT(CASE …). روی جدولِ خالی همهٔ عددها ۰
+    // می‌شوند، مثل قبل.
+    `select count(*)                                                as total,
+            count(case when role = 'admin' then 1 end)              as admins,
+            count(case when role = 'teacher' then 1 end)            as teachers,
+            count(case when is_banned then 1 end)                   as banned,
+            count(case when email_verified_at is null then 1 end)   as unverified
+       from users`,
+  );
+  return {
+    total: row?.total ?? 0,
+    admins: row?.admins ?? 0,
+    teachers: row?.teachers ?? 0,
+    banned: row?.banned ?? 0,
+    unverified: row?.unverified ?? 0,
+  };
+}
+
+export async function adminSetUserRole(
+  userId: string,
+  role: "student" | "admin",
+): Promise<ActionResult<null>> {
+  const admin = await requireAdmin();
+
+  // تایپ‌های بالا در زمان اجرا وجود ندارند؛ این خط‌ها همان ادعا را واقعاً
+  // بررسی می‌کنند. توضیح کامل در lib/api/action-input.ts.
+  userId = uuidArg(userId, "شناسهٔ کاربر نامعتبر است.");
+  role = enumArg(role, ["student", "admin"], "نقش نامعتبر است.");
+
+  // بدون این، آخرین مدیرِ سایت می‌توانست خودش را دانش‌آموز کند و بعد هیچ‌کس
+  // نمی‌توانست به پنل برگردد — تنها راه چاره اجرای دستی SQL روی سرور بود.
+  if (userId === admin.id && role !== "admin") {
+    return { ok: false, errors: ["نمی‌توانید نقش مدیریت خودتان را بردارید."] };
+  }
+
+  // ایمیل قبل از تغییر خوانده می‌شود تا خلاصهٔ لاگ نام واقعی را داشته باشد و
+  // نه یک uuid که بعداً هیچ معنایی برای خواننده ندارد.
+  const target = await queryOne<{ email: string; role: string }>(
+    "select email, role from users where id = ?",
+    [userId],
+  );
+  if (!target) return { ok: false, errors: ["کاربر پیدا نشد."] };
+
+  const updated = await execute("update users set role = ? where id = ?", [role, userId]);
+  if (!updated) return { ok: false, errors: ["کاربر پیدا نشد."] };
+
+  await recordAudit({
+    actor: admin,
+    action: "user.role_change",
+    targetType: "user",
+    targetId: userId,
+    summary: `نقش ${target.email} از «${ROLE_LABEL[target.role] ?? target.role}» به «${ROLE_LABEL[role]}» تغییر کرد`,
+    metadata: { from: target.role, to: role, email: target.email },
+  });
+
+  return { ok: true, data: null };
+}
+
+/**
+ * مسدود کردن کاربر.
+ *
+ * در نسخهٔ Supabase یک بازهٔ زمانی به GoTrue داده می‌شد («876000h» یعنی صد
+ * سال) و — طبق کامنت خودِ همان کد — سشن‌های فعلیِ کاربر تا انقضا معتبر
+ * می‌ماندند. حالا یک پرچم بولی است و سشن‌ها همان لحظه باطل می‌شوند، پس بن
+ * کردن بلافاصله اثر می‌کند.
+ */
+export async function adminSetUserBanned(
+  userId: string,
+  banned: boolean,
+): Promise<ActionResult<null>> {
+  const admin = await requireAdmin();
+  userId = uuidArg(userId, "شناسهٔ کاربر نامعتبر است.");
+  banned = boolArg(banned, "مقدار مسدودی نامعتبر است.");
+
+  if (userId === admin.id) return { ok: false, errors: ["نمی‌توانید حساب خودتان را بن کنید."] };
+
+  const target = await queryOne<{ email: string }>("select email from users where id = ?", [userId]);
+  if (!target) return { ok: false, errors: ["کاربر پیدا نشد."] };
+
+  const updated = await execute("update users set is_banned = ? where id = ?", [banned, userId]);
+  if (!updated) return { ok: false, errors: ["کاربر پیدا نشد."] };
+
+  if (banned) await revokeAllSessions(userId);
+
+  await recordAudit({
+    actor: admin,
+    action: banned ? "user.ban" : "user.unban",
+    targetType: "user",
+    targetId: userId,
+    summary: banned
+      ? `${target.email} مسدود شد و از همهٔ دستگاه‌ها خارج شد`
+      : `مسدودی ${target.email} برداشته شد`,
+    metadata: { email: target.email },
+  });
+
+  return { ok: true, data: null };
+}
+
+/** حذف دائمی حساب. همهٔ داده‌های وابسته با cascade می‌روند. */
+export async function adminDeleteUser(userId: string): Promise<ActionResult<null>> {
+  const admin = await requireAdmin();
+  userId = uuidArg(userId, "شناسهٔ کاربر نامعتبر است.");
+
+  if (userId === admin.id) return { ok: false, errors: ["نمی‌توانید حساب خودتان را حذف کنید."] };
+
+  // شمردن مدیرها قبل از حذف: سایتی بدون هیچ مدیری یعنی پنل برای همیشه بسته.
+  const target = await queryOne<{ role: string; email: string; full_name: string | null }>(
+    "select role, email, full_name from users where id = ?",
+    [userId],
+  );
+  if (!target) return { ok: false, errors: ["کاربر پیدا نشد."] };
+
+  if (target.role === "admin") {
+    const count = await queryOne<{ n: number }>("select count(*) as n from users where role = 'admin'");
+    if ((count?.n ?? 0) <= 1) {
+      return { ok: false, errors: ["این تنها مدیر سایت است و نمی‌تواند حذف شود."] };
+    }
+  }
+
+  // ⚠️⚠️ حذف کاربر در MySQL شمارنده‌های کلاب را کج می‌گذارد، و این را باید
+  // خودِ کد جبران کند.
+  //
+  // در PostgreSQL حذفِ آبشاریِ FK تریگرهای ردیفی را اجرا می‌کرد، پس با رفتنِ
+  // لایک‌ها و دیدگاه‌های این کاربر، like_count و comment_count سروده‌های
+  // *دیگران* هم خودبه‌خود درست می‌شد. MySQL این کار را نمی‌کند — cascade
+  // هیچ تریگری را صدا نمی‌زند.
+  //
+  // با آزمون روی هر دو موتور تأیید شد: کاربر «الف» سرودهٔ «ب» را لایک
+  // می‌کند، بعد حساب «الف» حذف می‌شود.
+  //
+  //     PostgreSQL → like_count سرودهٔ «ب» می‌شود ۰  (درست)
+  //     MySQL      → like_count سرودهٔ «ب» روی ۱ می‌ماند  (کج، برای همیشه)
+  //
+  // پس قبل از حذف، سروده‌های تحت‌تأثیر شناسایی می‌شوند و بعد از حذف
+  // شمارنده‌شان بازسازی می‌شود. همه در یک تراکنش، وگرنه یک خطای میانی
+  // دقیقاً همان ناسازگاری را به جا می‌گذاشت که می‌خواهیم جلویش را بگیریم.
+  /* ⚠️ کلیدهای مدارکِ دبیری **پیش از** حذف خوانده می‌شوند.
+
+     `teacher_requests` با cascade می‌رود، و با رفتنش تنها چیزی که می‌گفت
+     کدام فایل روی دیسک مالِ چه کسی بوده هم می‌رود. بعد از تراکنش دیگر
+     راهی برای پیدا کردنشان نیست — یک حکمِ کارگزینی برای همیشه روی دیسک
+     می‌ماند بی‌آنکه کسی بداند مالِ کیست.
+
+     ⚠️ و فقط مدارکِ *همین* کاربر: شرطِ `user_id` تضمین می‌کند فایلِ دبیرِ
+     دیگری هرگز در این فهرست نیاید.
+
+     `id` هم خوانده می‌شود چون بعد از تراکنش دیگر وجود ندارد و لاگِ پایین
+     به آن نیاز دارد — شناسهٔ پرونده در لاگ جای کلیدِ فایل را می‌گیرد. */
+  const documents = await query<{ id: string; document_key: string }>(
+    "select id, document_key from teacher_requests where user_id = ?",
+    [userId],
+  );
+
+  await transaction(async (tx) => {
+    const affected = await tx.query<{ post_id: string }>(
+      `select post_id from club_likes where user_id = ?
+       union
+       select post_id from club_comments where user_id = ?`,
+      [userId, userId],
+    );
+
+    await tx.execute("delete from users where id = ?", [userId]);
+
+    // سروده‌های خودِ کاربر با همان cascade رفته‌اند، پس club_recount روی
+    // آن‌ها بی‌اثر و بی‌ضرر است؛ سروده‌های دیگران همین‌جا درست می‌شوند.
+    for (const { post_id } of affected) {
+      await tx.execute("call club_recount(?)", [post_id]);
+    }
+  });
+
+  /* ⚠️ فایل‌ها **بعد** از موفقیتِ تراکنش پاک می‌شوند و نه قبلش.
+
+     ترتیبِ برعکس یعنی اگر تراکنش شکست بخورد، کاربر هنوز هست ولی مدرکش
+     رفته — و مدیر پرونده‌ای می‌بیند که سندش باز نمی‌شود.
+     این ترتیب بدترین حالتش یک فایلِ یتیم است، که `db:check-teacher-docs`
+     پیدایش می‌کند.
+
+     ⚠️ شکستِ حذفِ فایل، حذفِ حساب را برنمی‌گرداند (کاربر واقعاً حذف شده)،
+     ولی **بی‌صدا هم نمی‌ماند**. */
+  const orphaned: { requestId: string; fingerprint: string }[] = [];
+  for (const doc of documents) {
+    if (!(await removeTeacherDocumentChecked(doc.document_key))) {
+      orphaned.push({
+        requestId: doc.id,
+        fingerprint: documentKeyFingerprint(doc.document_key),
+      });
+    }
+  }
+
+  if (orphaned.length > 0) {
+    /* ⚠️ خودِ `document_key` اینجا **نوشته نمی‌شود**.
+
+       کلید نامِ واقعیِ فایلِ حکم روی دیسک است و تنها چیزی است که
+       `GET …/document` برای پیدا کردنش لازم دارد. لاگِ عملیاتی جایی است که
+       فراتر از مدیرِ سایت دیده می‌شود (stdout کانتینر، جمع‌آورندهٔ لاگ،
+       اسکرین‌شاتِ اشکال‌زدایی)، پس پخشِ کلید در آن یک لایهٔ دفاعی را برای
+       راحتیِ دیباگ می‌سوزاند.
+
+       آنچه برای پیگیری لازم است بدونِ کلید هم به‌دست می‌آید: شناسهٔ پرونده
+       (که خودش بعد از cascade دیگر در دیتابیس نیست) و یک اثرِ انگشتِ
+       یک‌طرفه که با خروجیِ `db:check-teacher-docs` قابلِ تطبیق است.
+       `request_id` را هم لاگر خودش از زمینهٔ درخواست اضافه می‌کند. */
+    logger.error("حذفِ مدارکِ دبیری بعد از حذفِ حساب ناموفق بود", {
+      event: "teacher.document.orphaned",
+      user_id: userId,
+      orphan_count: orphaned.length,
+      teacher_request_ids: orphaned.map((o) => o.requestId),
+      document_fingerprints: orphaned.map((o) => o.fingerprint),
+      hint: "npm run db:check-teacher-docs",
+    });
+  }
+
+  // بعد از حذف، خودِ ردیف کاربر دیگر وجود ندارد — پس هر چیزی که برای فهمیدن
+  // «چه کسی حذف شد» لازم است باید در همین خلاصه باشد.
+  await recordAudit({
+    actor: admin,
+    action: "user.delete",
+    targetType: "user",
+    targetId: userId,
+    summary: `حساب ${target.email}${target.full_name ? ` (${target.full_name})` : ""} برای همیشه حذف شد`,
+    metadata: { email: target.email, fullName: target.full_name, role: target.role },
+  });
+
+  return { ok: true, data: null };
+}

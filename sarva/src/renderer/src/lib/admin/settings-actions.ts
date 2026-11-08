@@ -1,0 +1,332 @@
+"use server";
+
+
+import { refreshPublicContent } from "@/lib/cache/public";
+import { requireAdmin } from "@/lib/require-admin";
+import {
+  SETTING_SPECS,
+  clearSetting,
+  listSettings,
+  setSetting,
+  type ListedSetting,
+  type SettingKey,
+} from "@/lib/settings";
+import { mailAdapter, sendMail } from "@/lib/mail";
+import { smsStatus } from "@/lib/sms";
+import { storageAdapter } from "@/lib/storage";
+import { recordAudit } from "@/lib/admin/audit";
+import { deliverAdminAlert } from "@/lib/notify/admin-alerts";
+import { MAX_ALERT_RECIPIENTS, parseAlertRecipients } from "@/lib/notify/admin-alert-events";
+
+export type ActionResult<T = null> = { ok: true; data: T } | { ok: false; errors: string[] };
+
+/** شکل تنظیمی که به پنل می‌رود. مقدارِ رازها در listSettings حذف شده است. */
+export type AdminSetting = ListedSetting;
+
+export async function adminListSettings(): Promise<AdminSetting[]> {
+  await requireAdmin();
+  return listSettings();
+}
+
+/** درایورهای فعال — فقط برای نمایش، تا ادمین بداند ایمیل از کجا می‌رود. */
+export type AdapterStatus = {
+  mail: { driver: string; label: string; healthy: boolean; note: string };
+  sms: { driver: string; label: string; healthy: boolean; note: string };
+  storage: { driver: string; label: string; healthy: boolean; note: string };
+};
+
+/**
+ * وضعیت سرویس‌ها، به زبان آدمیزاد.
+ *
+ * نسخهٔ قبلی فقط نام فنیِ درایور را می‌داد و کنارش می‌نوشت «با SMS_DRIVER در
+ * .env عوض می‌شود» — یعنی دقیقاً همان چیزی که کاربرِ غیرفنی نه می‌فهمد و نه
+ * می‌تواند انجام دهد. حالا هر کارت می‌گوید سرویس چه می‌کند و آیا واقعاً آماده
+ * است یا نه.
+ */
+export async function adminAdapterStatus(): Promise<AdapterStatus> {
+  await requireAdmin();
+
+  const mailDriver = mailAdapter().name;
+  const sms = await smsStatus();
+  const storageDriver = storageAdapter().name;
+
+  return {
+    mail: {
+      driver: mailDriver,
+      label: mailDriver === "resend" ? "سرویس Resend" : "سرور ایمیل اختصاصی (SMTP)",
+      healthy: true,
+      note: "برای اطمینان، از بخش بالا یک ایمیل آزمایشی بفرستید.",
+    },
+    sms: {
+      driver: sms.driver,
+      // برچسب فارسی از همان فهرستی می‌آید که کاربر در dropdown می‌بیند — وگرنه
+      // کارت وضعیت نام فنیِ «kavenegar» را نشان می‌داد، دقیقاً همان چیزی که
+      // قرار بود از این صفحه حذف شود.
+      label:
+        SETTING_SPECS["sms.driver"].options?.find((o) => o.value === sms.driver)?.label ??
+        sms.driver,
+      // «سالم» یعنی واقعاً می‌تواند کدِ ورود بفرستد. حالت mock عمداً سالم حساب
+      // نمی‌شود، وگرنه یک تیک سبز به مدیر می‌گوید پیامک کار می‌کند در حالی که
+      // هیچ پیامکی نمی‌رود.
+      //
+      // ⚠️ «شمارهٔ خط» در این شرط نیست: مسیرِ کدِ ورود (Verify) خودش خط را
+      // انتخاب می‌کند و نبودنش جلوی ورودِ کاربران را نمی‌گیرد. اگر اینجا
+      // می‌ماند، کارت برای سایتی که کاملاً سالم کار می‌کند قرمز می‌شد.
+      healthy: sms.implemented && sms.driver !== "mock" && sms.hasApiKey && sms.hasTemplateId,
+      note:
+        sms.driver === "mock"
+          ? "هیچ پیامکی ارسال نمی‌شود. برای فعال کردن، در بخش «پیامک» سرویس SMS.ir را انتخاب کنید."
+          : !sms.implemented
+            ? "سرویسِ ذخیره‌شده شناخته نشد — فعلاً پیامکی ارسال نمی‌شود. در بخش «پیامک» دوباره انتخاب کنید."
+            : !sms.hasApiKey
+              ? "کلید API وارد نشده."
+              : !sms.hasTemplateId
+                ? "شناسهٔ قالب کد ورود وارد نشده (یا عدد نیست)."
+                : "آمادهٔ ارسال.",
+    },
+    storage: {
+      driver: storageDriver,
+      label: "دیسک همین سرور",
+      healthy: true,
+      note: "فایل‌های صوتی آپلودشده روی خودِ سرور ذخیره می‌شوند و از پشتیبان‌گیری سرور جدا نیستند.",
+    },
+  };
+}
+
+export async function adminSetSetting(key: SettingKey, value: string): Promise<ActionResult> {
+  const admin = await requireAdmin();
+
+  if (!(key in SETTING_SPECS)) return { ok: false, errors: ["تنظیم ناشناخته."] };
+  // مقدارهایی که خودِ سایت می‌نویسد (کلیدِ IndexNow، وضعیتِ چک‌لیست) از فرم پذیرفته نمی‌شوند.
+  if (SETTING_SPECS[key].hidden) return { ok: false, errors: ["این مقدار از پنل قابلِ ویرایش نیست."] };
+
+  const trimmed = value.trim();
+  if (!trimmed) return { ok: false, errors: ["مقدار نمی‌تواند خالی باشد."] };
+
+  const seoError = validateSeoSetting(key, trimmed);
+  if (seoError) return { ok: false, errors: [seoError] };
+
+  // «سروا <noreply@example.com>» یا «noreply@example.com» — هر دو قبول است،
+  // ولی چیزی که هیچ نشانی از یک ایمیل ندارد نه: یک مقدار غلط اینجا یعنی هیچ
+  // ایمیلی از سایت بیرون نمی‌رود و کشف کردنش هم سخت است.
+  if (key === "mail.from") {
+    const address = trimmed.match(/<([^>]+)>/)?.[1] ?? trimmed;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address.trim())) {
+      return { ok: false, errors: ["آدرس ایمیل معتبر نیست. مثال: سروا <noreply@example.com>"] };
+    }
+  }
+
+  if (key === "alerts.recipients") {
+    const { valid, invalid } = parseAlertRecipients(trimmed);
+    if (invalid.length) return { ok: false, errors: [`این‌ها ایمیلِ معتبر نیستند: ${invalid.join("، ")}`] };
+    if (valid.length > MAX_ALERT_RECIPIENTS) {
+      return { ok: false, errors: [`حداکثر ${MAX_ALERT_RECIPIENTS.toLocaleString("fa-IR")} گیرنده.`] };
+    }
+  }
+
+  // تنظیمی که فهرست گزینه دارد، فقط همان گزینه‌ها را می‌پذیرد. بدون این، یک
+  // مقدار اشتباه بی‌سروصدا ذخیره می‌شد و بعداً به «هیچ پیامکی نمی‌رود و معلوم
+  // نیست چرا» تبدیل می‌شد.
+  const options = SETTING_SPECS[key].options;
+  if (options && !options.some((o) => o.value === trimmed)) {
+    return { ok: false, errors: ["گزینهٔ انتخاب‌شده معتبر نیست."] };
+  }
+
+  /* ⚠️ شناسهٔ قالب باید عدد باشد. SMS.ir مقدارِ غیرعددی را رد می‌کند و نتیجه‌اش
+     «کد ارسال نمی‌شود و معلوم نیست چرا» است — پس همین‌جا جلویش گرفته می‌شود و
+     نه سه هفته بعد در لاگِ سرور.
+
+     ارقامِ فارسی هم قبول است و به لاتین تبدیل می‌شود، چون مدیر این عدد را از
+     پنلِ فارسیِ SMS.ir کپی می‌کند و همان‌جا «۴۱۴۰۲۶» نوشته شده. */
+  let toStore = trimmed;
+  if (key.startsWith("sms.template_")) {
+    toStore = trimmed.replace(/[۰-۹٠-٩]/g, (d) => {
+      const code = d.charCodeAt(0);
+      return String(code - (code >= 0x06f0 ? 0x06f0 : 0x0660));
+    });
+    if (!/^\d+$/.test(toStore) || Number(toStore) <= 0) {
+      return {
+        ok: false,
+        errors: ["شناسهٔ قالب باید یک عدد باشد — همان عددی که پنل SMS.ir کنار قالب نشان می‌دهد."],
+      };
+    }
+  }
+
+  await setSetting(key, toStore, admin.id);
+
+  await recordAudit({
+    actor: admin,
+    action: "setting.update",
+    targetType: "setting",
+    targetId: key,
+    summary: `تنظیم «${SETTING_SPECS[key].label}» تغییر کرد`,
+    // مقدار عمداً فرستاده می‌شود ولی redactMetadata کلیدهای حساس (api_key و
+    // مانندش) را پنهان می‌کند — پس آدرس ایمیل در لاگ می‌آید و کلید پیامک نه.
+    // رازها (مثل پینِ درگاه) با نامی که الگوی redact نمی‌شناسد هم نباید لاگ شوند.
+    metadata: { [key]: SETTING_SPECS[key].secret ? "«راز»" : toStore },
+  });
+
+  revalidatePath("/admin/settings");
+  if (key.startsWith("seo.")) revalidateSeoOutputs();
+  // بخشِ حامیانِ صفحهٔ اصلی از تنظیماتِ `home.*` ساخته می‌شود (lib/site/content.ts).
+  if (key.startsWith("home.")) refreshPublicContent("site");
+  return { ok: true, data: null };
+}
+
+/**
+ * اعتبارسنجیِ تنظیماتِ سئو. پیامِ خطا برای مدیرِ غیرفنی نوشته شده.
+ *
+ * ⚠️ این مقدارها مستقیم در HTMLِ صفحهٔ خانه و در `llms.txt` می‌نشینند؛ ورودیِ
+ * خراب نباید آنجا برسد.
+ */
+function validateSeoSetting(key: SettingKey, value: string): string | null {
+  if (key === "seo.same_as") {
+    const lines = value.split(/[\s,،]+/).filter(Boolean);
+    const bad = lines.filter((l) => {
+      try {
+        const u = new URL(l);
+        return u.protocol !== "https:" && u.protocol !== "http:";
+      } catch {
+        return true;
+      }
+    });
+    if (bad.length) return `این‌ها نشانیِ کامل نیستند: ${bad.join("، ")} — هر خط باید با https:// شروع شود.`;
+    if (lines.length > 20) return "حداکثر ۲۰ نشانی.";
+  }
+  if (key === "seo.contact_email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    return "ایمیل معتبر نیست.";
+  }
+  if (key === "seo.brand_summary" && value.length > 600) {
+    return "معرفی حداکثر ۶۰۰ نویسه باشد؛ دو سه جملهٔ دقیق از یک پاراگرافِ بلند بهتر است.";
+  }
+  if ((key === "seo.verify_bing" || key === "seo.verify_yandex") && !/^[A-Za-z0-9_-]{6,128}$/.test(value)) {
+    return "فقط خودِ کد را بچسبانید (مقدارِ content)، نه کلِ تگ <meta>.";
+  }
+  return null;
+}
+
+/**
+ * صفحه‌هایی که از تنظیماتِ سئو ساخته می‌شوند، همان لحظه تازه می‌شوند —
+ * نه یک ساعت بعد، وقتی کشِ ISR خودش منقضی شود.
+ */
+function revalidateSeoOutputs() {
+  revalidatePath("/");
+  revalidatePath("/robots.txt");
+  revalidatePath("/llms.txt");
+  revalidatePath("/llms-full.txt");
+  revalidatePath("/admin/seo");
+}
+
+/** حذف مقدارِ دیتابیس، یعنی برگشت به مقدار .env. */
+export async function adminResetSetting(key: SettingKey): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  if (!(key in SETTING_SPECS)) return { ok: false, errors: ["تنظیم ناشناخته."] };
+  if (SETTING_SPECS[key].hidden) return { ok: false, errors: ["این مقدار از پنل قابلِ ویرایش نیست."] };
+
+  await clearSetting(key);
+
+  await recordAudit({
+    actor: admin,
+    action: "setting.reset",
+    targetType: "setting",
+    targetId: key,
+    summary: `تنظیم «${SETTING_SPECS[key].label}» به مقدار سرور برگشت`,
+  });
+  revalidatePath("/admin/settings");
+  if (key.startsWith("seo.")) revalidateSeoOutputs();
+  // بخشِ حامیانِ صفحهٔ اصلی از تنظیماتِ `home.*` ساخته می‌شود (lib/site/content.ts).
+  if (key.startsWith("home.")) refreshPublicContent("site");
+  return { ok: true, data: null };
+}
+
+/**
+ * ارسال یک ایمیل آزمایشی.
+ *
+ * بدون این، تنها راه فهمیدن اینکه تنظیمات ایمیل درست است یا نه، ثبت‌نام کردن
+ * یک کاربر واقعی و امید داشتن است. اینجا خطای واقعیِ سرویس ایمیل هم نمایش
+ * داده می‌شود — این تنها جایی است که آن پیام خام به ادمین نشان داده می‌شود،
+ * چون دقیقاً همان چیزی است که برای درست کردنش لازم دارد.
+ */
+export async function adminSendTestEmail(to: string): Promise<ActionResult> {
+  const admin = await requireAdmin();
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim())) {
+    return { ok: false, errors: ["آدرس گیرنده معتبر نیست."] };
+  }
+
+  try {
+    await sendMail({
+      to: to.trim(),
+      subject: "ایمیل آزمایشی سروا",
+      html: `<div dir="rtl" style="font-family:sans-serif">
+               <p>این یک ایمیل آزمایشی از پنل مدیریت سروا است.</p>
+               <p style="color:#64748b;font-size:13px">اگر این را می‌بینید، تنظیمات ایمیل درست کار می‌کند.</p>
+             </div>`,
+      text: "این یک ایمیل آزمایشی از پنل مدیریت سروا است.",
+    });
+    await recordAudit({
+      actor: admin,
+      action: "setting.test_email",
+      targetType: "setting",
+      targetId: "mail.from",
+      summary: `ایمیل آزمایشی به ${to.trim()} فرستاده شد`,
+    });
+
+    return { ok: true, data: null };
+  } catch (err) {
+    // این خطا هم به مدیر نشان داده می‌شود و هم در لاگ خطا می‌نشیند: پیامِ روی
+    // صفحه با بستن پنجره می‌رود، ولی مشکلِ تنظیمات ایمیل سر جایش می‌ماند.
+    const { recordError } = await import("@/lib/admin/audit");
+    await recordError("mail", err, "ارسال ایمیل آزمایشی از پنل");
+    return { ok: false, errors: [(err as Error).message] };
+  }
+}
+
+/**
+ * یک «خبرِ آزمایشی» به همان گیرنده‌هایی که خبرهای واقعی می‌گیرند.
+ *
+ * ⚠️ از همان `deliverAdminAlert` می‌رود و نه یک `sendMail` جدا — آزمونی
+ * که مسیرِ دیگری را بسنجد، دربارهٔ خبرهای واقعی هیچ نمی‌گوید. فقط کلیدهای
+ * روشن/خاموش و سقفِ ساعتی دور زده می‌شوند (`force`)، تا مدیر بتواند پیش از
+ * روشن کردن هم امتحان کند.
+ */
+export async function adminSendTestAlert(): Promise<ActionResult<{ sent: number }>> {
+  const admin = await requireAdmin();
+
+  try {
+    const sent = await deliverAdminAlert(
+      {
+        event: "signup",
+        heading: "خبرِ آزمایشی از پنل مدیریت",
+        rows: [
+          { label: "فرستنده", value: admin.email ?? admin.phone ?? admin.id },
+          { label: "توضیح", value: "اگر این را می‌بینید، خبرهای ثبت‌نام، خرید و بقیه هم به همین‌جا می‌رسند." },
+        ],
+        href: "/admin/settings",
+      },
+      { force: true },
+    );
+
+    if (sent === 0) {
+      return {
+        ok: false,
+        errors: [
+          "هیچ ایمیلی فرستاده نشد. یا گیرنده‌ای نیست (نه در «گیرنده‌ها» و نه مدیری با ایمیل)، یا سرویسِ ایمیل خطا داد — لاگِ خطا را ببینید.",
+        ],
+      };
+    }
+
+    await recordAudit({
+      actor: admin,
+      action: "setting.test_email",
+      targetType: "setting",
+      targetId: "alerts.recipients",
+      summary: `خبرِ آزمایشی برای ${sent} گیرنده فرستاده شد`,
+    });
+    return { ok: true, data: { sent } };
+  } catch (err) {
+    const { recordError } = await import("@/lib/admin/audit");
+    await recordError("mail", err, "ارسال خبرِ آزمایشیِ مدیر از پنل");
+    return { ok: false, errors: [(err as Error).message] };
+  }
+}

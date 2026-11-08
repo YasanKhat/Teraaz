@@ -1,0 +1,1656 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   مدار دستور — Grammar Circuit
+   ───────────────────────────────────────────────────────────────────────────
+   چرا این شیوه‌نامه اینجاست و نه در `app/globals.css`:
+
+   چهار بار پشتِ سرِ هم دیدیم که تغییرِ `globals.css` در بیلد کهنه می‌ماند —
+   حتی بعد از `rm -rf .next` — و فقط با یک تغییرِ محتواییِ دیگر تازه می‌شود.
+   با آوردنِ CSS کنارِ خودِ کامپوننت و import کردنش از همان‌جا، شیوه‌نامه جزوِ
+   گرافِ ماژولِ همین بازی می‌شود و مثلِ هر ماژولِ دیگری invalidate می‌شود.
+   ───────────────────────────────────────────────────────────────────────────
+   ⚠️ همهٔ رنگ‌ها از توکن‌های *سایت* می‌آیند (`--color-*`)، پس بازی همان تم و
+   همان پالتی را دارد که کاربر برای سایت انتخاب کرده. نسخهٔ قبل «کارگاهِ شب»
+   بود و در تمِ روشن هم سیاه می‌ماند؛ روی سایتی کرم‌رنگ، یک جعبهٔ تیرهٔ جدا
+   دیده می‌شد.
+
+   ⚠️ فقط `transform` و `opacity` انیمیت می‌شوند. انیمیت کردنِ `drop-shadow`
+   در همین بازی نرخِ فریم را از ۵۷ به ۳۰ رسانده بود.
+
+   ⚠️ هیچ transform ای روی صفحهٔ تعاملی نمی‌نشیند — نه .gc-viewport، نه
+   .gc-strip، نه .gc-col، نه .gc-socket. `getBoundingClientRect` مبنای
+   هدف‌گیریِ رها کردن است و transform آن را جابه‌جا می‌کند.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.gc-root {
+  --gc-bg: var(--color-background);
+  --gc-surface: var(--color-card);
+  --gc-sunken: color-mix(in oklch, var(--color-surface-2) 70%, var(--color-background));
+  --gc-text: var(--color-foreground);
+  --gc-muted: var(--color-muted-foreground);
+  --gc-line: color-mix(in oklch, var(--color-foreground) 11%, transparent);
+  --gc-line-strong: color-mix(in oklch, var(--color-foreground) 22%, transparent);
+  --gc-accent: var(--color-primary);
+  /* دکمهٔ اصلی در تمِ روشن یک پله تیره‌تر: فیروزهٔ سایت با متنِ روشن زیرِ
+     ۴٫۵:۱ است (همین را axe در کیمیا گرفته بود). */
+  --gc-accent-strong: color-mix(in oklch, var(--color-primary) 86%, #000);
+  --gc-accent-ink: var(--color-primary-foreground);
+  --gc-accent-soft: color-mix(in oklch, var(--color-primary) 12%, transparent);
+  --gc-ok: oklch(0.56 0.13 158);
+  --gc-bad: oklch(0.56 0.19 27);
+  --gc-lamp: oklch(0.8 0.16 78);
+  --gc-wire: color-mix(in oklch, var(--color-foreground) 30%, var(--color-card));
+  --gc-wire-dim: color-mix(in oklch, var(--color-foreground) 16%, var(--color-card));
+  --gc-shadow-sm: 0 1px 2px color-mix(in oklch, var(--color-foreground) 8%, transparent);
+  --gc-shadow-md:
+    0 1px 2px color-mix(in oklch, var(--color-foreground) 6%, transparent),
+    0 6px 16px -6px color-mix(in oklch, var(--color-foreground) 18%, transparent);
+  --gc-shadow-lg:
+    0 1px 2px color-mix(in oklch, var(--color-foreground) 5%, transparent),
+    0 18px 40px -18px color-mix(in oklch, var(--color-foreground) 28%, transparent);
+  --gc-r: 14px;
+  --gc-r-sm: 10px;
+
+  color: var(--gc-text);
+}
+
+.dark .gc-root {
+  --gc-sunken: color-mix(in oklch, var(--color-background) 80%, #000);
+  --gc-line: color-mix(in oklch, var(--color-foreground) 12%, transparent);
+  --gc-accent-strong: var(--color-primary);
+  --gc-ok: oklch(0.76 0.14 158);
+  --gc-bad: oklch(0.7 0.17 25);
+  --gc-lamp: oklch(0.86 0.15 82);
+  --gc-wire: color-mix(in oklch, var(--color-foreground) 34%, var(--color-card));
+  --gc-wire-dim: color-mix(in oklch, var(--color-foreground) 18%, var(--color-card));
+  --gc-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.35);
+  --gc-shadow-md: 0 1px 2px oklch(0 0 0 / 0.3), 0 8px 18px -8px oklch(0 0 0 / 0.55);
+  --gc-shadow-lg: 0 1px 2px oklch(0 0 0 / 0.3), 0 22px 44px -18px oklch(0 0 0 / 0.7);
+}
+
+/* ── پوستهٔ بازیِ فعال ───────────────────────────────────────────────────── */
+html.gc-locked,
+body.gc-locked {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+/* body هم به قدِ یک صفحه بریده می‌شود؛ وگرنه محتوای سایت که پشتِ پوسته مانده
+   `scrollHeight` سند را بالا نگه می‌دارد حتی وقتی چیزی اسکرول نمی‌شود. */
+body.gc-locked {
+  height: 100dvh;
+  max-width: 100vw;
+}
+
+.gc-shell {
+  /* یک تابشِ خیلی کم از بالا، هم‌رنگِ پالت؛ بقیه همان زمینهٔ سایت. */
+  background:
+    radial-gradient(90% 55% at 50% 0%, var(--gc-accent-soft), transparent 70%),
+    var(--gc-bg) !important;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ── نوارِ بالا ──────────────────────────────────────────────────────────── */
+.gc-topbar {
+  display: grid;
+  /* ستونِ میانی همیشه دقیقاً وسط می‌ماند، هرچقدر هم دو طرف پهن شوند. */
+  grid-template-columns: 1fr minmax(0, 15rem) 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  padding-top: max(0.55rem, env(safe-area-inset-top, 0px));
+}
+.gc-topbar-end {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.15rem;
+}
+
+.gc-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--gc-r-sm);
+  color: var(--gc-muted);
+  transition: color 0.15s ease, background-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.gc-icon-btn svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.gc-icon-btn:hover:not(:disabled) {
+  color: var(--gc-text);
+  background: var(--gc-line);
+}
+.gc-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.gc-icon-btn:focus-visible {
+  outline: 2px solid var(--gc-accent);
+  outline-offset: 1px;
+}
+
+/* دکمه‌های ناوبریِ مشترکِ بازی‌ها (`GameNav`) روی نوارِ کارگاه: همان شکل،
+   با رنگ‌های خودِ مدار دستور. */
+.gc-topbar .game-nav-btn.gc-nav {
+  --gnb-bg: color-mix(in oklch, var(--gc-text) 4%, transparent);
+  --gnb-border: var(--gc-line);
+  --gnb-fg: var(--gc-muted);
+  --gnb-fg-hover: var(--gc-text);
+  --gnb-accent: var(--gc-accent);
+  box-shadow: none;
+}
+
+.gc-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+.gc-progress-text {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.gc-progress-of {
+  font-weight: 500;
+  color: var(--gc-muted);
+}
+.gc-progress-track {
+  position: relative;
+  flex: 1 1 auto;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--gc-line);
+  overflow: hidden;
+}
+.gc-progress-fill {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-radius: inherit;
+  background: var(--gc-accent);
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── صورتِ سؤال ─────────────────────────────────────────────────────────────
+   بیرونِ ناحیهٔ اسکرولِ افقی. متن می‌شکند و خطِ دوم می‌گیرد. */
+.gc-question {
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 0.5rem 1.25rem 0.25rem;
+  text-align: center;
+  overflow-x: hidden;
+}
+.gc-question-text {
+  margin-inline: auto;
+  max-width: 40ch;
+  font-size: clamp(1.2rem, 0.95rem + 1.2vw, 1.85rem);
+  font-weight: 700;
+  line-height: 1.9;
+  overflow-wrap: break-word;
+  text-wrap: balance;
+}
+.gc-q-target {
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in oklch, var(--gc-accent) 60%, transparent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.5em;
+  text-decoration-skip-ink: none;
+}
+.gc-question-source {
+  font-size: 0.75rem;
+  color: var(--gc-muted);
+}
+
+/* ── ناحیهٔ مدار ────────────────────────────────────────────────────────────
+   تنها جایی که اسکرولِ افقی مجاز است. تخته به اندازهٔ خودِ مدار است و با
+   `margin: auto` وسط می‌نشیند. */
+.gc-board {
+  padding: 0.75rem;
+}
+
+.gc-viewport {
+  /* ⚠️ کشیدنِ تخته کارِ useBoardPan است، نه اسکرولِ بومیِ مرورگر.
+     روی سافاریِ آیفون، این الگو — عرضِ fit-content، یک محور hidden، داخلِ
+     والدِ fixed — گاهی اصلاً سرریز حساب نمی‌کند، و `pan-x` باعث می‌شد
+     مرورگر ژست را بردارد و `pointercancel` بفرستد (از ۱۷۰ پیکسل کشیدن فقط
+     ۱۹ پیکسل می‌رسید). پس یک مسیر ماند: خودمان `scrollLeft` را می‌نویسیم. */
+  touch-action: none;
+  overscroll-behavior: contain;
+  border-radius: 22px;
+  border: 1px solid var(--gc-line);
+  background: var(--gc-surface);
+  box-shadow: var(--gc-shadow-lg);
+  display: flex;
+  align-items: center;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gc-line-strong) transparent;
+}
+.gc-viewport::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.gc-viewport::-webkit-scrollbar-thumb {
+  background: var(--gc-line-strong);
+  border-radius: 999px;
+}
+
+/* شبکهٔ نقطه‌ایِ برد — مثلِ کاغذِ مهندسی. تزئینی و بی‌اثر روی ورودی. */
+.gc-trace-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(
+    circle,
+    color-mix(in oklch, var(--gc-text) 13%, transparent) 1px,
+    transparent 1.4px
+  );
+  background-size: 18px 18px;
+  background-position: center;
+  mask-image: radial-gradient(120% 100% at 50% 50%, #000 40%, transparent 100%);
+}
+
+.gc-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: clamp(1rem, 2.4vw, 2rem);
+  padding: clamp(1.75rem, 5vh, 3rem) clamp(1.25rem, 3vw, 2.5rem);
+  width: max-content;
+  margin-inline: auto;
+}
+
+/* ── ردیفِ تحلیل: هر واژه و سوکتش در یک ستون ─────────────────────────────
+   هم‌مرکزی *ساختاری* است — نه محاسبه‌شده. */
+.gc-strip {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.gc-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.gc-col-word {
+  font-size: clamp(0.95rem, 0.85rem + 0.4vw, 1.15rem);
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--gc-muted);
+  white-space: nowrap;
+}
+.gc-col[data-target] .gc-col-word {
+  color: var(--gc-text);
+  font-weight: 700;
+}
+
+.gc-sep {
+  align-self: flex-start;
+  font-size: clamp(0.95rem, 0.85rem + 0.4vw, 1.15rem);
+  line-height: 1.6;
+  color: var(--gc-muted);
+  white-space: pre;
+}
+
+/* ستونِ بدونِ سوکت هم‌قدِ ستونِ سوکت‌دار، تا خطِ واژه‌ها نشکند. */
+.gc-col-gap {
+  display: block;
+  height: var(--gc-socket-h, 46px);
+}
+
+/* ── سوکت ─────────────────────────────────────────────────────────────────
+   حالت‌ها: خالی · هدفِ فعال · پر · در حالِ بررسی · درست · نادرست · قفل.
+   هیچ‌کدام پیش از «بررسی» رنگِ درست/غلط نمی‌گیرند. */
+.gc-socket {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: var(--gc-socket-h, 46px);
+  border-radius: 12px;
+  background: var(--gc-sunken);
+  border: 1.5px dashed var(--gc-line-strong);
+  box-shadow: inset 0 1px 3px color-mix(in oklch, var(--gc-text) 10%, transparent);
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+/* نقطه‌های اتصالِ دو سرِ خانه — جایی که سیم می‌رسد. */
+.gc-socket-pin {
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: var(--gc-surface);
+  border: 2px solid var(--gc-wire);
+  pointer-events: none;
+  z-index: 2;
+  transition: border-color 0.2s ease;
+}
+.gc-socket-pin-a {
+  inset-inline-start: -4px;
+}
+.gc-socket-pin-b {
+  inset-inline-end: -4px;
+}
+
+.gc-socket-empty {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gc-line-strong);
+}
+
+/* قطعه‌ای بالای این خانه است یا در سینی انتخاب شده و این خانه هدف است. */
+.gc-socket[data-armed="true"] {
+  border-style: solid;
+  border-color: var(--gc-accent);
+  background: color-mix(in oklch, var(--gc-accent) 10%, var(--gc-sunken));
+  box-shadow: 0 0 0 4px color-mix(in oklch, var(--gc-accent) 18%, transparent);
+}
+
+.gc-socket[data-filled="true"] {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.gc-socket[data-filled="true"] .gc-socket-pin {
+  border-color: var(--gc-text);
+}
+
+.gc-socket-hit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  /* بزرگ‌تر از خودِ سوکت برای انگشت، و دقیقاً هم‌مرکزِ آن. لقیِ عمودی بیشتر
+     است چون انگشت روی آن محور خطای بیشتری دارد. */
+  width: calc(100% + 12px);
+  height: calc(100% + 26px);
+  border-radius: 14px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  z-index: 3;
+}
+.gc-socket-hit:disabled {
+  cursor: default;
+}
+.gc-socket-hit:focus-visible {
+  outline: 2px solid var(--gc-accent);
+  outline-offset: -4px;
+}
+
+/* قطعهٔ نشسته در خانه. */
+.gc-seated {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid var(--gc-line-strong);
+  background: var(--gc-surface);
+  color: var(--gc-text);
+  font-weight: 700;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  box-shadow: var(--gc-shadow-md);
+  pointer-events: none;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/* نشانِ نتیجه روی گوشهٔ قطعه — فقط رنگ نیست، شکل هم هست (برای کوررنگی). */
+.gc-seated::after {
+  content: "";
+  position: absolute;
+  top: -7px;
+  inset-inline-end: -7px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: var(--gc-mark, transparent);
+  background-image: var(--gc-mark-icon, none);
+  background-size: 11px 11px;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: 0 0 0 2px var(--gc-surface);
+  opacity: 0;
+  transform: scale(0.4);
+  transition:
+    opacity 0.18s ease,
+    transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.gc-socket[data-check="checking"] .gc-seated {
+  border-color: var(--gc-accent);
+  animation: gcScan var(--gc-check, 200ms) ease-in-out;
+}
+.gc-socket[data-check="correct"] .gc-seated {
+  border-color: var(--gc-ok);
+  background: color-mix(in oklch, var(--gc-ok) 12%, var(--gc-surface));
+  color: color-mix(in oklch, var(--gc-ok) 70%, var(--gc-text));
+  --gc-mark: var(--gc-ok);
+  --gc-mark-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 5 8.6l4.5-5' fill='none' stroke='white' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+.gc-socket[data-check="wrong"] .gc-seated {
+  border-color: var(--gc-bad);
+  background: color-mix(in oklch, var(--gc-bad) 11%, var(--gc-surface));
+  color: color-mix(in oklch, var(--gc-bad) 75%, var(--gc-text));
+  --gc-mark: var(--gc-bad);
+  --gc-mark-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3.5 3.5l5 5M8.5 3.5l-5 5' fill='none' stroke='white' stroke-width='1.9' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+.gc-socket[data-check="correct"] .gc-seated::after,
+.gc-socket[data-check="wrong"] .gc-seated::after {
+  opacity: 1;
+  transform: scale(1);
+}
+.gc-socket[data-check="correct"] .gc-socket-pin {
+  border-color: var(--gc-ok);
+}
+.gc-socket[data-check="wrong"] .gc-socket-pin {
+  border-color: var(--gc-bad);
+}
+
+@keyframes gcScan {
+  0%,
+  100% {
+    box-shadow: var(--gc-shadow-md), 0 0 0 0 color-mix(in oklch, var(--gc-accent) 40%, transparent);
+  }
+  50% {
+    box-shadow: var(--gc-shadow-md), 0 0 0 6px color-mix(in oklch, var(--gc-accent) 22%, transparent);
+  }
+}
+
+/* نشستنِ قطعه: از کمی بالاتر می‌آید و جا می‌افتد. transform روی *قطعه* است
+   و نه خانه، پس هدف‌گیری دست‌نخورده می‌ماند. */
+@keyframes gcSeat {
+  0% {
+    transform: translateY(-8px) scale(1.05);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(1px) scale(0.99);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+  }
+}
+.gc-socket[data-fresh="true"] .gc-seated {
+  animation: gcSeat var(--gc-snap, 260ms) cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── قطعهٔ نقش ────────────────────────────────────────────────────────────── */
+.gc-module {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--gc-line-strong);
+  background: var(--gc-surface);
+  color: var(--gc-text);
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0.7rem 1.05rem;
+  box-shadow:
+    0 1px 0 color-mix(in oklch, var(--gc-text) 7%, transparent),
+    var(--gc-shadow-sm);
+  /* فقط روی خودِ قطعه — نه کلِ صفحه. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: grab;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    opacity 0.15s ease;
+}
+@media (hover: hover) {
+  .gc-module:hover:not(:disabled) {
+    transform: translateY(-2px);
+    border-color: color-mix(in oklch, var(--gc-accent) 50%, var(--gc-line-strong));
+    box-shadow: var(--gc-shadow-md);
+  }
+}
+.gc-module:active:not(:disabled) {
+  transform: scale(0.97);
+  cursor: grabbing;
+}
+.gc-module:focus-visible {
+  outline: 2px solid var(--gc-accent);
+  outline-offset: 2px;
+}
+.gc-module[data-selected="true"] {
+  border-color: var(--gc-accent);
+  background: color-mix(in oklch, var(--gc-accent) 10%, var(--gc-surface));
+  color: var(--gc-accent-strong);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--gc-accent) 22%, transparent);
+  transform: translateY(-2px);
+}
+.dark .gc-module[data-selected="true"] {
+  color: var(--gc-accent);
+}
+/* قطعهٔ استفاده‌شده جای خالیِ خودش را نگه می‌دارد: یک قابِ خط‌چین. */
+.gc-module[data-used="true"] {
+  background: transparent;
+  border-style: dashed;
+  color: transparent;
+  box-shadow: none;
+  pointer-events: none;
+}
+.gc-module[data-dragging="true"]:not(.gc-drag-ghost) {
+  opacity: 0.3;
+  box-shadow: none;
+}
+.gc-module:disabled:not([data-used="true"]) {
+  cursor: default;
+}
+.gc-module-label {
+  position: relative;
+}
+
+/* ── داک: قطعه‌ها + بررسی ────────────────────────────────────────────────── */
+.gc-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem 1rem;
+  border-top: 1px solid var(--gc-line);
+  background: color-mix(in oklch, var(--gc-surface) 72%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.gc-tray {
+  min-height: 0;
+}
+.gc-tray-inner {
+  width: min(100%, 44rem);
+  margin-inline: auto;
+}
+.gc-tray-items {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  max-height: min(24vh, 150px);
+  padding: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.gc-controls {
+  width: min(100%, 44rem);
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+}
+.gc-controls-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--gc-muted);
+}
+.gc-controls-hint[data-tone="ok"] {
+  color: var(--gc-ok);
+}
+.gc-controls-hint[data-tone="bad"] {
+  color: var(--gc-bad);
+}
+.gc-fill-meter {
+  display: inline-flex;
+  gap: 4px;
+}
+.gc-fill-meter > span {
+  width: 14px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--gc-line-strong);
+  transition: background-color 0.2s ease;
+}
+.gc-fill-meter > span[data-on] {
+  background: var(--gc-accent);
+}
+
+/* ── دکمه‌ها ───────────────────────────────────────────────────────────── */
+.gc-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 0.6rem 1.4rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.12s ease,
+    opacity 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.gc-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.gc-btn:focus-visible {
+  outline: 2px solid var(--gc-accent);
+  outline-offset: 2px;
+}
+.gc-btn-primary {
+  min-width: 8.5rem;
+  background: var(--gc-accent-strong);
+  color: var(--gc-accent-ink);
+  box-shadow: 0 1px 0 color-mix(in oklch, #fff 22%, transparent) inset, var(--gc-shadow-md);
+}
+.gc-btn-primary:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--gc-accent-strong) 90%, var(--gc-text));
+}
+.gc-btn-primary:disabled {
+  background: var(--gc-line);
+  color: var(--gc-muted);
+  box-shadow: none;
+  cursor: default;
+}
+/* در حالِ کار: متن می‌ماند (بدونِ پرشِ عرض) و یک نوارِ نازک زیرش می‌دود. */
+.gc-btn[data-busy]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 22%;
+  bottom: 7px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.6;
+  transform-origin: right;
+  animation: gcBusy 0.9s ease-in-out infinite;
+}
+@keyframes gcBusy {
+  0% {
+    transform: scaleX(0.1);
+  }
+  50% {
+    transform: scaleX(1);
+  }
+  100% {
+    transform: scaleX(0.1);
+    transform-origin: left;
+  }
+}
+.gc-btn-ghost {
+  border: 1px solid var(--gc-line-strong);
+  color: var(--gc-text);
+  background: transparent;
+}
+.gc-btn-ghost:hover:not(:disabled) {
+  border-color: var(--gc-accent);
+  color: var(--gc-accent-strong);
+}
+.dark .gc-btn-ghost:hover:not(:disabled) {
+  color: var(--gc-accent);
+}
+.gc-btn-lg {
+  min-height: 48px;
+  padding-inline: 1.8rem;
+}
+
+/* ── لایهٔ SVGِ مدار ─────────────────────────────────────────────────────
+   هیچ‌کدام هرگز هدفِ اشاره‌گر نیستند. */
+.gc-svg,
+.gc-svg * {
+  pointer-events: none;
+}
+.gc-svg[data-measured="false"] {
+  opacity: 0;
+}
+.gc-svg[data-measured="true"] {
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}
+
+.gc-wire {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+  transition: stroke 0.3s ease;
+}
+.gc-wire-wire {
+  stroke: var(--gc-wire);
+}
+/* بخشِ داخلِ خانه زیرِ خودِ خانه پنهان است؛ فقط برای پیوستگیِ مسیر. */
+.gc-wire-open,
+.gc-wire-seated,
+.gc-wire-scan,
+.gc-wire-ok,
+.gc-wire-bad {
+  stroke: var(--gc-wire-dim);
+}
+/* مدار بسته شد: همهٔ سیم‌ها هم‌رنگِ جریان می‌شوند. */
+.gc-svg[data-phase="live"] .gc-wire {
+  stroke: var(--gc-accent);
+}
+.gc-current {
+  stroke: var(--gc-accent);
+  stroke-width: 5;
+  stroke-linecap: round;
+  fill: none;
+  opacity: 0.9;
+}
+
+/* ── باتری و لامپ ───────────────────────────────────────────────────────── */
+.gc-power,
+.gc-lamp {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+.gc-endcap-art {
+  position: relative;
+  display: block;
+}
+.gc-endcap-art > svg {
+  position: relative;
+  z-index: 1;
+  display: block;
+  overflow: visible;
+}
+.gc-terminal {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  margin: -1px 0 0 -1px;
+}
+
+.gc-power svg {
+  width: 60px;
+  height: 38px;
+}
+/* سرِ باتری سمتِ چپ است (رو به خانه‌ها). مختصات فیزیکی‌اند. */
+.gc-power .gc-terminal {
+  left: 3.5%;
+  top: 50%;
+}
+.gc-power-body {
+  fill: var(--gc-surface);
+  stroke: var(--gc-wire);
+  stroke-width: 2;
+}
+.gc-power-nub {
+  fill: var(--gc-wire);
+}
+.gc-power-cell {
+  fill: var(--gc-wire-dim);
+  transition: fill 0.25s ease;
+}
+.gc-power[data-live] .gc-power-cell {
+  fill: var(--gc-accent);
+}
+.gc-power[data-live] .gc-power-cell:nth-child(4) {
+  transition-delay: 0.08s;
+}
+.gc-power[data-live] .gc-power-cell:nth-child(5) {
+  transition-delay: 0.16s;
+}
+
+.gc-lamp svg {
+  width: 56px;
+  height: 75px;
+}
+/* ورودیِ سیم: لبهٔ راستِ سرپیچ (سیم از خانه‌های سمتِ راست می‌آید). */
+.gc-lamp .gc-terminal {
+  left: 64%;
+  top: 70%;
+}
+.gc-lamp-glass {
+  fill: color-mix(in oklch, var(--gc-sunken) 70%, transparent);
+  stroke: var(--gc-wire);
+  stroke-width: 2;
+  transition:
+    fill var(--gc-lamp-on-ms, 320ms) ease,
+    stroke var(--gc-lamp-on-ms, 320ms) ease;
+}
+.gc-lamp-shine {
+  stroke: color-mix(in oklch, #fff 85%, transparent);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  opacity: 0.8;
+}
+.dark .gc-lamp-shine {
+  opacity: 0.25;
+}
+.gc-lamp-filament {
+  stroke: var(--gc-wire);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 0.25s ease;
+}
+.gc-lamp-base {
+  fill: var(--gc-wire);
+}
+.gc-lamp-crack {
+  stroke: color-mix(in oklch, var(--gc-text) 60%, transparent);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.gc-lamp[data-state="turningOn"] .gc-lamp-glass,
+.gc-lamp[data-state="on"] .gc-lamp-glass {
+  fill: color-mix(in oklch, var(--gc-lamp) 85%, #fff);
+  stroke: color-mix(in oklch, var(--gc-lamp) 70%, #000);
+}
+.gc-lamp[data-state="turningOn"] .gc-lamp-filament,
+.gc-lamp[data-state="on"] .gc-lamp-filament {
+  stroke: color-mix(in oklch, var(--gc-lamp) 40%, #7a3d00);
+}
+
+/* هالهٔ نور — دایرهٔ گرادیانیِ جدا، دقیقاً روی مرکزِ حباب. */
+.gc-lamp-bloom {
+  position: absolute;
+  left: 50%;
+  top: 33%;
+  width: 190px;
+  height: 190px;
+  margin: -95px 0 0 -95px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transform: scale(0.5);
+  background: radial-gradient(
+    circle closest-side,
+    color-mix(in oklch, var(--gc-lamp) 70%, transparent) 0%,
+    color-mix(in oklch, var(--gc-lamp) 32%, transparent) 32%,
+    color-mix(in oklch, var(--gc-lamp) 10%, transparent) 62%,
+    transparent 100%
+  );
+  transition:
+    opacity var(--gc-lamp-on-ms, 320ms) ease,
+    transform var(--gc-lamp-on-ms, 320ms) cubic-bezier(0.16, 1, 0.3, 1);
+}
+.gc-lamp[data-state="turningOn"] .gc-lamp-bloom {
+  opacity: 0.75;
+  transform: scale(0.9);
+}
+.gc-lamp[data-state="on"] .gc-lamp-bloom {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* خرابی: چشمکِ ناپایدار، بعد خاموشی و یک ترکِ نازک. */
+@keyframes gcFlicker {
+  0% { opacity: 0; }
+  12% { opacity: 0.8; }
+  22% { opacity: 0.1; }
+  38% { opacity: 0.6; }
+  50% { opacity: 0.12; }
+  66% { opacity: 0.4; }
+  100% { opacity: 0; }
+}
+.gc-lamp[data-state="flicker"] .gc-lamp-bloom {
+  transform: scale(0.8);
+  animation: gcFlicker var(--gc-lamp-flicker-ms, 520ms) steps(1, end);
+}
+.gc-lamp[data-state="flicker"] .gc-lamp-glass {
+  fill: color-mix(in oklch, var(--gc-lamp) 35%, var(--gc-sunken));
+}
+.gc-lamp[data-state="failed"] .gc-lamp-crack {
+  opacity: 1;
+}
+.gc-lamp[data-state="failed"] .gc-lamp-glass {
+  fill: color-mix(in oklch, var(--gc-text) 10%, var(--gc-sunken));
+  stroke: color-mix(in oklch, var(--gc-bad) 45%, var(--gc-wire));
+}
+
+/* لامپ روشن شد: قابِ تخته هم کمی گرم می‌شود — نورِ لامپ روی لبه‌ها. */
+.gc-viewport {
+  transition:
+    border-color 0.5s ease,
+    box-shadow 0.5s ease;
+}
+.gc-viewport:has(.gc-lamp[data-state="on"]) {
+  border-color: color-mix(in oklch, var(--gc-lamp) 55%, var(--gc-line));
+  box-shadow:
+    var(--gc-shadow-lg),
+    0 0 0 5px color-mix(in oklch, var(--gc-lamp) 16%, transparent);
+}
+
+/* ── پیش‌نمایشِ کشیدن ─────────────────────────────────────────────────────── */
+.gc-drag-ghost {
+  will-change: transform;
+  opacity: 1 !important;
+  cursor: grabbing;
+  border-color: var(--gc-accent) !important;
+  box-shadow:
+    0 0 0 3px color-mix(in oklch, var(--gc-accent) 20%, transparent),
+    0 18px 36px -10px color-mix(in oklch, var(--gc-text) 40%, transparent) !important;
+  /* بدونِ این، پیش‌نمایش `transition: transform` را از `.gc-module` به ارث
+     می‌برد و به‌جای چسبیدن به انگشت، نرم دنبالش می‌کند. */
+  transition: none !important;
+}
+
+/* ══════════════════════ صفحهٔ انتخاب و صفحهٔ نتیجه ═══════════════════════
+   یک کارتِ سایت، روی زمینهٔ خودِ سایت. */
+.gc-setup-page {
+  position: relative;
+  padding: clamp(0.75rem, 3vh, 2rem) 1rem clamp(2rem, 6vh, 3.5rem);
+}
+.gc-setup {
+  width: min(100%, 44rem);
+  margin-inline: auto;
+  border-radius: 24px;
+  border: 1px solid var(--gc-line);
+  background: var(--gc-surface);
+  box-shadow: var(--gc-shadow-lg);
+  padding: clamp(1.25rem, 3.5vw, 2.25rem);
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.gc-setup-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.35rem;
+}
+.gc-setup-title {
+  font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.4rem);
+  line-height: 1.3;
+  color: var(--gc-text);
+}
+.gc-setup-sub {
+  font-size: 0.95rem;
+  line-height: 1.8;
+  color: var(--gc-muted);
+}
+
+/* مدارِ کوچکِ سرِ صفحه */
+.gc-setup-art {
+  width: min(100%, 17rem);
+  height: auto;
+  margin-bottom: 0.5rem;
+  overflow: visible;
+}
+.gc-art-wire {
+  stroke: var(--gc-wire);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.gc-art-pulse {
+  stroke: var(--gc-accent);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-dasharray: 10 90;
+  stroke-dashoffset: 10;
+  animation: gcArtPulse 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes gcArtPulse {
+  0% { stroke-dashoffset: 10; opacity: 0; }
+  8% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { stroke-dashoffset: -90; opacity: 0; }
+}
+.gc-art-chip {
+  fill: var(--gc-surface);
+  stroke: var(--gc-line-strong);
+  stroke-width: 1.5;
+}
+.gc-art-cell {
+  fill: color-mix(in oklch, var(--gc-accent) 55%, var(--gc-surface));
+}
+.gc-art-body {
+  fill: var(--gc-surface);
+  stroke: var(--gc-wire);
+  stroke-width: 2;
+}
+.gc-art-fill {
+  fill: var(--gc-accent);
+}
+.gc-art-bulb {
+  fill: color-mix(in oklch, var(--gc-lamp) 85%, #fff);
+  stroke: color-mix(in oklch, var(--gc-lamp) 65%, #000);
+  stroke-width: 2;
+}
+.gc-art-base {
+  stroke: var(--gc-wire);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.gc-art-glow {
+  fill: color-mix(in oklch, var(--gc-lamp) 30%, transparent);
+  animation: gcArtGlow 2.4s ease-in-out infinite;
+  transform-origin: 30px 30px;
+}
+@keyframes gcArtGlow {
+  0%, 70% { opacity: 0.35; transform: scale(0.85); }
+  86% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 0.35; transform: scale(0.85); }
+}
+
+.gc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.gc-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.gc-field-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.gc-field-hint {
+  font-size: 0.8rem;
+  color: var(--gc-muted);
+}
+.gc-setup-link {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--gc-accent-strong);
+  border-radius: 8px;
+  padding: 0.3rem 0.5rem;
+  margin: -0.3rem -0.5rem;
+  transition: background-color 0.15s ease;
+}
+.dark .gc-setup-link {
+  color: var(--gc-accent);
+}
+.gc-setup-link:hover {
+  background: var(--gc-accent-soft);
+}
+.gc-setup-note {
+  font-size: 0.9rem;
+  color: var(--gc-muted);
+  line-height: 1.9;
+}
+
+/* کنترلِ تکه‌تکه: یک قاب، چند گزینه — مثلِ هر segmented control. */
+.gc-seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--gc-sunken);
+  border: 1px solid var(--gc-line);
+}
+.gc-seg-item {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.05rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: 10px;
+  color: var(--gc-muted);
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.gc-seg-item:hover:not(:disabled):not([data-selected]) {
+  color: var(--gc-text);
+}
+.gc-seg-item[data-selected] {
+  background: var(--gc-surface);
+  color: var(--gc-text);
+  box-shadow: var(--gc-shadow-md);
+}
+.gc-seg-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.gc-seg-item:focus-visible {
+  outline: 2px solid var(--gc-accent);
+  outline-offset: -2px;
+}
+.gc-seg-main {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.gc-seg-meta {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--gc-muted);
+}
+
+.gc-lesson-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.75rem, 1fr));
+  gap: 0.5rem;
+}
+.gc-lesson-chip,
+.gc-lesson-skeleton {
+  min-height: 3.9rem;
+  border-radius: 12px;
+}
+.gc-lesson-skeleton {
+  background: var(--gc-sunken);
+  animation: gcSkel 1.2s ease-in-out infinite alternate;
+}
+@keyframes gcSkel {
+  to { opacity: 0.45; }
+}
+.gc-lesson-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  border: 1px solid var(--gc-line-strong);
+  background: var(--gc-surface);
+  padding: 0.5rem 0.25rem;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) {
+  .gc-lesson-chip:hover:not(:disabled):not([data-selected]) {
+    border-color: color-mix(in oklch, var(--gc-accent) 55%, var(--gc-line-strong));
+  }
+}
+.gc-lesson-chip:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.gc-lesson-chip[data-selected] {
+  border-color: var(--gc-accent);
+  background: color-mix(in oklch, var(--gc-accent) 11%, var(--gc-surface));
+  box-shadow: inset 0 0 0 1px var(--gc-accent);
+}
+.gc-lesson-chip:disabled {
+  border-style: dashed;
+  border-color: var(--gc-line);
+  background: transparent;
+  cursor: default;
+}
+.gc-lesson-chip:focus-visible {
+  outline: 2px solid var(--gc-accent);
+  outline-offset: 2px;
+}
+.gc-lesson-num {
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.gc-lesson-chip[data-selected] .gc-lesson-num {
+  color: var(--gc-accent-strong);
+}
+.dark .gc-lesson-chip[data-selected] .gc-lesson-num {
+  color: var(--gc-accent);
+}
+.gc-lesson-chip:disabled .gc-lesson-num {
+  color: var(--gc-muted);
+  opacity: 0.6;
+}
+.gc-lesson-meta {
+  font-size: 0.7rem;
+  color: var(--gc-muted);
+}
+
+.gc-setup-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  border-radius: 12px;
+  border: 1px solid color-mix(in oklch, var(--gc-bad) 40%, transparent);
+  background: color-mix(in oklch, var(--gc-bad) 8%, transparent);
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+}
+.gc-setup-error-inline {
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--gc-bad) 10%, transparent);
+  color: var(--gc-bad);
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.gc-setup-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--gc-line);
+  padding-top: 1.25rem;
+}
+.gc-setup-count {
+  margin-inline-end: auto;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.gc-setup-count[data-empty] {
+  font-weight: 500;
+  color: var(--gc-muted);
+}
+
+/* ── نتیجه ─────────────────────────────────────────────────────────────── */
+.gc-result .gc-setup-actions {
+  justify-content: flex-end;
+}
+.gc-result-ring {
+  position: relative;
+  width: 7.5rem;
+  height: 7.5rem;
+  margin-bottom: 0.75rem;
+}
+.gc-result-ring svg {
+  width: 100%;
+  height: 100%;
+  rotate: -90deg;
+}
+.gc-result-ring circle {
+  fill: none;
+  stroke-width: 9;
+}
+.gc-result-ring-track {
+  stroke: var(--gc-sunken);
+}
+.gc-result-ring-fill {
+  stroke: var(--gc-accent);
+  stroke-linecap: round;
+  stroke-dasharray: calc(var(--gc-rate) * 1) 100;
+  animation: gcRing 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes gcRing {
+  from { stroke-dasharray: 0 100; }
+}
+.gc-result-rate {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  grid-auto-flow: column;
+  align-items: baseline;
+  font-size: 2rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.gc-result-rate small {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--gc-muted);
+}
+
+.gc-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--gc-line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+/* عدد بالا، برچسب پایین؛ در DOM برچسب اول است تا `dt/dd` درست خوانده شود. */
+.gc-stat {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.15rem;
+  padding: 0.9rem 0.5rem;
+  text-align: center;
+}
+.gc-stat + .gc-stat {
+  border-inline-start: 1px solid var(--gc-line);
+}
+.gc-stat dd {
+  font-size: 1.3rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.gc-stat dt {
+  font-size: 0.75rem;
+  color: var(--gc-muted);
+}
+
+.gc-result-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 16rem;
+  overflow-y: auto;
+  border-radius: 12px;
+}
+.gc-result-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 0.25rem;
+  font-size: 0.88rem;
+}
+.gc-result-row + .gc-result-row {
+  border-top: 1px solid var(--gc-line);
+}
+.gc-result-name {
+  font-weight: 700;
+  margin-inline-end: auto;
+}
+.gc-result-dim {
+  color: var(--gc-muted);
+  font-weight: 500;
+}
+.gc-result-mark {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gc-line-strong);
+}
+.gc-result-mark[data-first] {
+  background: var(--gc-ok);
+}
+
+/* ══════════════════════════ چیدمان‌های واکنش‌گرا ═══════════════════════════
+   هر دستهٔ دستگاه صاحبِ *یک* بلوک است:
+       پیش‌فرض                    : دسکتاپ و تبلت — مدارِ افقی
+       ≤ 640px و ایستاده          : گوشیِ ایستاده — مدارِ عمودی
+       ارتفاعِ ≤ 460px            : گوشیِ خوابیده — مدارِ افقیِ فشرده
+   ───────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .gc-setup {
+    border-radius: 20px;
+    gap: 1.5rem;
+  }
+  .gc-setup-actions .gc-btn-primary {
+    flex: 1 1 auto;
+  }
+  .gc-setup-count {
+    flex: 1 0 100%;
+  }
+  .gc-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .gc-stat:nth-child(3) {
+    border-inline-start: 0;
+  }
+  .gc-stat:nth-child(n + 3) {
+    border-top: 1px solid var(--gc-line);
+  }
+  .gc-dock {
+    padding: 0.75rem 0.75rem 0.85rem;
+  }
+  .gc-controls {
+    justify-content: space-between;
+  }
+  .gc-controls .gc-btn-primary {
+    flex: 0 0 auto;
+    min-width: 9rem;
+  }
+}
+
+/* ── صفحه‌های بزرگ: همه‌چیز یک پله درشت‌تر، تا مدار در دلِ یک صفحهٔ خالی گم نشود. */
+@media (min-width: 900px) and (min-height: 680px) {
+  .gc-col-word,
+  .gc-sep {
+    font-size: 1.3rem;
+  }
+  .gc-col {
+    gap: 0.75rem;
+  }
+  .gc-seated {
+    font-size: 1.02rem;
+  }
+  .gc-content {
+    gap: 2.25rem;
+    padding: 3.25rem 3rem;
+  }
+  .gc-power svg {
+    width: 78px;
+    height: 49px;
+  }
+  .gc-lamp svg {
+    width: 68px;
+    height: 91px;
+  }
+  .gc-module {
+    min-height: 48px;
+    padding: 0.8rem 1.3rem;
+    font-size: 1.02rem;
+  }
+  .gc-tray-items {
+    gap: 0.65rem;
+  }
+}
+
+/* ── گوشیِ ایستاده: مدارِ عمودی ─────────────────────────────────────────────
+   جملهٔ کامل بالای صفحه هست؛ اینجا فقط واژه‌های هدف، هرکدام یک ردیف: واژه
+   سمتِ راست، خانه‌اش سمتِ چپ، و سیم از بالا (باتری) از وسطِ همهٔ خانه‌ها
+   پایین می‌آید تا به لامپِ آویزان برسد. هیچ اسکرولِ افقی‌ای لازم نیست —
+   بیشترینِ خانه‌ها در بانک چهارتاست.
+
+   ⚠️ باتری و لامپ هم‌عرضِ ستونِ خانه‌اند و همه به لبهٔ چپ چسبیده‌اند، پس مرکزِ
+   هر سه روی یک خطِ عمودی است و سیم صاف پایین می‌آید. */
+@media (max-width: 640px) and (orientation: portrait) {
+  .gc-viewport {
+    width: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    touch-action: pan-y;
+  }
+  .gc-content {
+    --gc-rail: min(10rem, 44vw);
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1.4rem;
+    padding: 1.4rem 1.25rem 1.5rem;
+  }
+  .gc-power,
+  .gc-lamp {
+    width: var(--gc-rail);
+  }
+  .gc-strip {
+    display: grid;
+    grid-template-columns: auto var(--gc-rail);
+    column-gap: 1.25rem;
+    row-gap: 1.6rem;
+    align-items: center;
+  }
+  .gc-col {
+    display: contents;
+  }
+  .gc-col:not([data-target]),
+  .gc-sep {
+    display: none;
+  }
+  .gc-col-word {
+    justify-self: start;
+    font-size: 1.1rem;
+  }
+  .gc-socket {
+    width: 100% !important;
+  }
+  .gc-socket-pin-a,
+  .gc-socket-pin-b {
+    inset-inline: auto;
+    left: 50%;
+    margin: 0 0 0 -3.5px;
+  }
+  .gc-socket-pin-a {
+    top: -4px;
+  }
+  .gc-socket-pin-b {
+    top: auto;
+    bottom: -4px;
+  }
+  /* سیم از زیرِ باتری بیرون می‌آید. */
+  .gc-power .gc-terminal {
+    left: 50%;
+    top: 94%;
+  }
+  /* لامپِ آویزان: قاب ۱۸۰ درجه می‌چرخد و نوکِ سرپیچ بالا می‌آید. */
+  .gc-lamp .gc-endcap-art {
+    rotate: 180deg;
+  }
+  .gc-lamp .gc-terminal {
+    left: 50%;
+    top: 89%;
+  }
+  .gc-lamp-shine {
+    display: none;
+  }
+}
+
+/* ── گوشیِ خوابیده ─────────────────────────────────────────────────────── */
+@media (max-height: 460px) {
+  .gc-topbar {
+    padding-block: 0.2rem;
+  }
+  .gc-icon-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+  .gc-question {
+    padding: 0 1rem;
+  }
+  .gc-question-text {
+    max-width: 60ch;
+    font-size: clamp(1rem, 0.9rem + 0.6vw, 1.2rem);
+    line-height: 1.7;
+  }
+  .gc-q-target {
+    text-underline-offset: 0.4em;
+  }
+  .gc-board {
+    padding: 0.35rem 0.75rem;
+  }
+  .gc-viewport {
+    border-radius: 16px;
+  }
+  .gc-content {
+    padding: 0.6rem 1rem;
+    gap: 0.9rem;
+  }
+  .gc-col {
+    gap: 0.25rem;
+  }
+  .gc-col-word,
+  .gc-sep {
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
+  .gc-seated {
+    font-size: 0.82rem;
+  }
+  .gc-power svg {
+    width: 44px;
+    height: 28px;
+  }
+  .gc-lamp svg {
+    width: 38px;
+    height: 51px;
+  }
+  /* در افقیِ فشرده داک یک ردیف می‌شود: قطعه‌ها و دکمه کنارِ هم. */
+  .gc-dock {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.4rem 0.75rem 0.5rem;
+  }
+  .gc-tray {
+    flex: 1 1 auto;
+  }
+  .gc-tray-items {
+    max-height: 92px;
+    gap: 0.35rem;
+  }
+  .gc-controls {
+    width: auto;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+  }
+  .gc-controls-hint {
+    justify-content: center;
+    font-size: 0.75rem;
+  }
+  .gc-module {
+    min-height: 38px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.85rem;
+  }
+  .gc-btn {
+    min-height: 40px;
+    padding: 0.45rem 1.1rem;
+    font-size: 0.88rem;
+  }
+  .gc-btn-primary {
+    min-width: 7.5rem;
+  }
+}
+
+/* ── کاهشِ حرکت ────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .gc-socket[data-fresh="true"] .gc-seated,
+  .gc-socket[data-check="checking"] .gc-seated,
+  .gc-lamp[data-state="flicker"] .gc-lamp-bloom,
+  .gc-art-pulse,
+  .gc-art-glow,
+  .gc-result-ring-fill,
+  .gc-btn[data-busy]::after,
+  .gc-lesson-skeleton {
+    animation: none !important;
+  }
+  .gc-art-pulse {
+    opacity: 0;
+  }
+  .gc-module,
+  .gc-socket,
+  .gc-seated,
+  .gc-seated::after,
+  .gc-lamp-bloom,
+  .gc-lamp-glass,
+  .gc-progress-fill {
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,111 @@
+
+import { randomUUID } from "node:crypto";
+import { query, execute, transaction } from "@/lib/db";
+import { AUTH_USER_COLUMNS, authUserColumns, toAuthUser, type UserRow } from "@/lib/auth/session";
+import type { AuthUser } from "@/lib/auth/types";
+import { mayLinkToExistingAccount, type VerifiedGoogleUser } from "./google-claims";
+
+/**
+ * از یک هویتِ تأییدشدهٔ گوگل به یک کاربرِ سایت می‌رسد.
+ *
+ * سه حالت، به همین ترتیب:
+ *
+ *   ۱. این حسابِ گوگل قبلاً وصل شده  → همان کاربر
+ *   ۲. کاربری با همین ایمیل هست      → وصل کن، *اگر* گوگل ایمیل را تأیید کرده
+ *   ۳. هیچ‌کدام                       → کاربرِ تازه بساز
+ *
+ * ⚠️ ترتیب مهم است. جست‌وجو اول با `sub` است نه ایمیل: اگر کاربر ایمیلِ
+ * گوگلش را عوض کند، باز هم همان حساب را می‌گیرد. اگر اول با ایمیل می‌گشتیم،
+ * یک آدرسِ رهاشده که گوگل به شخصِ دیگری داده، او را به حسابِ قبلی می‌رساند.
+ */
+
+export type LinkOutcome =
+  | { ok: true; user: AuthUser; created: boolean }
+  | { ok: false; reason: "unverified_email_conflict" | "banned" };
+
+export async function resolveGoogleUser(g: VerifiedGoogleUser): Promise<LinkOutcome> {
+  // ۱) هویتِ شناخته‌شده
+  const existing = await query<UserRow>(
+    `select ${authUserColumns("u")}
+       from user_identities i
+       join users u on u.id = i.user_id
+      where i.provider = 'google' and i.provider_account_id = ?`,
+    [g.sub],
+  );
+  if (existing.length > 0) {
+    const user = toAuthUser(existing[0]);
+    if (user.isBanned) return { ok: false, reason: "banned" };
+    return { ok: true, user, created: false };
+  }
+
+  // ۲) حسابی با همین ایمیل
+  const byEmail = await query<UserRow>(
+    `select ${AUTH_USER_COLUMNS} from users where email = ?`,
+    [g.email],
+  );
+  if (byEmail.length > 0) {
+    // ⚠️ اینجا حساس‌ترین نقطهٔ کلِ این قابلیت است.
+    //
+    // اگر گوگل ایمیل را تأیید نکرده باشد، هرکسی می‌تواند یک حسابِ گوگل با
+    // آدرسِ قربانی بسازد و با یک کلیک وارد حسابِ او شود — بدونِ دانستنِ رمز.
+    // در آن حالت وصل نمی‌کنیم و کاربر باید با رمزِ خودش وارد شود.
+    if (!mayLinkToExistingAccount(g)) {
+      return { ok: false, reason: "unverified_email_conflict" };
+    }
+
+    const user = toAuthUser(byEmail[0]);
+    if (user.isBanned) return { ok: false, reason: "banned" };
+
+    // ON DUPLICATE KEY UPDATE با مقدارِ خودش = «هیچ کاری نکن»، و بر خلاف
+    // INSERT IGNORE فقط نقضِ کلید یکتا را می‌بلعد.
+    await execute(
+      `insert into user_identities (id, user_id, provider, provider_account_id, email)
+       values (?, ?, 'google', ?, ?)
+       on duplicate key update provider_account_id = provider_account_id`,
+      [randomUUID(), user.id, g.sub, g.email],
+    );
+    return { ok: true, user, created: false };
+  }
+
+  // ۳) کاربرِ تازه
+  //
+  // ⚠️ ساخت کاربر و ثبتِ هویتش در یک تراکنش‌اند: کاربری که ساخته شود ولی
+  // هویتش ثبت نشود، هیچ راهِ ورودی ندارد — نه رمزی دارد نه هویتی — و دفعهٔ
+  // بعد به شاخهٔ ۲ می‌افتد و آنجا هم گیر می‌کند.
+  const created = await transaction(async (tx) => {
+    // ⚠️ password_hash عمداً null است — کاربرِ فقط-گوگل رمز ندارد. ستون از
+    // migration 012 به بعد nullable است و باید همین‌طور بماند.
+    const userId = randomUUID();
+    await tx.execute(
+      `insert into users (id, email, password_hash, full_name, email_verified_at)
+       values (?, ?, null, ?, ?)`,
+      [
+        userId,
+        g.email,
+        g.name,
+        // ایمیلی که گوگل تأیید کرده، تأییدشده است. اگر تأیید نکرده باشد،
+        // حساب ساخته می‌شود ولی تأییدنشده می‌ماند.
+        //
+        // ⚠️ Date به رشتهٔ UTC تبدیل می‌شود و نه به خودِ Date: درایور با
+        // timezone:'Z' آن را درست می‌نویسد، ولی صریح بودن اینجا یعنی
+        // ستونِ DATETIME(6) همان چیزی می‌گیرد که انتظار داریم.
+        g.emailVerified ? new Date().toISOString().slice(0, 23).replace("T", " ") : null,
+      ],
+    );
+    await tx.execute(
+      `insert into user_identities (id, user_id, provider, provider_account_id, email)
+       values (?, ?, 'google', ?, ?)`,
+      [randomUUID(), userId, g.sub, g.email],
+    );
+    // RETURNING نداریم؛ ردیف با همان شناسه و در همان تراکنش خوانده می‌شود،
+    // پس مقدارهای DEFAULT (role و created_at) هم واقعی‌اند.
+    const row = await tx.queryOne<UserRow>(
+      `select ${AUTH_USER_COLUMNS} from users where id = ?`,
+      [userId],
+    );
+    if (!row) throw new Error("حساب گوگل ساخته شد ولی خوانده نشد.");
+    return row;
+  });
+
+  return { ok: true, user: toAuthUser(created), created: true };
+}

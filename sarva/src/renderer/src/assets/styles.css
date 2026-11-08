@@ -1,0 +1,4561 @@
+@import "tailwindcss";
+
+/* ============================================================ سروا — دسکتاپ
+   این فایل همان `app/globals.css`ِ سرواست که بی‌کم‌وکاست اینجا نشسته: همان
+   توکن‌ها، همان دو تم، همان یوتیلیتی‌ها. تنها تغییر این است که قلم‌ها به‌جای
+   `next/font` از بستهٔ محلی می‌آیند (برنامه نباید برای یک فونت به شبکه وصل
+   شود) و دو متغیّرِ نامِ قلم در `:root` تعریف شده‌اند. */
+:root {
+  --font-vazirmatn: "Vazirmatn", "Segoe UI", Tahoma, sans-serif;
+  --font-naskh: "Noto Naskh Arabic", "Vazirmatn", serif;
+}
+
+@variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-shine: shine var(--duration) infinite linear;
+}
+
+/* Magic UI — Shine Border (`components/UI/kit/magic/shine-border.tsx`). */
+@keyframes shine {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 100% 100%; }
+  to { background-position: 0% 0%; }
+}
+
+@keyframes accordion-down {
+  from { height: 0; }
+  to { height: var(--radix-accordion-content-height); }
+}
+
+@keyframes accordion-up {
+  from { height: var(--radix-accordion-content-height); }
+  to { height: 0; }
+}
+
+:root {
+  /* Persian-inspired light theme - Warm cream, turquoise, lapis blue, soft gold */
+  --background: oklch(0.97 0.01 85); /* Warm cream */
+  --foreground: oklch(0.2 0.02 250); /* Deep lapis blue */
+  --card: oklch(0.99 0.005 85); /* Warm white */
+  --card-foreground: oklch(0.2 0.02 250);
+  --popover: oklch(0.99 0.005 85);
+  --popover-foreground: oklch(0.2 0.02 250);
+  --primary: #008687; /* Persian turquoise */
+  --primary-foreground: oklch(0.99 0.005 85);
+  --secondary: oklch(0.92 0.02 85); /* Paper brown tone */
+  --secondary-foreground: oklch(0.25 0.02 250);
+  --muted: oklch(0.94 0.015 85);
+  --muted-foreground: #4d5660;
+  --accent: oklch(0.75 0.12 85); /* Soft gold */
+  --accent-foreground: oklch(0.2 0.02 250);
+  --destructive: oklch(0.55 0.2 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.88 0.02 85);
+  --input: oklch(0.92 0.015 85);
+  --ring: oklch(0.55 0.12 195);
+  --chart-1: oklch(0.55 0.12 195);
+  --chart-2: oklch(0.35 0.12 260);
+  --chart-3: oklch(0.75 0.12 85);
+  --chart-4: oklch(0.65 0.08 195);
+  --chart-5: oklch(0.45 0.08 260);
+  --radius: 0.75rem;
+
+  /* Custom Persian colors */
+  --turquoise: #008687;
+  --turquoise-light: oklch(0.75 0.08 195);
+  --lapis: oklch(0.3 0.1 260);
+  --lapis-light: oklch(0.45 0.08 260);
+  --gold: oklch(0.75 0.12 85);
+  --gold-light: oklch(0.88 0.08 85);
+  /* ⚠️ طلاییِ خواندنی روی سطحِ روشن.
+     --gold خودش برای حاشیه، پس‌زمینه و درخششِ بازی‌هاست و روی کرم فقط
+     ۲٫۰۵:۱ کنتراست می‌دهد — یعنی «قلمرو ادبی» و نام شاعر در درسنامه عملاً
+     کم‌رنگ و سخت‌خوان بودند. این یکی فقط برای *متن* است؛ خودِ --gold دست
+     نخورده می‌ماند تا نوار زمانِ نینجا و درِ جاسوس تیره نشوند. */
+  --gold-ink: oklch(0.52 0.11 85);
+  --cream: oklch(0.97 0.01 85);
+  --paper: oklch(0.92 0.02 85);
+
+  /* ── سطح و ژرفای پنل ────────────────────────────────────────────────
+     ⚠️ `--surface` یک فرمول است و نه دو رنگِ دستی: کارت همیشه یک لایهٔ
+     نازکِ رنگِ *متن* در خود دارد. در تمِ روشن یعنی کمی تیره‌تر از کاغذ و
+     در تمِ تیره کمی روشن‌تر و گرم‌تر از زمینهٔ شب — یعنی یک تعریف، دو
+     نتیجهٔ درست. پیش از این کارت‌های پنل دقیقاً همرنگِ زمینه بودند و
+     مرزشان فقط از روی بوردر دیده می‌شد. */
+  --surface: color-mix(in oklch, var(--card) 96%, var(--foreground));
+  --surface-2: color-mix(in oklch, var(--card) 91%, var(--foreground));
+  /* سایهٔ زیرِ دکمه‌های «فشاردادنی». تیره‌ترِ همان رنگ، نه یک خاکستری. */
+  --primary-deep: color-mix(in oklch, var(--primary) 72%, #000);
+  --gold-deep: color-mix(in oklch, var(--gold) 68%, #000);
+
+  /* ── شبِ بازی‌ها ──────────────────────────────────────────────────────
+     چند بازی صحنهٔ خودشان را در «شب» می‌سازند: زمینِ نینجا، تهیِ زیرِ پلِ
+     وزن، کارگاهِ مدار دستور. تا پیش از این هر کدام شبِ خودش را با هگزِ
+     دستی می‌نوشت، و نتیجه‌اش دو ایراد بود:
+
+       ۱) روی تمِ روشن یک *مستطیلِ سیاه* وسطِ کاغذِ کرم می‌نشست. مرزش هیچ
+          ربطی به بقیهٔ صفحه نداشت — شبیهِ iframe ای از یک سایتِ دیگر.
+       ۲) با عوض شدنِ `data-palette` هیچ اتفاقی نمی‌افتاد. کاربرِ پالتِ رز
+          کلِ سایت را صورتی می‌کرد و زمینِ بازی همان آبیِ بنفش می‌ماند.
+
+     حالا شب از `--primary` ساخته می‌شود، پس در هر پالت شبِ *همان* پالت
+     است: شبِ فیروزه‌ای، شبِ رز، شبِ زعفرانی.
+
+     ⚠️ پایه عمداً خاکستریِ بی‌فام است (`oklch(L 0 0)`) و نه یک سرمه‌ایِ
+     کم‌فام. همان تلهٔ `--pattern-color` بالاتر: color-mix بینِ دو فامِ دور
+     از کوتاه‌ترین کمان می‌گذرد و یک فامِ سوم می‌سازد. با پایهٔ بی‌فام،
+     فامِ نتیجه فقط و فقط از --primary می‌آید.
+
+     ⚠️ و اینجا `.dark` ندارد: خودِ --primary در تمِ تیره روشن‌تر می‌شود، پس
+     شب هم کمی بازتر می‌شود — همان جهتی که درست است. */
+  --game-night-1: color-mix(in oklch, var(--primary) 30%, oklch(0.32 0 0)); /* سقفِ صحنه */
+  --game-night-2: color-mix(in oklch, var(--primary) 20%, oklch(0.22 0 0)); /* میانه */
+  --game-night-3: color-mix(in oklch, var(--primary) 12%, oklch(0.15 0 0)); /* تهِ صحنه */
+  /* متن و سطحِ شناور *روی* شب. کرمِ سایت، نه سفیدِ خام. */
+  --game-night-ink: color-mix(in oklch, var(--cream) 92%, var(--primary));
+  --game-night-veil: color-mix(in oklch, var(--game-night-3) 72%, transparent);
+  /* لبهٔ صحنه — همان مرزی که کارت‌های سایت دارند، ولی از سمتِ شب دیده شود. */
+  --game-night-edge: color-mix(in oklch, var(--primary) 34%, var(--game-night-1));
+
+  /* ── رنگِ الگوی هندسیِ پس‌زمینه ───────────────────────────────────────
+     تا پیش از این هر جا `<GeometricPattern />` بود، رنگش را والدش تعیین
+     می‌کرد: در سایت `text-gold` و در پنل و صفحهٔ پلاس `var(--primary)`.
+     یعنی یک الگوی واحد، سه منبعِ رنگ — و با اضافه شدنِ پالت‌ها باید هر سه
+     را جدا نگه می‌داشتیم.
+
+     حالا یک توکن دارد. چون از --gold و --primary ساخته می‌شود، با عوض شدنِ
+     data-palette خودش عوض می‌شود و هیچ prop‌ای در هیچ کال‌سایتی دست
+     نمی‌خورد. نسبتِ ۵۵/۴۵ عمدی است: دقیقاً میانهٔ همان دو رنگی که پیش‌تر
+     دو دستهٔ کال‌سایت‌ها استفاده می‌کردند.
+
+     ⚠️ خودِ شفافیت اینجا نیست؛ در prop‌ِ opacity هر کال‌سایت می‌ماند
+     (۰٫۰۶ در سایت، ۰٫۰۲۵ در پنل) چون هر زمینه‌ای غلظتِ خودش را می‌خواهد.
+
+     ⚠️⚠️ اینجا یک بار `color-mix(--gold 55%, --primary)` بود و **غلط بود**.
+     میان‌یابیِ فام در oklch از کوتاه‌ترین کمان می‌گذرد؛ بین طلایی (۸۵) و
+     فیروزه (۱۹۶) آن کمان از وسطِ سبز رد می‌شود. یعنی الگوی طلاییِ سایت روی
+     تمِ پیش‌فرض بی‌صدا زیتونی شده بود (‎#76a35d‎) و روی پالت‌های دیگر هر
+     بار یک فامِ سومِ بی‌ربط می‌ساخت — همان «هاله»ای که دیده می‌شد.
+
+     درسش کلی است: color-mix بینِ دو فامِ دور، یک رنگِ سوم می‌سازد و نه
+     میانگینِ آن دو. حالا تک‌رنگ است و هیچ فامی جابه‌جا نمی‌شود؛ چون --gold
+     خودش در هر پالت عوض می‌شود، الگو هم عوض می‌شود. */
+  /* خودِ --pattern-color پایین‌تر، کنارِ `.sarva-pattern` تعریف می‌شود. */
+  /* شدتِ الگو. در تمِ تیره پایین‌تر است؛ ستاره‌های روشن روی زمینهٔ شب
+     بیشتر دیده می‌شوند و کلِ صفحه را رنگی نشان می‌دادند. */
+  --pattern-strength: 0.6;
+
+  /* ── دو تنِ نشانِ سروا ────────────────────────────────────────────────
+     لوگو دو رنگ دارد: یک تنِ روشن‌تر و یک تنِ کمی تیره‌تر که به آن حجم
+     می‌دهد. تا امروز هر دو در شش جای `mainLogo.tsx` هارد‌کد بودند، پس با
+     عوض شدنِ پالت، نشان تنها چیزی می‌ماند که هنوز فیروزه‌ای است.
+
+     ⚠️ اینجا عمداً فرمول نیست و خودِ دو هگزِ امروز است. پالتِ پیش‌فرض باید
+     مو به مو همان بماند، و هیچ ترکیبی از --primary دقیقاً به این دو نمی‌رسد:
+     نشان روشن‌تر و اشباع‌تر از فیروزهٔ متن است (L=۰٫۷۳ در برابر ۰٫۵۶) و
+     هر color-mix با سفید که روشنش کند، اشباعش را هم می‌خورد.
+
+     ⚠️ و اینجا `.dark` ندارد — امروز هم نشان در هر دو تم یک رنگ است. */
+  --logo-1: #0dbfc3;
+  --logo-2: #00abb5;
+}
+
+.dark {
+  /* Persian night aesthetics - Deep blues with gold and turquoise accents */
+  --background: oklch(0.14 0.03 260); /* Deep night blue */
+  --foreground: #f1eee7; /* Warm cream text */
+  --card: #0b121d;
+  --card-foreground: oklch(0.95 0.01 85);
+  --popover: oklch(0.18 0.025 260);
+  --popover-foreground: oklch(0.95 0.01 85);
+  --primary: #00a5a6; /* Brighter turquoise for dark mode */
+  --primary-foreground: oklch(0.14 0.03 260);
+  --secondary: oklch(0.22 0.025 260);
+  --secondary-foreground: oklch(0.95 0.01 85);
+  --muted: oklch(0.25 0.02 260);
+  --muted-foreground: #a49e91;
+  --accent: oklch(0.75 0.12 85); /* Gold accent */
+  --accent-foreground: oklch(0.14 0.03 260);
+  --destructive: oklch(0.45 0.18 25);
+  --destructive-foreground: oklch(0.95 0 0);
+  --border: oklch(0.28 0.025 260);
+  --input: oklch(0.22 0.025 260);
+  --ring: oklch(0.65 0.12 195);
+  --chart-1: oklch(0.65 0.12 195);
+  --chart-2: oklch(0.75 0.12 85);
+  --chart-3: oklch(0.55 0.08 195);
+  --chart-4: oklch(0.65 0.08 260);
+  --chart-5: oklch(0.85 0.08 85);
+
+  /* Custom Persian colors - dark mode */
+  --turquoise: oklch(0.65 0.12 195);
+  --turquoise-light: oklch(0.78 0.09 195);
+  --lapis: oklch(0.45 0.08 260);
+  /* ⚠️ این دو در تمِ تیره *روشن‌تر* می‌شوند، نه تیره‌تر.
+     قبلاً --lapis-light در حالت تیره ۰٫۳۵ بود در حالی که در حالت روشن ۰٫۴۵ —
+     یعنی درست برعکسِ بقیهٔ رنگ‌ها. نتیجه: «قلمرو فکری» در درسنامه و «پایهٔ
+     دوازدهم» روی زمینهٔ شب با کنتراست ۱٫۶۷:۱ عملاً خوانده نمی‌شدند. (همین
+     باعث شد پیش‌تر در زمینِ نینجا مجبور شوم آبیِ هاله را دستی و ثابت بنویسم.) */
+  --lapis-light: oklch(0.72 0.1 260);
+  --gold: oklch(0.75 0.12 85);
+  --gold-light: oklch(0.65 0.1 85);
+  /* در تمِ تیره، طلاییِ روشن روی زمینهٔ شب خودش خوانا است. */
+  --gold-ink: oklch(0.8 0.12 85);
+  --cream: oklch(0.95 0.01 85);
+  --paper: oklch(0.22 0.025 260);
+
+  /* همان فرمولِ بالا؛ چون --card و --foreground اینجا عوض شده‌اند، خودش
+     جهتِ درست را می‌گیرد. فقط نسبت‌ها کمی بازتر است، چون در تمِ تیره
+     چهار درصد کرم به‌سختی دیده می‌شود. */
+  --surface: color-mix(in oklch, var(--card) 94%, var(--foreground));
+  --surface-2: color-mix(in oklch, var(--card) 88%, var(--foreground));
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   پالت‌های رنگی  —  data-palette روی <html>
+   ════════════════════════════════════════════════════════════════════════
+
+   ⚠️ قاعده‌ای که این بخش رویش ایستاده: **یک پالت یعنی چند بذر، نه یک تمِ
+   دوم.** همان چیزی که بالاتر دربارهٔ `--surface` نوشته شده («یک فرمول است و
+   نه دو رنگِ دستی») اینجا به کلِ پالت تعمیم داده می‌شود.
+
+   هر پالت فقط **هفت** توکن را می‌کارد:
+
+       --background  --foreground  --card  --primary  --lapis  --gold  --gold-ink
+
+   بقیهٔ توکن‌ها (حاشیه، muted، ثانویه، نمودارها، …) در بلوکِ مشترکِ زیر با
+   color-mix از همین هفت‌تا ساخته می‌شوند. سودش دوتاست:
+
+     ۱) یک پالتِ تازه هفت خط است و نه سی‌وپنج خط؛ کسی وسوسه نمی‌شود نصفش را
+        از پالتِ قبلی کپی کند و نصفِ دیگر را یادش برود.
+     ۲) نسبت‌ها یک‌جا تنظیم می‌شوند، پس هیچ پالتی نمی‌تواند حاشیهٔ نامرئی یا
+        متنِ کم‌رنگِ ناخوانا داشته باشد.
+
+   ── چرا فرمول‌ها به تم حساس نیستند ──────────────────────────────────────
+   تقریباً همهٔ فرمول‌ها بین `--background` و `--foreground` (یا `--primary`)
+   میان‌یابی می‌کنند. چون این دو در تمِ تیره جایشان عوض می‌شود، همان یک فرمول
+   خودش جهتِ درست را می‌گیرد: `color-mix(--background 88%, --foreground)` در
+   روشن کمی تیره‌تر از زمینه و در تیره کمی روشن‌تر از آن می‌شود. تنها
+   استثنا `--cream` است که در هر دو تم باید سفیدِ گرم بماند، و برای همین دو
+   خطِ جدا دارد.
+
+   ── ترتیب و ویژگی (specificity) ─────────────────────────────────────────
+   این بلوک‌ها **باید** بعد از `:root` و `.dark` بیایند، و انتخابگرها عمداً
+   با `:not(.dark)` / `.dark` نوشته شده‌اند: `[data-palette="x"]` به‌تنهایی
+   ویژگیِ (0,1,0) دارد — دقیقاً برابرِ `.dark`. یعنی اگر بلوکِ روشنِ یک پالت
+   بعد از `.dark` می‌آمد، رنگ‌های روشن تمِ تاریک را هم بازنویسی می‌کردند و
+   کاربرِ شب‌گردی که پالت عوض کرده بود ناگهان صفحهٔ سفید می‌دید.
+
+   ── پیش‌فرض دست‌نخورده ───────────────────────────────────────────────────
+   `data-palette="turquoise"` عمداً هیچ بلوکی ندارد و از فرمول‌ها هم مستثناست
+   (`:not([data-palette="turquoise"])`). فیروزه‌ای همان چیزی است که در
+   `:root`/`.dark` نوشته شده و یک پیکسل هم عوض نمی‌شود. */
+
+/* ---- فرمول‌های مشترکِ همهٔ پالت‌های غیرِ پیش‌فرض (هر دو تم) ---- */
+:root[data-palette]:not([data-palette="turquoise"]) {
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+
+  /* متنِ روی رنگِ اصلی = خودِ زمینه. در تمِ روشن یعنی سفید روی رنگِ میانه و
+     در تمِ تیره یعنی تیره روی رنگِ روشن — یک خط، دو نتیجهٔ درست. */
+  --primary-foreground: var(--background);
+  --secondary-foreground: var(--foreground);
+  --muted: color-mix(in oklch, var(--background) 88%, var(--primary));
+  /* ۷۶٪ عمدی است: کمتر از این، متنِ کم‌رنگ زیرِ ۴٫۵:۱ می‌افتد. */
+  --muted-foreground: color-mix(in oklch, var(--foreground) 76%, var(--background));
+
+  /* ⚠️ --accent دیگر فرمول نیست و بذر است: رنگِ چهارمِ هر پالت بی‌کم‌وکاست
+     همین‌جا می‌نشیند. پس متنِ رویش هم باید از خودِ --accent ساخته شود و نه
+     از --gold. در هر دو تم یک پاستلِ روشن است، یعنی متنش در هر دو تم تیره
+     است — نه --foreground (که در تیره کرم است) و نه --background (که در
+     روشن سفید است). */
+  --accent-foreground: color-mix(in oklch, var(--accent) 18%, #0a0d12);
+
+  --border: color-mix(in oklch, var(--background) 78%, var(--primary));
+  --input: color-mix(in oklch, var(--background) 87%, var(--primary));
+  --ring: var(--primary);
+
+  --turquoise: var(--primary);
+  /* ⚠️ --lapis-light اینجا فرمول نیست و بذر است — و یک بار بود و غلط بود:
+     `color-mix(--lapis 45%, --primary)`. آن فرمول وقتی درست کار می‌کرد که
+     لاجورد و رنگِ اصلی هم‌خانواده بودند. حالا رنگِ سومِ هر پالت عمداً یک فامِ
+     *ناهمخوان* است تا در نمودار و برچسب از رنگِ اصلی جدا شود؛ میل دادنش به
+     سمتِ --primary دقیقاً همان جدایی را از بین می‌برد. در نعنایی نتیجه‌اش
+     ‎#00636e‎ شد — عملاً خودِ رنگِ اصلی. هر پالت حالا لاجوردِ روشنِ خودش را
+     در خانوادهٔ رنگِ سوم می‌کارد. */
+  --gold-light: color-mix(in oklch, var(--gold) 62%, var(--background));
+  --paper: color-mix(in oklch, var(--background) 88%, var(--foreground));
+
+  --chart-1: var(--primary);
+  --chart-2: var(--lapis-light);
+  --chart-3: var(--gold);
+  --chart-4: var(--turquoise-light);
+  --chart-5: color-mix(in oklch, var(--lapis) 60%, var(--gold));
+
+  /* نشانِ سروا، همرنگِ پالت. همان نسبتِ روشناییِ نشانِ اصلی: تنِ روشن حدود
+     ۰٫۰۷ واحد بالاتر از تنِ تیره می‌نشیند.
+
+     ⚠️ اینکه با `--cream` روشن می‌شود و نه با سفید، عمدی است: سفید اشباع را
+     صفر می‌کند و نشان خاکستری درمی‌آید. و اینکه اینجا بی‌خطر است ولی در
+     پالتِ پیش‌فرض نبود، یک دلیلِ عددی دارد — در این هشت پالت فامِ زمینه و
+     فامِ رنگِ اصلی کنارِ هم‌اند (مثلاً نعنایی: ۱۶۵ و ۱۷۲)، پس میان‌یابی فام
+     را تکان نمی‌دهد. در پیش‌فرض اما کرم روی ۸۵ و فیروزه روی ۱۹۶ است و همین
+     ترکیب، نشان را ۲۶ درجه به سبز می‌برد. */
+  --logo-1: color-mix(in oklch, var(--primary) 62%, var(--cream));
+  --logo-2: color-mix(in oklch, var(--primary) 78%, var(--cream));
+}
+
+/* «کرم» در تمِ روشن همان کاغذِ زمینه است و در تمِ تیره همان جوهرِ کرمِ متن —
+   تنها توکنی که فرمولش با تم عوض می‌شود. */
+:root:not(.dark)[data-palette]:not([data-palette="turquoise"]) {
+  --cream: var(--background);
+}
+
+/* ⚠️ --secondary در تمِ روشن *بذر* است (رنگِ دومِ هر پالت، بی‌کم‌وکاست) ولی
+   در تمِ تیره نمی‌تواند باشد: آن رنگ یک پاستلِ روشن است و در شب به‌عنوان
+   سطحِ ثانویه، یک تختهٔ سفید وسطِ صفحه می‌شد. پس فقط اینجا فرمول می‌گیرد. */
+:root.dark[data-palette]:not([data-palette="turquoise"]) {
+  --cream: var(--foreground);
+  --secondary: color-mix(in oklch, var(--background) 86%, var(--primary));
+}
+
+/* ------------------------------------------------------------------ آسمانی */
+/* #337A9F  #B9DDF2  #E7DDF6  #F6E4C8 */
+:root:not(.dark)[data-palette="sky"] {
+  --background: oklch(0.975 0.016 233.663);
+  --foreground: oklch(0.27 0.045 234.615);
+  --card: oklch(0.996 0.004 233.663);
+  --primary: oklch(0.551 0.091 234.615);
+  --secondary: oklch(0.878 0.048 233.663);
+  --accent: oklch(0.926 0.042 78.962);
+  --turquoise-light: oklch(0.878 0.048 233.663);
+  --lapis: oklch(0.35 0.075 303.792);
+  --lapis-light: oklch(0.5 0.075 303.792);
+  --gold: oklch(0.8 0.085 78.962);
+  --gold-ink: oklch(0.555 0.11 78.962);
+}
+:root.dark[data-palette="sky"] {
+  --background: oklch(0.165 0.01 234.615);
+  --foreground: oklch(0.95 0.014 85);
+  --card: oklch(0.2 0.013 234.615);
+  --primary: oklch(0.8 0.09 234.615);
+  --accent: oklch(0.82 0.06 78.962);
+  --turquoise-light: oklch(0.8 0.062 233.663);
+  --lapis: oklch(0.52 0.08 303.792);
+  --lapis-light: oklch(0.68 0.075 303.792);
+  --gold: oklch(0.75 0.09 78.962);
+  --gold-ink: oklch(0.85 0.075 78.962);
+}
+
+/* -------------------------------------------------------------------- یاسی */
+/* #6F63A8  #D8D0F0  #D7ECE7  #F6DDD2 */
+:root:not(.dark)[data-palette="lilac"] {
+  --background: oklch(0.975 0.016 296.915);
+  --foreground: oklch(0.27 0.045 290.382);
+  --card: oklch(0.996 0.004 296.915);
+  --primary: oklch(0.541 0.106 290.382);
+  --secondary: oklch(0.874 0.044 296.915);
+  --accent: oklch(0.915 0.032 45.273);
+  --turquoise-light: oklch(0.874 0.044 296.915);
+  --lapis: oklch(0.35 0.06 179.924);
+  --lapis-light: oklch(0.5 0.075 179.924);
+  --gold: oklch(0.8 0.085 85);
+  --gold-ink: oklch(0.55 0.11 85);
+}
+:root.dark[data-palette="lilac"] {
+  --background: oklch(0.165 0.01 290.382);
+  --foreground: oklch(0.95 0.014 85);
+  --card: oklch(0.2 0.013 290.382);
+  --primary: oklch(0.8 0.1 290.382);
+  --accent: oklch(0.82 0.06 45.273);
+  --turquoise-light: oklch(0.8 0.057 296.915);
+  --lapis: oklch(0.52 0.08 179.924);
+  --lapis-light: oklch(0.68 0.075 179.924);
+  --gold: oklch(0.75 0.09 85);
+  --gold-ink: oklch(0.85 0.075 85);
+}
+
+/* ------------------------------------------------------------------ نعنایی */
+/* #2F7F69  #BFE6D9  #DDE9F7  #F6E0CB */
+:root:not(.dark)[data-palette="mint"] {
+  --background: oklch(0.975 0.016 173.052);
+  --foreground: oklch(0.27 0.045 171.774);
+  --card: oklch(0.996 0.004 173.052);
+  --primary: oklch(0.541 0.085 171.774);
+  --secondary: oklch(0.893 0.044 173.052);
+  --accent: oklch(0.919 0.037 66.026);
+  --turquoise-light: oklch(0.893 0.044 173.052);
+  --lapis: oklch(0.35 0.075 252.179);
+  --lapis-light: oklch(0.5 0.075 252.179);
+  --gold: oklch(0.8 0.085 66.026);
+  --gold-ink: oklch(0.56 0.11 66.026);
+}
+:root.dark[data-palette="mint"] {
+  --background: oklch(0.165 0.01 171.774);
+  --foreground: oklch(0.95 0.014 85);
+  --card: oklch(0.2 0.013 171.774);
+  --primary: oklch(0.8 0.085 171.774);
+  --accent: oklch(0.82 0.06 66.026);
+  --turquoise-light: oklch(0.8 0.057 173.052);
+  --lapis: oklch(0.52 0.08 252.179);
+  --lapis-light: oklch(0.68 0.075 252.179);
+  --gold: oklch(0.75 0.09 66.026);
+  --gold-ink: oklch(0.85 0.075 66.026);
+}
+
+/* ----------------------------------------------------------------- پسته‌ای */
+/* #577B59  #CEDFC7  #E4E2F2  #F2E2C8 */
+:root:not(.dark)[data-palette="pistachio"] {
+  --background: oklch(0.975 0.016 136.459);
+  --foreground: oklch(0.27 0.045 145.964);
+  --card: oklch(0.996 0.004 136.459);
+  --primary: oklch(0.546 0.066 145.964);
+  --secondary: oklch(0.884 0.037 136.459);
+  --accent: oklch(0.919 0.039 80.02);
+  --turquoise-light: oklch(0.884 0.037 136.459);
+  --lapis: oklch(0.35 0.075 291.715);
+  --lapis-light: oklch(0.5 0.075 291.715);
+  --gold: oklch(0.8 0.085 80.02);
+  --gold-ink: oklch(0.555 0.11 80.02);
+}
+:root.dark[data-palette="pistachio"] {
+  --background: oklch(0.165 0.01 145.964);
+  --foreground: oklch(0.95 0.014 85);
+  --card: oklch(0.2 0.013 145.964);
+  --primary: oklch(0.8 0.08 145.964);
+  --accent: oklch(0.82 0.06 80.02);
+  --turquoise-light: oklch(0.8 0.048 136.459);
+  --lapis: oklch(0.52 0.08 291.715);
+  --lapis-light: oklch(0.68 0.075 291.715);
+  --gold: oklch(0.75 0.09 80.02);
+  --gold-ink: oklch(0.85 0.075 80.02);
+}
+
+/* ------------------------------------------------------------------- هلویی */
+/* #A95F45  #F2CBB8  #DCE8F4  #E5DDF2 */
+:root:not(.dark)[data-palette="peach"] {
+  --background: oklch(0.975 0.016 47.476);
+  --foreground: oklch(0.27 0.045 39.962);
+  --card: oklch(0.996 0.004 47.476);
+  --primary: oklch(0.565 0.104 39.962);
+  --secondary: oklch(0.871 0.051 47.476);
+  --accent: oklch(0.91 0.03 303.057);
+  --turquoise-light: oklch(0.871 0.051 47.476);
+  --lapis: oklch(0.35 0.075 248.053);
+  --lapis-light: oklch(0.5 0.075 248.053);
+  --gold: oklch(0.8 0.085 85);
+  --gold-ink: oklch(0.55 0.11 85);
+}
+:root.dark[data-palette="peach"] {
+  --background: oklch(0.165 0.01 39.962);
+  --foreground: oklch(0.95 0.014 85);
+  --card: oklch(0.2 0.013 39.962);
+  --primary: oklch(0.8 0.09 39.962);
+  --accent: oklch(0.82 0.06 303.057);
+  --turquoise-light: oklch(0.8 0.066 47.476);
+  --lapis: oklch(0.52 0.08 248.053);
+  --lapis-light: oklch(0.68 0.075 248.053);
+  --gold: oklch(0.75 0.09 85);
+  --gold-ink: oklch(0.85 0.075 85);
+}
+
+/* ---------------------------------------------------------------------- رز */
+/* #A95870  #EBC6D1  #DCE9F6  #E7E0F4 */
+:root:not(.dark)[data-palette="rose"] {
+  --background: oklch(0.975 0.016 358.261);
+  --foreground: oklch(0.27 0.045 2.31);
+  --card: oklch(0.996 0.004 358.261);
+  --primary: oklch(0.563 0.109 2.31);
+  --secondary: oklch(0.861 0.044 358.261);
+  --accent: oklch(0.918 0.028 301.737);
+  --turquoise-light: oklch(0.861 0.044 358.261);
+  --lapis: oklch(0.35 0.075 248.071);
+  --lapis-light: oklch(0.5 0.075 248.071);
+  --gold: oklch(0.8 0.085 85);
+  --gold-ink: oklch(0.55 0.11 85);
+}
+:root.dark[data-palette="rose"] {
+  --background: oklch(0.165 0.01 2.31);
+  --foreground: oklch(0.95 0.014 85);
+  --card: oklch(0.2 0.013 2.31);
+  --primary: oklch(0.8 0.09 2.31);
+  --accent: oklch(0.82 0.06 301.737);
+  --turquoise-light: oklch(0.8 0.057 358.261);
+  --lapis: oklch(0.52 0.08 248.071);
+  --lapis-light: oklch(0.68 0.075 248.071);
+  --gold: oklch(0.75 0.09 85);
+  --gold-ink: oklch(0.85 0.075 85);
+}
+
+/* ----------------------------------------------------------------- زعفرانی */
+/* #95672C  #F0D4B2  #D9ECE1  #F3DAE5 */
+:root:not(.dark)[data-palette="saffron"] {
+  --background: oklch(0.975 0.016 72.413);
+  --foreground: oklch(0.27 0.045 70.068);
+  --card: oklch(0.996 0.004 72.413);
+  --primary: oklch(0.551 0.095 70.068);
+  --secondary: oklch(0.885 0.055 72.413);
+  --accent: oklch(0.912 0.031 349.281);
+  --turquoise-light: oklch(0.885 0.055 72.413);
+  --lapis: oklch(0.35 0.074 160.569);
+  --lapis-light: oklch(0.5 0.075 160.569);
+  --gold: oklch(0.8 0.085 85);
+  --gold-ink: oklch(0.55 0.11 85);
+}
+:root.dark[data-palette="saffron"] {
+  --background: oklch(0.165 0.01 70.068);
+  --foreground: oklch(0.95 0.014 85);
+  --card: oklch(0.2 0.013 70.068);
+  --primary: oklch(0.8 0.095 70.068);
+  --accent: oklch(0.82 0.06 349.281);
+  --turquoise-light: oklch(0.8 0.071 72.413);
+  --lapis: oklch(0.52 0.08 160.569);
+  --lapis-light: oklch(0.68 0.075 160.569);
+  --gold: oklch(0.75 0.09 85);
+  --gold-ink: oklch(0.85 0.075 85);
+}
+
+/* ---- الگوی هندسیِ ایرانی ------------------------------------------------
+   `GeometricPattern` با currentColor کشیده می‌شود، پس این یک خط رنگِ کلِ
+   الگو را تعیین می‌کند. روی خودِ <svg> می‌نشیند و نه روی والد، تا هر
+   کال‌سایتِ تازه هم بدونِ هیچ کاری رنگِ درست را بگیرد.
+
+   ⚠️ عمداً بیرون از `@layer` است. یوتیلیتی‌های تیلویند (`text-gold` و
+   هم‌خانواده‌هایش) داخلِ لایه‌اند و لایه‌ها همیشه از استایلِ بی‌لایه
+   ضعیف‌ترند — یعنی این قاعده برنده است حتی اگر جایی کلاسِ رنگ به کامپوننت
+   پاس داده شود. اگر روزی واقعاً به یک الگوی هم‌رنگِ چیزِ دیگر نیاز شد، راهش
+   عوض کردنِ `--pattern-color` روی همان شاخه است، نه کلاسِ رنگ. */
+/* ⚠️ رنگِ الگو از خودِ زمینه ساخته می‌شود و نه از یک رنگِ تزئینی.
+   پیش از این طلایی بود و در تمِ تیرهٔ هر پالت، روی کلِ صفحه یک هالهٔ
+   رنگی می‌انداخت. حالا ترکیبِ متن و رنگِ اصلی است، در srgb تا فامِ سومی
+   ساخته نشود؛ روی زمینهٔ روشن کمی تیره‌تر و روی تیره کمی روشن‌تر می‌نشیند. */
+:root {
+  --pattern-color: color-mix(in srgb, var(--primary) 55%, var(--foreground));
+}
+.dark {
+  --pattern-color: color-mix(in srgb, var(--primary) 35%, var(--foreground));
+  --pattern-strength: 0.45;
+}
+.sarva-pattern {
+  color: var(--pattern-color);
+  opacity: var(--pattern-strength);
+  transition: opacity 400ms ease;
+}
+
+/* ---- نشانِ سروا -----------------------------------------------------------
+   ⚠️ این‌ها کلاس‌اند و نه `fill="var(--logo-1)"` روی خودِ مسیر. اتریبیوتِ
+   نمایشیِ SVG در مرورگرهای امروز `var()` را می‌فهمد، ولی از قاعدهٔ CSS
+   ضعیف‌تر است و در کهنه‌ترها اصلاً حل نمی‌شود — و آن‌وقت نشان بی‌رنگ
+   می‌ماند. با کلاس، هگزِ داخلِ فایل به‌عنوانِ fallback سرِ جایش می‌ماند و
+   اگر این استایل‌شیت نرسد، لوگو باز هم فیروزهٔ برند را دارد. */
+.logo-ink-1 {
+  fill: var(--logo-1);
+}
+
+.logo-ink-2 {
+  fill: var(--logo-2);
+}
+
+/* خطِ قلمِ انیمیشنِ ورود — همان تن، این بار به‌جای پرکردن، کشیدن. */
+.logo-stroke-1 {
+  stroke: var(--logo-1);
+}
+
+/* ---- نمونه‌رنگ‌های دکمهٔ انتخابِ پالت ------------------------------------
+   ⚠️ این‌ها عمداً تکرارِ دستیِ دو رنگِ هر پالت‌اند و نه var().
+   دلیلش ساده است: دایرهٔ نمونه باید رنگِ پالتی را نشان دهد که *فعال نیست*؛
+   اگر از توکن می‌خواند، هر هشت دایره یک رنگِ یکسان می‌شدند. */
+.pal-swatch[data-pal="turquoise"]          { --sw-1: #008687; --sw-2: oklch(0.75 0.12 85); }
+.pal-swatch[data-pal="sky"]                { --sw-1: #337A9F; --sw-2: #F6E4C8; }
+.pal-swatch[data-pal="lilac"]              { --sw-1: #6F63A8; --sw-2: #F6DDD2; }
+.pal-swatch[data-pal="mint"]               { --sw-1: #2F7F69; --sw-2: #F6E0CB; }
+.pal-swatch[data-pal="pistachio"]          { --sw-1: #577B59; --sw-2: #F2E2C8; }
+.pal-swatch[data-pal="peach"]              { --sw-1: #A95F45; --sw-2: #E5DDF2; }
+.pal-swatch[data-pal="rose"]               { --sw-1: #A95870; --sw-2: #E7E0F4; }
+.pal-swatch[data-pal="saffron"]            { --sw-1: #95672C; --sw-2: #F3DAE5; }
+
+.dark .pal-swatch[data-pal="turquoise"]          { --sw-1: #00a5a6; --sw-2: oklch(0.75 0.12 85); }
+.dark .pal-swatch[data-pal="sky"]                { --sw-1: oklch(0.8 0.09 234.6); --sw-2: #d9c099; }
+.dark .pal-swatch[data-pal="lilac"]              { --sw-1: oklch(0.8 0.1 290.4); --sw-2: #e6b9a4; }
+.dark .pal-swatch[data-pal="mint"]               { --sw-1: oklch(0.8 0.085 171.8); --sw-2: #e0bd9b; }
+.dark .pal-swatch[data-pal="pistachio"]          { --sw-1: oklch(0.8 0.08 146); --sw-2: #d9c099; }
+.dark .pal-swatch[data-pal="peach"]              { --sw-1: oklch(0.8 0.09 40); --sw-2: #ccbbe5; }
+.dark .pal-swatch[data-pal="rose"]               { --sw-1: oklch(0.8 0.09 2.3); --sw-2: #cbbce5; }
+.dark .pal-swatch[data-pal="saffron"]            { --sw-1: oklch(0.8 0.095 70); --sw-2: #e3b5ca; }
+
+#nprogress .bar {
+  background: var(--color-primary) !important;
+  height: 3px !important;
+  z-index: 9999 !important;
+}
+
+#nprogress .peg {
+  box-shadow:
+    0 0 10px var(--color-primary),
+    0 0 5px var(--color-primary) !important;
+}
+
+#nprogress .spinner {
+  display: none !important;
+}
+.bg-menu-mobile {
+  /* From https://css.glass */
+  background: rgba(253, 252, 248, 0.34);
+  border-radius: 16px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.dark .bg-menu-mobile {
+  /* From https://css.glass */
+  background: rgba(11, 18, 29, 0.56);
+  border-radius: 16px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+@theme inline {
+  --font-sans: "Vazirmatn", "Geist", sans-serif;
+  --font-serif: var(--font-naskh), "Noto Naskh Arabic", "Vazirmatn", serif;
+  --font-mono: "Geist Mono", monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-turquoise: var(--turquoise);
+  --color-turquoise-light: var(--turquoise-light);
+  --color-lapis: var(--lapis);
+  --color-lapis-light: var(--lapis-light);
+  --color-gold: var(--gold);
+  --color-gold-ink: var(--gold-ink);
+  --color-gold-light: var(--gold-light);
+  --color-cream: var(--cream);
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-primary-deep: var(--primary-deep);
+  --color-gold-deep: var(--gold-deep);
+  --color-game-night-1: var(--game-night-1);
+  --color-game-night-2: var(--game-night-2);
+  --color-game-night-3: var(--game-night-3);
+  --color-game-night-ink: var(--game-night-ink);
+  --color-game-night-edge: var(--game-night-edge);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --breakpoint-xs: 448px;
+  --breakpoint-xxl: 1440px;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@utility container {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: 20px;
+
+  @media (width >= 40rem) {
+    max-width: 40rem;
+    padding-inline: 10px;
+  }
+  @media (width >= 48rem) {
+    max-width: 48rem;
+  }
+  @media (width >= 64rem) {
+    max-width: 64rem;
+  }
+  @media (width >= 80rem) {
+    max-width: 85rem;
+  }
+}
+
+/* از --card و --border ساخته می‌شود تا با پالت و تم عوض شود؛ پیش از این
+   کرمِ ثابت بود و در هر پالتی جز فیروزه‌ای یک تکهٔ کرم وسطِ صفحه می‌ماند. */
+.glass {
+  background: color-mix(in oklch, var(--card) 70%, transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+}
+
+/* سطحِ شیشه‌ایِ منوهای هدر (فهرست، حساب، پالت). رنگ از --card می‌آید، پس
+   با پالت و تم خودش عوض می‌شود. */
+.glass-pop {
+  background: color-mix(in oklch, var(--card) 64%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(1.7);
+  backdrop-filter: blur(24px) saturate(1.7);
+  border: 1px solid color-mix(in oklch, var(--foreground) 9%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.55),
+    0 2px 6px rgb(0 0 0 / 0.04),
+    0 28px 60px -20px color-mix(in oklch, var(--primary) 30%, rgb(0 0 0 / 0.35));
+}
+.dark .glass-pop {
+  background: color-mix(in oklch, var(--card) 70%, transparent);
+  border-color: color-mix(in oklch, var(--foreground) 11%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 28px 60px -20px rgb(0 0 0 / 0.75);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-pop {
+    background: var(--card);
+  }
+}
+
+.glass-toast {
+  background: oklch(0.99 0.005 85 / 0.7) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid oklch(0.88 0.02 85 / 0.5) !important;
+  color: #111 !important;
+}
+
+.dark .glass-toast {
+  background: oklch(0.18 0.025 260 / 0.7) !important;
+  border: 1px solid oklch(0.28 0.025 260 / 0.5) !important;
+  color: #f1f1f1 !important;
+}
+
+.custom-scrollbar {
+  direction: ltr;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary) transparent;
+}
+
+.custom-scrollbar > * {
+  direction: rtl;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--color-primary);
+  border-radius: 999px;
+  opacity: 0.6;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-primary);
+  opacity: 0.9;
+}
+
+/* ---------- Logo reveal intro (shown once per session on entry) ---------- */
+.logo-reveal {
+  position: fixed;
+  inset: 0;
+  background: var(--color-background);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  --lr-sweep: rgba(0, 0, 0, 0.08);
+  animation: lrLoaderOut 0.45s ease-in forwards;
+  animation-delay: 2.55s;
+}
+
+.dark .logo-reveal {
+  --lr-sweep: rgba(255, 255, 255, 0.1);
+}
+
+@keyframes lrLoaderOut {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.lr-mark {
+  position: relative;
+  width: min(190px, 45vw);
+  animation: lrFly 0.5s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  animation-delay: 2.35s;
+}
+
+@keyframes lrFly {
+  to {
+    transform: translate(var(--fly-x, 0px), var(--fly-y, 0px))
+      scale(var(--fly-scale, 0.3));
+    opacity: 0.85;
+  }
+}
+
+.lr-clip {
+  width: 100%;
+  clip-path: inset(100% 0 0 0);
+  opacity: 0;
+  animation:
+    lrRevealClip 1.05s cubic-bezier(0.45, 0, 0.2, 1) forwards,
+    lrFadeIn 0.35s ease-out forwards;
+  animation-delay: 0.65s, 0.65s;
+}
+
+@keyframes lrRevealClip {
+  to {
+    clip-path: inset(0% 0 0 0);
+  }
+}
+
+@keyframes lrFadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+.lr-pen {
+  position: absolute;
+  inset: 0;
+  opacity: 1;
+  animation: lrPenFade 0.25s ease-out forwards;
+  animation-delay: 0.7s;
+}
+
+@keyframes lrPenFade {
+  to {
+    opacity: 0;
+  }
+}
+
+.lr-pen svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: auto;
+}
+
+.lr-pen-line {
+  stroke-dasharray: 400;
+  stroke-dashoffset: 400;
+  animation: lrDraw 0.5s cubic-bezier(0.45, 0, 0.2, 1) forwards;
+  animation-delay: 0.3s;
+}
+
+@keyframes lrDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.lr-sweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -40%;
+  width: 35%;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    var(--lr-sweep),
+    transparent
+  );
+  opacity: 0;
+  animation: lrSweepMove 0.55s ease-in-out forwards;
+  animation-delay: 2s;
+  pointer-events: none;
+}
+
+@keyframes lrSweepMove {
+  0% {
+    left: -40%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    left: 105%;
+    opacity: 0;
+  }
+}
+
+.lr-word {
+  text-align: center;
+  margin-top: 22px;
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: var(--color-foreground);
+  opacity: 0;
+  transform: translateY(6px);
+  animation: lrWordIn 0.5s ease-out forwards;
+  animation-delay: 1.7s;
+}
+
+@keyframes lrWordIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-reveal *,
+  .logo-reveal {
+    animation-delay: 0s !important;
+  }
+
+  .logo-reveal {
+    animation: lrLoaderOut 0.3s ease-out forwards;
+    animation-delay: 0.5s !important;
+  }
+
+  .lr-clip {
+    animation: none;
+    clip-path: none;
+    opacity: 1;
+  }
+
+  .lr-mark,
+  .lr-pen,
+  .lr-sweep {
+    animation: none;
+  }
+
+  .lr-pen {
+    opacity: 0;
+  }
+
+  .lr-word {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+/* ------------------------------------------------------------------------ */
+
+@keyframes marquee {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 6s linear infinite;
+}
+
+* {
+  line-height: 2;
+}
+
+button {
+  cursor: pointer;
+}
+
+::view-transition-old(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-image-pair(root) {
+  isolation: isolate;
+}
+
+/* جلوهٔ عوض شدنِ پالت (`switchPalette`): ماسکِ دایره‌ای با لبهٔ نرم که
+   اندازه‌اش از JS بزرگ می‌شود. فقط در طولِ همان گذار روی <html> است. */
+html[data-palette-switching]::view-transition-new(root) {
+  mask-image: radial-gradient(closest-side, #000 70%, transparent 100%);
+  mask-repeat: no-repeat;
+  mask-size: 0 0;
+}
+
+.recharts-wrapper,
+.recharts-surface {
+  outline: none !important;
+}
+
+/* ============================================================
+   /aruz — عروض سماعی intro page effects
+   ============================================================ */
+
+/* Slowly drifting aurora blobs behind the hero.
+   These carry an 80–90px blur. Animating `scale` alongside the translate forces
+   the compositor to re-rasterize that blur on every single frame — the single
+   most expensive thing on the page. Translate and opacity alone can be handled
+   entirely on the compositor from one cached blurred texture, so the drift is
+   free; the opacity swell replaces the breathing that scale used to give. */
+@keyframes aruzDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+  33% {
+    transform: translate3d(8%, -6%, 0);
+    opacity: 0.78;
+  }
+  66% {
+    transform: translate3d(-6%, 7%, 0);
+    opacity: 1;
+  }
+}
+@keyframes aruzDrift2 {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translate3d(-10%, 8%, 0);
+    opacity: 1;
+  }
+}
+
+/* Perspective "3D floor" grid that keeps scrolling toward the viewer.
+   `background-position` is not a compositable property, so animating it
+   repainted the whole floor every frame. Instead the grid lives on an
+   oversized ::before that translates by exactly one tile, which loops
+   seamlessly and never leaves the compositor. */
+@keyframes aruzGridMove {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(60px, 60px, 0);
+  }
+}
+
+/* infinite marquee of عروضی feet */
+@keyframes aruzMarquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* gentle float for layered depth elements */
+@keyframes aruzFloatY {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+/* slow spin for the orbiting ring */
+@keyframes aruzSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* animated conic shimmer for the CTA halo */
+@keyframes aruzConic {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+.aruz-grid-floor {
+  overflow: hidden;
+}
+.aruz-grid-floor::before {
+  content: "";
+  position: absolute;
+  /* one tile of slack on every side so the loop has somewhere to travel */
+  inset: -60px;
+  --aruz-grid-line: color-mix(in oklch, var(--primary) 22%, transparent);
+  background-image:
+    linear-gradient(to right, var(--aruz-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--aruz-grid-line) 1px, transparent 1px);
+  background-size: 60px 60px;
+  will-change: transform;
+  animation: aruzGridMove 6s linear infinite;
+}
+
+/* ⚠️ فیروزه به طلایی از وسطِ سبز رد می‌شد و میانهٔ تیتر زیتونی درمی‌آمد.
+   رنگِ دوم حالا --lapis-light است که در هر پالت یک فامِ ناهمخوانِ خوش‌رنگ است. */
+.aruz-gradient-text {
+  background: linear-gradient(
+    120deg,
+    var(--primary),
+    var(--lapis-light),
+    var(--primary)
+  );
+  background-size: 220% 220%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: aruzHueShift 6s ease-in-out infinite;
+  /* `background-position` is not a compositable property, so this shimmer
+     repaints the text on every frame it runs — forever, since it loops. That
+     repaint is tiny in itself; the damage was where it landed. Painting into
+     the page's root layer, it marked the whole 1280x3810 document dirty, and a
+     trace of five idle seconds showed 236 full-document repaints plus the hero
+     column re-rastered alongside it.
+     Promoting the span gives the shimmer its own layer, so the repaint is
+     confined to the width of the words and nothing above it is touched.
+     `inline-block` is what makes it promotable; `contain: paint` is
+     deliberately not used, because it would clip Persian descenders. */
+  display: inline-block;
+  will-change: transform;
+}
+@keyframes aruzHueShift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* the 3D scene mounts only once the main thread is idle, so it fades in rather
+   than popping over the already-laid-out placeholders */
+@keyframes sceneFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.scene-fade-in {
+  animation: sceneFadeIn 700ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-fade-in {
+    animation: none;
+  }
+}
+
+/* the rukn label that is currently closest to the reader gets a gold accent —
+   the class is swapped only when the frontmost label actually changes, not
+   every frame */
+.arkan-near {
+  border-color: color-mix(in oklch, var(--color-gold) 65%, transparent);
+  box-shadow:
+    0 2px 14px -4px color-mix(in oklch, var(--color-gold) 55%, transparent),
+    0 0 0 1px color-mix(in oklch, var(--color-gold) 25%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aruz-grid-floor::before,
+  .aruz-gradient-text {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   /guide — galaxy map: space cable animations
+   ============================================================ */
+@keyframes cablePulse {
+  from {
+    stroke-dashoffset: 796;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes cableNode {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.9);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [style*="cablePulse"],
+  [style*="cableNode"] {
+    animation: none !important;
+  }
+}
+
+/* ⚠️ انیمیشنِ اسکرولیِ کابل (`.cable-draw` و `@keyframes cableDraw`) برداشته
+   شد.
+
+   ایده‌اش درست بود — یک انیمیشن روی scroll timeline که ظاهراً بدونِ
+   جاوااسکریپت اجرا می‌شود — ولی یک فرضِ غلط داشت: «scroll-driven یعنی
+   compositor-only». `stroke-dashoffset` یک ویژگیِ paint-bound است. روی یک
+   SVG به ارتفاعِ کلِ سند (روی موبایل حدود ۸۰۰۰ پیکسل) هر تغییرش یعنی
+   رنگ‌آمیزیِ دوبارهٔ یک لایهٔ صفحه‌اندازه، در هر فریمِ اسکرول.
+
+   جایگزینش در components/UI/galaxy/SpaceCable.tsx است: مسیر به چند SVGِ
+   نواری شکسته شده و هر نوار یک بار — با IntersectionObserver و Web Animations
+   API — کشیده می‌شود. */
+
+/* ---------------------------------------------------------------- سروا mark */
+
+/* Paint anything through the logo's own silhouette. Used by the loader and by
+   the intro sweep: without it a highlight moving across the mark paints the
+   square box it lives in, and the box is what you end up noticing. */
+.sarva-mask,
+.lr-sweep-wrap {
+  -webkit-mask-image: url("/favicon.svg");
+  mask-image: url("/favicon.svg");
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.lr-sweep-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* halo behind the loader's mark */
+.sarva-glow {
+  position: absolute;
+  inset: -35%;
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklch, var(--primary) 45%, transparent),
+    transparent
+  );
+}
+
+/* the light that runs up the loader's silhouette */
+.sarva-shine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 45%;
+  background: linear-gradient(
+    to top,
+    transparent,
+    rgba(255, 255, 255, 0.55),
+    transparent
+  );
+  animation: sarvaShine 2.4s cubic-bezier(0.45, 0, 0.35, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes sarvaShine {
+  0% {
+    top: 100%;
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.9;
+  }
+  80% {
+    opacity: 0.9;
+  }
+  100% {
+    top: -45%;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sarva-shine {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* The row an admin landed on from a content report. It has to be findable in
+   a long list at a glance, and then get out of the way — a permanent ring
+   around one row reads as a bug the next time the page is opened. */
+.admin-focus-ring {
+  animation: admin-focus-pulse 4s ease-out forwards;
+}
+
+@keyframes admin-focus-pulse {
+  0%,
+  70% {
+    box-shadow: 0 0 0 2px var(--color-primary);
+    background-color: color-mix(in oklch, var(--color-primary) 10%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-focus-ring {
+    animation: none;
+    box-shadow: 0 0 0 2px var(--color-primary);
+  }
+}
+
+/* The page keeps its scrollbar gutter even when something locks scrolling.
+
+   Every modal sets `body { overflow: hidden }` while it is open. Without a
+   reserved gutter the page scrollbar vanishes at that moment, the layout
+   widens by its width, and the whole site jumps sideways behind the dialog —
+   then jumps back on close. Reserving the space always costs a few pixels and
+   removes the jump everywhere at once, including the games' full-screen
+   shells. Browsers without support behave exactly as before. */
+html {
+  scrollbar-gutter: stable;
+}
+
+/* Scroll areas inside the site's own panels and modals. The platform scrollbar
+   is a grey slab that reads as a browser part rather than a part of the page,
+   so the ones we own get the site's border/primary colours and a slimmer
+   track. Firefox takes the two-value `scrollbar-color`; WebKit needs the
+   pseudo-elements. */
+.sarva-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--primary) 55%, transparent)
+    transparent;
+}
+
+.sarva-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.sarva-scroll::-webkit-scrollbar-track {
+  background: color-mix(in oklch, var(--border) 45%, transparent);
+  border-radius: 999px;
+}
+
+.sarva-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--primary) 55%, transparent);
+  border-radius: 999px;
+}
+
+.sarva-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, var(--primary) 80%, transparent);
+}
+
+/* ------------------------------------------------------- decorative glows */
+
+/* `blur-3xl` is `filter: blur(64px)`. A 64px gaussian over a 288px box is one
+   of the most expensive things a page can ask a compositor for, and these
+   glows are pure decoration that never animates — the browser re-rasterises
+   them whenever the layer they sit on is repainted, which on these pages is
+   every frame the canvas behind them moves.
+   A radial gradient paints the same soft falloff in one pass with no filter
+   step, so the look survives and the per-frame cost does not. Drive it with
+   `--glow` (any colour) and, optionally, `--glow-stop` for the falloff. */
+.glow-soft {
+  background-image: radial-gradient(
+    closest-side,
+    var(--glow),
+    color-mix(in oklch, var(--glow) 35%, transparent) 45%,
+    transparent var(--glow-stop, 78%)
+  );
+  filter: none;
+}
+
+/* ------------------------------------------------ underlined Persian words */
+
+/* The descenders of ج، ی، ک، گ، ر، ز and the کسره hang well below the baseline,
+   so a default underline runs straight through them. The offset below is the
+   whole fix — but it has to be measured from the right reference.
+
+   Two earlier attempts drew the rule from the *bottom of the box* instead
+   (a background gradient pinned to `100%`, padded open with `padding-bottom`).
+   That reads as font-independent and isn't: the box bottom comes from the
+   font's declared descent metric, and Persian glyphs routinely overflow it.
+   With Vazirmatn loaded the clearance measured 6.25–9px, but with any fallback
+   (Tahoma, Arial, the generic sans) it collapsed to 1.5px and the rule went
+   back to touching the letters — which is what users saw whenever the webfont
+   failed to load.
+
+   The baseline is the stable reference, because descender depth is defined
+   from it and scales with font-size. Measured across Vazirmatn/Tahoma/Arial/
+   sans/serif at 20px, `0.58em` clears the deepest ink (including the کسره) by
+   4.25–7.5px in every one. `skip-ink: none` keeps the rule continuous rather
+   than letting the browser notch it around descenders, and staying `display:
+   inline` means a highlight long enough to wrap gets a rule on every line —
+   which the inline-block version could not do. */
+.fa-underline {
+  text-decoration: underline;
+  text-decoration-color: var(--primary);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.58em;
+  text-decoration-skip-ink: none;
+}
+
+/* ============================================================
+   سروا کلاب
+   ============================================================ */
+
+/* Paper grain for the poem slabs — one tiled data-URI, no extra request. */
+.club-paper {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+/* The gold ring that travels around a برگزیده card.
+   The mask that turns a filled shape into a 1px ring must sit on a *still*
+   element: rotating the element that carries the mask rotates the mask with
+   it, and the ring tears open into a diagonal wedge. So the ring lives on the
+   parent and the conic gradient spins on an oversized child inside it. */
+@keyframes clubHalo {
+  to {
+    transform: translate(-50%, -50%) rotate(1turn);
+  }
+}
+
+.club-halo {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.club-halo::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 160%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    color-mix(in oklch, var(--color-gold) 90%, transparent) 30deg,
+    transparent 110deg,
+    transparent 360deg
+  );
+  animation: clubHalo 6s linear infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .club-halo::before {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   نینجای کلمات
+   ============================================================ */
+/* همه‌چیزِ اینجا فقط تصویری است — منطق بازی در SliceField.tsx دست نخورده.
+   هر انیمیشن روی transform یا opacity کار می‌کند تا روی گوشی هم روی لایهٔ
+   کامپوزیت بماند و ۶۰ فریم را نگه دارد. */
+
+.ninja-field {
+  /* بدون این، فرزندانِ position:absolute نسبت به صفحه جا می‌گیرند */
+  isolation: isolate;
+
+  /* ⚠️ لبه و هاله، و نه فقط یک مستطیل.
+
+     زمینِ بازی شب است و صفحهٔ سایت (در تمِ روشن) کاغذِ کرم — دو دنیا که
+     بی‌واسطه به هم می‌رسیدند. نتیجه یک برشِ تیزِ سیاه روی کرم بود.
+
+     حالا سه چیز آن درز را می‌بندند، و هر سه از توکنِ پالت می‌آیند:
+       • لبه‌ای هم‌خانوادهٔ خودِ شب (نه یک خاکستریِ بی‌ربط)،
+       • هاله‌ای که رنگِ صحنه را چند پیکسل بیرون پخش می‌کند، تا کاغذ
+         «بداند» زیرِ آن چه هست،
+       • سایهٔ نرمِ پایین، همان چیزی که کارت‌های سایت دارند. */
+  border: 1px solid var(--game-night-edge);
+  box-shadow:
+    0 0 0 6px color-mix(in oklch, var(--primary) 7%, transparent),
+    0 18px 48px -18px color-mix(in oklch, var(--primary-deep) 45%, transparent);
+}
+
+/* --- هاله‌های پس‌زمینه: دو لکهٔ رنگی که آرام جابه‌جا می‌شوند --- */
+@keyframes ninjaAuroraA {
+  0%,
+  100% {
+    transform: translate3d(-6%, -4%, 0) scale(1.05);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate3d(8%, 6%, 0) scale(1.25);
+    opacity: 0.8;
+  }
+}
+
+@keyframes ninjaAuroraB {
+  0%,
+  100% {
+    transform: translate3d(7%, 5%, 0) scale(1.2);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translate3d(-5%, -7%, 0) scale(1);
+    opacity: 0.7;
+  }
+}
+
+.ninja-aurora {
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.ninja-aurora-a {
+  background: radial-gradient(
+    40% 32% at 25% 30%,
+    color-mix(in oklch, var(--color-primary) 42%, transparent),
+    transparent 70%
+  );
+  animation: ninjaAuroraA 15s ease-in-out infinite;
+}
+
+.ninja-aurora-b {
+  background: radial-gradient(
+    38% 30% at 75% 62%,
+    /* ⚠️ اینجا یک بار `rgba(96,140,230,.42)`ِ ثابت بود، با این توضیح که
+       --lapis-light در تمِ تیره آن‌قدر تیره می‌شود که هاله دیده نشود. آن
+       ایراد بعداً در خودِ توکن درست شد (بالای فایل، کنارِ --lapis-light) و
+       این هگز جا ماند — پس زمینِ بازی تنها جایی از سایت بود که با عوض شدنِ
+       پالت هیچ تکان نمی‌خورد. حالا دوباره از توکن می‌آید. */
+    color-mix(in oklch, var(--lapis-light) 42%, transparent),
+    transparent 70%
+  );
+  animation: ninjaAuroraB 19s ease-in-out infinite;
+}
+
+/* بافتِ ریزِ نقطه‌ای، تا پس‌زمینه یکدستِ بی‌جان نباشد */
+.ninja-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+/* --- خودِ کلمه --- */
+/* یک لبهٔ روشن بالا و یک سایهٔ زیر: همان چیزی که یک تکه را از یک لکهٔ رنگی
+   جدا می‌کند. */
+.ninja-chip {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.25),
+    0 6px 16px rgba(0, 0, 0, 0.45);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* --- دو نیمه بعد از برش --- */
+@keyframes ninjaHalfTop {
+  to {
+    transform: translate(-6px, -30px) rotate(-16deg);
+    opacity: 0;
+  }
+}
+
+@keyframes ninjaHalfBottom {
+  to {
+    transform: translate(6px, 34px) rotate(14deg);
+    opacity: 0;
+  }
+}
+
+.ninja-half-top,
+.ninja-half-bottom {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  will-change: transform, opacity;
+}
+
+.ninja-half-top {
+  animation: ninjaHalfTop 0.65s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+
+.ninja-half-bottom {
+  animation: ninjaHalfBottom 0.65s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+
+/* --- جرقه‌ها --- */
+@keyframes ninjaSpark {
+  to {
+    transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(0.2);
+    opacity: 0;
+  }
+}
+
+.ninja-spark {
+  will-change: transform, opacity;
+  animation: ninjaSpark 0.6s ease-out forwards;
+}
+
+/* --- «+۱» --- */
+@keyframes ninjaPopup {
+  0% {
+    opacity: 0;
+    scale: 0.6;
+  }
+  25% {
+    opacity: 1;
+    scale: 1.15;
+  }
+  100% {
+    opacity: 0;
+    scale: 1;
+    translate: 0 -42px;
+  }
+}
+
+.ninja-popup {
+  will-change: opacity, scale, translate;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  animation: ninjaPopup 0.72s ease-out forwards;
+}
+
+/* --- کمبو --- */
+@keyframes ninjaCombo {
+  0% {
+    scale: 0.6;
+    opacity: 0;
+  }
+  40% {
+    scale: 1.18;
+    opacity: 1;
+  }
+  100% {
+    scale: 1;
+    opacity: 1;
+  }
+}
+
+.ninja-combo {
+  animation: ninjaCombo 0.4s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+/* --- برشِ اشتباه: یک تپشِ قرمز روی کل زمین --- */
+@keyframes ninjaWrongFlash {
+  0% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.ninja-wrong-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 35%, rgba(255, 60, 60, 0.75));
+  animation: ninjaWrongFlash 0.45s ease-out forwards;
+}
+
+/* --- نوار زمان وقتی رو به پایان است --- */
+@keyframes ninjaUrgent {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.ninja-urgent {
+  animation: ninjaUrgent 0.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ninja-aurora,
+  .ninja-urgent,
+  .ninja-combo,
+  .ninja-popup,
+  .ninja-spark,
+  .ninja-half-top,
+  .ninja-half-bottom {
+    animation: none;
+  }
+  /* بدون انیمیشن، ترکش‌ها باید بی‌صدا ناپدید شوند نه اینکه سر جایشان بمانند */
+  .ninja-spark,
+  .ninja-half-top,
+  .ninja-half-bottom,
+  .ninja-popup {
+    opacity: 0;
+  }
+}
+
+/* کارت‌های صفحهٔ حفظ کردن — برجسته، تا از متنِ توضیح جدا باشند */
+.ninja-study-card {
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklch, var(--color-primary) 22%, transparent),
+    color-mix(in oklch, var(--color-primary) 8%, transparent)
+  );
+  border: 1px solid color-mix(in oklch, var(--color-primary) 35%, transparent);
+  color: var(--color-primary);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 4px 14px rgba(0, 0, 0, 0.25);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.ninja-study-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 8px 22px color-mix(in oklch, var(--color-primary) 30%, transparent);
+}
+
+/* دکمهٔ شروع: یک تپشِ آرام تا معلوم باشد کجا باید زد */
+@keyframes ninjaCta {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--color-primary) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+.ninja-cta {
+  animation: ninjaCta 2.2s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ninja-cta {
+    animation: none;
+  }
+}
+
+/* HUD نینجا */
+@keyframes ninjaHeartLost {
+  0% {
+    scale: 1.35;
+    filter: grayscale(0);
+  }
+  60% {
+    scale: 0.85;
+  }
+  100% {
+    scale: 1;
+    filter: grayscale(1);
+    opacity: 0.25;
+  }
+}
+
+.ninja-heart {
+  display: inline-block;
+  transition: opacity 0.2s;
+}
+
+.ninja-heart-lost {
+  animation: ninjaHeartLost 0.5s ease-out forwards;
+}
+
+@keyframes ninjaScore {
+  0% {
+    scale: 1;
+  }
+  40% {
+    scale: 1.45;
+  }
+  100% {
+    scale: 1;
+  }
+}
+
+.ninja-score {
+  display: inline-block;
+  animation: ninjaScore 0.32s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ninja-heart-lost,
+  .ninja-score {
+    animation: none;
+  }
+  .ninja-heart-lost {
+    opacity: 0.25;
+  }
+}
+
+/* ============================================================
+   بازی جاسوس
+   ============================================================ */
+
+.jasoos-hall {
+  isolation: isolate;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  /* ⚠️ راهرو همیشه شبانه است، در هر تمی. متنِ داخلش نمی‌تواند به
+     --foreground تکیه کند: در تمِ روشن آن رنگ تیره است و عنوان‌ها روی دیوارِ
+     تاریک عملاً ناپیدا می‌شدند. */
+  color: #f1eee7;
+}
+
+.jasoos-hall .text-muted-foreground {
+  color: rgba(241, 238, 231, 0.62);
+}
+
+/* ذراتِ معلق در نورِ راهرو */
+.jasoos-dust {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='d'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23d)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+/* درِ فعال: نور می‌تاباند و آرام نفس می‌کشد.
+   با box-shadow و نه filter — سایه روی لایهٔ کامپوزیت می‌ماند و کلِ درخت را
+   دوباره رنگ نمی‌کند. */
+@keyframes jasoosDoorGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 22px rgba(224, 178, 60, 0.35),
+      inset 0 0 22px rgba(224, 178, 60, 0.12);
+  }
+  50% {
+    box-shadow:
+      0 0 40px rgba(224, 178, 60, 0.6),
+      inset 0 0 30px rgba(224, 178, 60, 0.22);
+  }
+}
+
+.jasoos-door-active {
+  animation: jasoosDoorGlow 2.4s ease-in-out infinite;
+}
+
+/* شکافِ نور زیر در */
+@keyframes jasoosDoorLight {
+  0%,
+  100% {
+    opacity: 0.55;
+    filter: blur(2px);
+  }
+  50% {
+    opacity: 1;
+    filter: blur(4px);
+  }
+}
+
+.jasoos-doorlight {
+  animation: jasoosDoorLight 2.4s ease-in-out infinite;
+  box-shadow: 0 0 16px 3px rgba(224, 178, 60, 0.75);
+}
+
+/* درِ قفل: کمی فرورفته به نظر برسد */
+.jasoos-door:disabled {
+  box-shadow: inset 0 4px 18px rgba(0, 0, 0, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jasoos-door-active,
+  .jasoos-doorlight {
+    animation: none;
+  }
+}
+
+/* اتاق بازجویی */
+.jasoos-room {
+  isolation: isolate;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  /* متنِ داخل اتاق همیشه روی زمینهٔ تیره می‌نشیند، پس در تمِ روشن هم باید
+     روشن بماند — وگرنه بیت روی دیوارِ شب سیاهِ روی سیاه می‌شود. */
+  color: #f1eee7;
+}
+
+.jasoos-room .text-muted-foreground {
+  color: rgba(241, 238, 231, 0.62);
+}
+
+/* ============================================================
+   بازی تقطیعِ سریع  (components/UI/aruz-rapid)
+   ============================================================
+
+   دو تمِ واقعی، نه یکی با چند رنگِ وارونه.
+
+   نسخهٔ قبلی — مثل راهروِ جاسوس — همیشه شبانه بود. برای تمِ تیره خوب کار
+   می‌کرد ولی در تمِ روشن، بازی مثل یک پنجرهٔ سیاهِ چسبانده‌شده وسطِ صفحهٔ
+   کرمِ سروا دیده می‌شد. حالا همهٔ رنگ‌ها از توکن می‌آیند و هر تم مجموعهٔ
+   کاملِ خودش را دارد؛ هیچ کامپوننتی رنگِ ثابت ندارد.
+
+   قواعدِ چیدمان دست‌نخورده‌اند. سه قاعده، بی‌همپوشانی:
+
+     A) پیش‌فرض ......... رایانه و لپ‌تاپ
+     B) max-width 767 و min-height 561 ... موبایلِ ایستاده
+     C) max-height 560 .................. صفحهٔ کوتاه (گوشیِ خوابیده) */
+
+@property --aruzr-reveal {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+/* ── تمِ روشن ──────────────────────────────────────────────
+   عاجِ گرم برای سطحِ بازی، سطحِ داخلیِ کمی سردتر با ته‌مایهٔ فیروزه‌ای،
+   تایپوگرافیِ سرمه‌ایِ عمیق، و همان فیروزهٔ سروا به‌عنوان لهجه. */
+.aruzr-root {
+  --aruzr-surface: #fcfaf4;
+  --aruzr-surface-2: #ffffff;
+  --aruzr-inset: #f1f5f4;
+  --aruzr-veil: rgba(255, 255, 255, 0.72);
+
+  --aruzr-text: #16273c;
+  --aruzr-text-2: #4d5a66;
+  --aruzr-text-3: #626d76;
+
+  --aruzr-border: #dfe6e3;
+  --aruzr-border-strong: #c7d5d3;
+
+  --aruzr-accent: #00807f;
+  --aruzr-accent-ink: #036f6e;
+  --aruzr-accent-soft: rgba(0, 128, 127, 0.13);
+  --aruzr-accent-line: rgba(0, 128, 127, 0.32);
+  --aruzr-accent-glow: rgba(0, 128, 127, 0.22);
+
+  --aruzr-gold: #b7822a;
+  --aruzr-gold-soft: rgba(183, 130, 42, 0.2);
+  --aruzr-gold-line: rgba(183, 130, 42, 0.34);
+
+  --aruzr-success: #0c8071;
+  --aruzr-failure: #c0554b;
+  --aruzr-failure-soft: rgba(192, 85, 75, 0.16);
+  --aruzr-failure-line: rgba(192, 85, 75, 0.62);
+
+  --aruzr-timer-track: rgba(22, 39, 60, 0.1);
+  --aruzr-dot-idle: rgba(22, 39, 60, 0.24);
+
+  --aruzr-btn: linear-gradient(180deg, #ffffff, #f7f4ec);
+  --aruzr-btn-hover: linear-gradient(180deg, #ffffff, #edf6f4);
+  --aruzr-btn-active: linear-gradient(180deg, #f4f1ea, #eae6dc);
+  --aruzr-btn-inner: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+  /* سایهٔ روشن: پهن و بسیار نرم، نه یک لکهٔ تیره زیرِ کارت. */
+  --aruzr-shadow: 0 26px 70px -40px rgba(22, 39, 60, 0.34), 0 2px 8px -4px rgba(22, 39, 60, 0.08);
+  --aruzr-shadow-soft: 0 10px 30px -22px rgba(22, 39, 60, 0.3);
+
+  --aruzr-texture: rgba(22, 39, 60, 0.05);
+  --aruzr-ambient-a: rgba(0, 128, 127, 0.07);
+  --aruzr-ambient-b: rgba(183, 130, 42, 0.06);
+  --aruzr-scrim: rgba(252, 250, 244, 0.82);
+
+  position: relative;
+  z-index: 20;
+  min-width: 0;
+}
+
+/* ── تمِ تیره ────────────────────────────────────────────── */
+.dark .aruzr-root {
+  --aruzr-surface: #0a1220;
+  --aruzr-surface-2: rgba(255, 255, 255, 0.055);
+  --aruzr-inset: rgba(255, 255, 255, 0.035);
+  --aruzr-veil: rgba(255, 255, 255, 0.06);
+
+  --aruzr-text: #f3f0e9;
+  --aruzr-text-2: rgba(243, 240, 233, 0.6);
+  --aruzr-text-3: rgba(243, 240, 233, 0.52);
+
+  --aruzr-border: rgba(255, 255, 255, 0.09);
+  --aruzr-border-strong: rgba(255, 255, 255, 0.16);
+
+  --aruzr-accent: #2ed3c6;
+  --aruzr-accent-ink: #04231f;
+  --aruzr-accent-soft: rgba(46, 211, 198, 0.12);
+  --aruzr-accent-line: rgba(46, 211, 198, 0.35);
+  --aruzr-accent-glow: rgba(46, 211, 198, 0.55);
+
+  --aruzr-gold: #e8b95c;
+  --aruzr-gold-soft: rgba(232, 185, 92, 0.14);
+  --aruzr-gold-line: rgba(232, 185, 92, 0.4);
+
+  --aruzr-success: #2ed3c6;
+  --aruzr-failure: #f0736a;
+  --aruzr-failure-soft: rgba(240, 115, 106, 0.14);
+  --aruzr-failure-line: rgba(240, 115, 106, 0.5);
+
+  --aruzr-timer-track: rgba(255, 255, 255, 0.09);
+  --aruzr-dot-idle: rgba(255, 255, 255, 0.14);
+
+  --aruzr-btn: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  --aruzr-btn-hover: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.035));
+  --aruzr-btn-active: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.015));
+  --aruzr-btn-inner: inset 0 1px 0 rgba(255, 255, 255, 0.09);
+
+  --aruzr-shadow: 0 40px 90px -50px rgba(0, 0, 0, 1);
+  --aruzr-shadow-soft: 0 12px 30px -22px rgba(0, 0, 0, 1);
+
+  --aruzr-texture: rgba(255, 255, 255, 0.055);
+  --aruzr-ambient-a: rgba(46, 211, 198, 0.16);
+  --aruzr-ambient-b: rgba(232, 185, 92, 0.12);
+  --aruzr-scrim: rgba(5, 9, 15, 0.72);
+}
+
+/* بازیِ فعال روی صفحهٔ کوچک: یک صفحهٔ بازیِ واقعی، نه یک صفحهٔ وب.
+   100dvh و نه 100vh، چون نوارِ آدرسِ موبایل ارتفاعِ واقعی را کم و زیاد
+   می‌کند و با vh، دکمه‌ها زیرِ نوار گیر می‌کردند. */
+.aruzr-root-immersive {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  /* بدونِ این دو، فرزندها به‌جای کوچک‌شدن از کادر بیرون می‌زنند و
+     overflow:hidden فقط پنهانشان می‌کند. */
+  min-height: 0;
+  min-width: 0;
+  z-index: 60;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* در بازیِ تمام‌صفحه، سربرگ و پاورقیِ سایت را خودِ SiteChrome رندر نمی‌کند
+   (lib/immersive-mode). این کلاس فقط اسکرولِ صفحه را قفل می‌کند. */
+html.aruzr-immersive,
+html.aruzr-immersive body {
+  overflow: hidden;
+}
+
+.aruzr-root-immersive .aruzr-stage,
+.aruzr-root-immersive .aruzr-board {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* --- سطحِ بازی --- */
+
+.aruzr-surface {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(120% 80% at 78% -10%, var(--aruzr-ambient-a), transparent 62%),
+    radial-gradient(100% 70% at 8% 110%, var(--aruzr-ambient-b), transparent 64%),
+    var(--aruzr-surface);
+  color: var(--aruzr-text);
+}
+
+/* بافتِ خیلی ریز، تا سطح یکدست و پلاستیکی به نظر نرسد. */
+.aruzr-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: radial-gradient(var(--aruzr-texture) 0.5px, transparent 1px);
+  background-size: 22px 22px;
+  z-index: -1;
+}
+
+/* --- نوارِ بالا --- */
+
+.aruzr-topbar {
+  display: grid;
+  /* ستونِ میانی همیشه دقیقاً وسطِ صفحه است، هرچقدر هم دو طرف نامساوی باشند. */
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  min-width: 0;
+}
+
+.aruzr-topbar-side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.aruzr-topbar-side-end {
+  justify-content: flex-end;
+}
+
+.aruzr-topbar-center {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.aruzr-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--aruzr-border);
+  background: var(--aruzr-surface-2);
+  color: var(--aruzr-text-2);
+  transition: color 180ms ease, border-color 180ms ease, background-color 180ms ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.aruzr-icon-btn:hover {
+  color: var(--aruzr-accent);
+  border-color: var(--aruzr-accent-line);
+  background: var(--aruzr-accent-soft);
+}
+
+.aruzr-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.aruzr-chip {
+  white-space: nowrap;
+  border-radius: 999px;
+  border: 1px solid var(--aruzr-border);
+  background: var(--aruzr-surface-2);
+  color: var(--aruzr-text-2);
+  padding: 0.22rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.aruzr-chip strong {
+  color: var(--aruzr-text);
+  font-weight: 800;
+}
+
+/* --- صحنه --- */
+
+.aruzr-board {
+  position: relative;
+  width: 100%;
+  max-width: 44rem;
+  margin-inline: auto;
+  padding: 1.5rem 1.5rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  border-radius: 1.75rem;
+  border: 1px solid var(--aruzr-border);
+  box-shadow: var(--aruzr-shadow);
+}
+
+.aruzr-preview-region,
+.aruzr-play-region {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+  min-width: 0;
+}
+
+.aruzr-preview-region {
+  gap: 0.75rem;
+  flex: 0 0 auto;
+}
+
+.aruzr-play-region {
+  gap: 1rem;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+
+.aruzr-focus {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.7rem, 2.4vh, 1.15rem);
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.aruzr-root-immersive .aruzr-board {
+  max-width: none;
+  margin: 0;
+  /* فاصلهٔ بالا عمداً بیشتر از پایین است: ترکیب کمی پایین‌تر می‌نشیند تا
+     دکمه‌ها به شست نزدیک بمانند و حاشیهٔ زیرِ آن‌ها کوچک بماند. */
+  padding: clamp(0.25rem, 9vh, 4.5rem) 1rem 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* روی صفحهٔ بلند، کشیدنِ سه بلوک تا لبه‌ها فقط سه جزیره در خلأ می‌سازد.
+   به‌جایش کلِ چیدمان ارتفاعِ طبیعیِ خودش را می‌گیرد و وسطِ صفحه می‌نشیند. */
+.aruzr-root-immersive .aruzr-board {
+  justify-content: center;
+  gap: clamp(0.9rem, 3.2vh, 2.25rem);
+}
+
+.aruzr-root-immersive .aruzr-preview-region,
+.aruzr-root-immersive .aruzr-play-region,
+.aruzr-root-immersive .aruzr-focus {
+  flex: 0 0 auto;
+}
+
+.aruzr-root-immersive .aruzr-play-region {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.9rem);
+}
+
+/* روی رومیزی، نوارِ بالا و تختهٔ بازی یک کارتِ یکپارچه‌اند. جای نوار در
+   درختِ React عوض نمی‌شود — فقط دو لبه به هم دوخته می‌شوند. */
+.aruzr-root:not(.aruzr-root-immersive) .aruzr-topbar-slot:not(:empty) {
+  width: 100%;
+  max-width: 44rem;
+  margin-inline: auto;
+  border: 1px solid var(--aruzr-border);
+  border-bottom: 0;
+  border-radius: 1.75rem 1.75rem 0 0;
+  background: var(--aruzr-surface);
+  color: var(--aruzr-text);
+}
+
+.aruzr-root:not(.aruzr-root-immersive) .aruzr-topbar-slot:not(:empty) + .aruzr-stage .aruzr-board {
+  border-top: 0;
+  border-radius: 0 0 1.75rem 1.75rem;
+}
+
+/* هالهٔ محیطی فقط در حالتِ تمام‌صفحه معنی دارد. در حالتِ کارتی، گرادیان از
+   لبهٔ *تخته* شروع می‌شد در حالی که نوارِ بالا تخت بود — و همان اختلافِ
+   جزئی، یک درزِ افقی می‌ساخت. سطحِ یکدست، کارت را یکپارچه نگه می‌دارد. */
+.aruzr-root:not(.aruzr-root-immersive) .aruzr-board.aruzr-surface {
+  background: var(--aruzr-surface);
+}
+
+/* --- قابِ مصراع --- */
+
+.aruzr-panel {
+  position: relative;
+  width: 100%;
+  max-width: 44rem;
+  margin-inline: auto;
+  border-radius: 1.35rem;
+  padding: 1.1rem 1rem;
+  background: var(--aruzr-inset);
+  border: 1px solid var(--aruzr-border);
+  box-shadow: var(--aruzr-btn-inner);
+  transition: border-color 300ms ease, box-shadow 300ms ease, background-color 300ms ease;
+  min-width: 0;
+}
+
+/* وقتی متن پوشیده است، قاب آرام است؛ وقتی کامل باز شد، لبه‌اش می‌گیرد. */
+.aruzr-panel[data-state="open"] {
+  border-color: var(--aruzr-accent-line);
+  box-shadow: var(--aruzr-btn-inner), 0 0 44px -18px var(--aruzr-accent-glow);
+}
+
+/* لحظهٔ تکمیل: حلقهٔ نور یک بار باز می‌شود و می‌ایستد. */
+.aruzr-panel[data-complete="true"] {
+  animation: aruzrPanelComplete 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes aruzrPanelComplete {
+  0% {
+    box-shadow: var(--aruzr-btn-inner), 0 0 0 0 var(--aruzr-accent-glow);
+  }
+  60% {
+    box-shadow: var(--aruzr-btn-inner), 0 0 0 10px transparent;
+  }
+  100% {
+    box-shadow: var(--aruzr-btn-inner), 0 0 44px -18px var(--aruzr-accent-glow);
+  }
+}
+
+.aruzr-panel-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--aruzr-text-3);
+}
+
+.aruzr-panel-label::before,
+.aruzr-panel-label::after {
+  content: "";
+  height: 1px;
+  width: clamp(1rem, 12%, 3.5rem);
+  background: linear-gradient(90deg, transparent, var(--aruzr-border-strong));
+}
+
+.aruzr-panel-label::after {
+  background: linear-gradient(90deg, var(--aruzr-border-strong), transparent);
+}
+
+/* --- متنِ پیش‌نمایش و اسپویلر --- */
+
+.aruzr-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+/* اگر مصراع از عرضِ صفحه بلندتر بود، همین جعبه اسکرول می‌شود — نه خودِ
+   صفحه. هر دو لایه داخلِ همین اسکرول‌اند، پس هم‌ترازی‌شان به‌هم نمی‌خورد. */
+.aruzr-preview-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* فضای امن برای فتحه/کسره/تشدید؛ بدون این، اعراب بریده می‌شد. */
+  padding-block: 0.4em;
+  padding-inline: 0.2em;
+  scrollbar-width: none;
+}
+
+.aruzr-preview-scroll::-webkit-scrollbar {
+  height: 0;
+}
+
+.aruzr-text-stack {
+  position: relative;
+  width: max-content;
+  margin-inline: auto;
+  --aruzr-reveal: 0;
+  --aruzr-feather: 7px;
+  transition: --aruzr-reveal 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* هر دو لایه دقیقاً یک رشته‌اند با یک متریک. متن هرگز تکه‌تکه نمی‌شود؛
+   اگر می‌شد، اتصالِ حروف و جای اعراب خراب می‌شد. */
+.aruzr-text {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: clamp(1.5rem, 4.6vw, 2.5rem);
+  /* وزنِ ۵۰۰: پررنگ‌تر از این، اعراب روی حروف شلوغ می‌شود. */
+  font-weight: 500;
+  line-height: 2.05;
+  text-align: right;
+  white-space: pre;
+  letter-spacing: normal;
+}
+
+/* لایهٔ پوشاننده: همان متن، ولی خوانده نمی‌شود. در تمِ روشن هالهٔ تیره و در
+   تمِ تیره هالهٔ روشن — در هر دو، متن شفاف است و فقط مه‌اش می‌ماند. */
+.aruzr-text-spoiler {
+  color: transparent;
+  text-shadow: 0 0 0.4em var(--aruzr-spoiler-ink, rgba(22, 39, 60, 0.42));
+  opacity: 0;
+  transition: opacity 320ms ease;
+  /* بخشی که باز شده، دیگر هالهٔ اسپویلر ندارد. */
+  -webkit-mask-image: linear-gradient(
+    to left,
+    transparent 0,
+    transparent calc(var(--aruzr-reveal) * 100%),
+    #000 calc(var(--aruzr-reveal) * 100% + var(--aruzr-feather))
+  );
+  mask-image: linear-gradient(
+    to left,
+    transparent 0,
+    transparent calc(var(--aruzr-reveal) * 100%),
+    #000 calc(var(--aruzr-reveal) * 100% + var(--aruzr-feather))
+  );
+}
+
+.dark .aruzr-text-spoiler {
+  --aruzr-spoiler-ink: rgba(243, 240, 233, 0.5);
+}
+
+.aruzr-text-spoiler[data-spoilered="true"] {
+  opacity: 1;
+}
+
+/* آشکارسازی از راست، یعنی از آغازِ خواندنِ فارسی. جهتِ گرادیان فیزیکی است
+   و به dir وابسته نیست. لبه نرم است تا وسطِ یک حرف قیچی نشود. */
+.aruzr-text-visible {
+  position: absolute;
+  inset: 0;
+  color: var(--aruzr-text);
+  -webkit-mask-image: linear-gradient(
+    to left,
+    #000 0,
+    #000 calc(var(--aruzr-reveal) * 100%),
+    transparent calc(var(--aruzr-reveal) * 100% + var(--aruzr-feather))
+  );
+  mask-image: linear-gradient(
+    to left,
+    #000 0,
+    #000 calc(var(--aruzr-reveal) * 100%),
+    transparent calc(var(--aruzr-reveal) * 100% + var(--aruzr-feather))
+  );
+}
+
+/* نوارِ نازکِ زمانِ مطالعه، زیرِ مصراع. */
+.aruzr-preview-progress {
+  height: 2px;
+  width: min(100%, 16rem);
+  margin-inline: auto;
+  border-radius: 999px;
+  background: var(--aruzr-timer-track);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+
+.aruzr-preview-progress[data-running="true"] {
+  opacity: 1;
+}
+
+.aruzr-preview-progress-fill {
+  height: 100%;
+  width: 100%;
+  transform-origin: right;
+  background: var(--aruzr-accent);
+  animation-name: aruzrDrain;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  animation-play-state: paused;
+}
+
+.aruzr-preview-progress[data-running="true"] .aruzr-preview-progress-fill {
+  animation-play-state: running;
+}
+
+/* --- نقطه‌های پیشرفتِ واحدها --- */
+
+.aruzr-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  min-height: 0.5rem;
+}
+
+.aruzr-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: var(--aruzr-dot-idle);
+  transition: background-color 260ms ease, transform 260ms ease, box-shadow 260ms ease;
+}
+
+.aruzr-dot[data-state="done"] {
+  background: var(--aruzr-accent);
+  box-shadow: 0 0 10px -2px var(--aruzr-accent-glow);
+}
+
+.aruzr-dot[data-state="current"] {
+  background: var(--aruzr-gold);
+  transform: scale(1.5);
+  box-shadow: 0 0 12px -2px var(--aruzr-gold-line);
+}
+
+/* --- واحدِ جاری --- */
+
+.aruzr-unit-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 6rem;
+  min-width: 0;
+}
+
+.aruzr-unit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: clamp(6rem, 26vw, 9rem);
+  padding: 0.5rem 1.6rem 0.7rem;
+  border-radius: 1.5rem;
+  border: 1px solid var(--aruzr-accent-line);
+  background:
+    radial-gradient(120% 140% at 50% 0%, var(--aruzr-accent-soft), transparent 70%),
+    var(--aruzr-surface-2);
+  box-shadow: var(--aruzr-btn-inner), 0 0 60px -30px var(--aruzr-accent-glow);
+  font-family: var(--font-serif);
+  font-size: clamp(2.2rem, 9vw, 3.4rem);
+  font-weight: 600;
+  line-height: 1.75;
+  color: var(--aruzr-text);
+  text-align: center;
+  transition: border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease;
+}
+
+.aruzr-unit[data-hidden="true"] {
+  opacity: 0.3;
+  border-color: var(--aruzr-border);
+  box-shadow: none;
+}
+
+/* هر واحدِ تازه با یک ظهورِ ملایم می‌آید — نه پرش، نه لرزش. */
+.aruzr-unit-in {
+  animation: aruzrUnitIn 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.aruzr-unit[data-feedback="correct"] {
+  border-color: var(--aruzr-accent);
+  box-shadow: var(--aruzr-btn-inner), 0 0 46px -14px var(--aruzr-accent-glow);
+}
+
+.aruzr-unit[data-feedback="wrong"],
+.aruzr-unit[data-feedback="timeout"] {
+  border-color: var(--aruzr-failure-line);
+  background: var(--aruzr-failure-soft);
+  box-shadow: var(--aruzr-btn-inner), 0 0 46px -18px var(--aruzr-failure-line);
+}
+
+@keyframes aruzrUnitIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+}
+
+/* --- نوارِ مهلت --- */
+
+.aruzr-timer {
+  position: relative;
+  height: 4px;
+  width: min(100%, 24rem);
+  margin-inline: auto;
+  border-radius: 999px;
+  background: var(--aruzr-timer-track);
+  overflow: hidden;
+}
+
+.aruzr-timer[data-idle="true"] .aruzr-timer-fill {
+  visibility: hidden;
+}
+
+/* پایانِ زمان: خودِ نوار یک بار کوتاه روشن می‌شود. */
+.aruzr-timer[data-flash="timeout"] {
+  animation: aruzrTimerFlash 300ms ease-out;
+}
+
+@keyframes aruzrTimerFlash {
+  0%,
+  100% {
+    background: var(--aruzr-timer-track);
+  }
+  35% {
+    background: var(--aruzr-failure-line);
+  }
+}
+
+.aruzr-timer-fill {
+  height: 100%;
+  width: 100%;
+  transform-origin: right;
+  border-radius: 999px;
+  /* دو انیمیشنِ هم‌زمان با یک مدت: یکی طول را کم می‌کند، دیگری رنگ را در
+     ثانیهٔ آخر به طلایی و سپس هشدار می‌برد. هر دو با همان delayِ منفیِ
+     بازگشت از مکث هماهنگ می‌مانند. */
+  animation-name: aruzrDrain, aruzrTimerHue;
+  animation-timing-function: linear, linear;
+  animation-fill-mode: forwards, forwards;
+}
+
+@keyframes aruzrDrain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes aruzrTimerHue {
+  0%,
+  62% {
+    background-color: var(--aruzr-accent);
+  }
+  84% {
+    background-color: var(--aruzr-gold);
+  }
+  100% {
+    background-color: var(--aruzr-failure);
+  }
+}
+
+/* --- دکمه‌های پاسخ --- */
+
+.aruzr-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  width: min(100%, 30rem);
+  margin-inline: auto;
+}
+
+/* جای U و _ در طولِ نشست عوض نمی‌شود؛ حافظهٔ انگشت بخشی از بازی است.
+   روی دکمه فقط نماد است — هیچ زیرنویسِ توضیحی. بازی با تکرار یاد گرفته
+   می‌شود، نه با خواندنِ برچسب. */
+.aruzr-answer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 5.5rem;
+  border-radius: 1.5rem;
+  border: 1px solid var(--aruzr-border);
+  background: var(--aruzr-btn);
+  box-shadow: var(--aruzr-btn-inner), var(--aruzr-shadow-soft);
+  color: var(--aruzr-text);
+  overflow: hidden;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 200ms ease,
+    box-shadow 200ms ease,
+    background 200ms ease;
+}
+
+/* هالهٔ رنگیِ هر دکمه از بالا می‌تابد: فیروزه‌ای برای کوتاه، طلایی برای بلند.
+   همین تفاوتِ رنگ، حافظهٔ انگشت را سریع‌تر می‌سازد. */
+.aruzr-answer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.9;
+  transition: opacity 200ms ease;
+}
+
+.aruzr-answer[data-length="short"]::before {
+  background: radial-gradient(120% 130% at 50% -20%, var(--aruzr-accent-soft), transparent 68%);
+}
+
+.aruzr-answer[data-length="long"]::before {
+  background: radial-gradient(120% 130% at 50% -20%, var(--aruzr-gold-soft), transparent 68%);
+}
+
+.aruzr-answer:not(:disabled):hover {
+  transform: translateY(-2px);
+  background: var(--aruzr-btn-hover);
+}
+
+.aruzr-answer[data-length="short"]:not(:disabled):hover {
+  border-color: var(--aruzr-accent-line);
+  box-shadow: var(--aruzr-btn-inner), 0 0 34px -16px var(--aruzr-accent-glow);
+}
+
+.aruzr-answer[data-length="long"]:not(:disabled):hover {
+  border-color: var(--aruzr-gold-line);
+  box-shadow: var(--aruzr-btn-inner), 0 0 34px -16px var(--aruzr-gold-line);
+}
+
+.aruzr-answer:not(:disabled):active {
+  transform: scale(0.975);
+  background: var(--aruzr-btn-active);
+}
+
+.aruzr-answer:focus-visible {
+  outline: 2px solid var(--aruzr-accent);
+  outline-offset: 3px;
+}
+
+.aruzr-answer:disabled {
+  opacity: 0.55;
+}
+
+.aruzr-answer:disabled::before {
+  opacity: 0.3;
+}
+
+.aruzr-answer[data-flash="correct"] {
+  border-color: var(--aruzr-accent);
+  background: var(--aruzr-accent-soft);
+  box-shadow: var(--aruzr-btn-inner), 0 0 40px -14px var(--aruzr-accent-glow);
+}
+
+.aruzr-answer[data-flash="wrong"],
+.aruzr-answer[data-flash="timeout"] {
+  border-color: var(--aruzr-failure-line);
+  background: var(--aruzr-failure-soft);
+  box-shadow: var(--aruzr-btn-inner), 0 0 40px -14px var(--aruzr-failure-line);
+}
+
+.aruzr-answer-symbol {
+  position: relative;
+  font-family: var(--font-mono);
+  font-size: 2.4rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* «_» روی خطِ کرسی می‌نشیند و پایینِ دکمه می‌افتد؛ کمی بالا می‌آید تا مثلِ
+   نشانهٔ هجای بلند، وسطِ دکمه دیده شود. */
+.aruzr-answer[data-length="long"] .aruzr-answer-symbol {
+  /* کشیدنِ عمودی، «_» را به خطِ ضخیمِ نشانهٔ هجای بلند نزدیک می‌کند. */
+  transform: translateY(-0.42em) scale(1.15, 1.8);
+}
+
+/* --- روپوشِ مکث --- */
+
+.aruzr-pause-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--aruzr-scrim);
+  backdrop-filter: blur(8px);
+  z-index: 5;
+  animation: aruzrFadeIn 180ms ease;
+}
+
+.aruzr-pause-card {
+  border-radius: 1.25rem;
+  border: 1px solid var(--aruzr-border);
+  background: var(--aruzr-surface);
+  padding: 1.15rem 1.75rem;
+  text-align: center;
+  color: var(--aruzr-text);
+  box-shadow: var(--aruzr-shadow);
+}
+
+@keyframes aruzrFadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+/* --- اختیارِ شاعری ---
+   مصراعی که هجای اختیاری دارد، پیش از بازی دیده می‌شود: قاب طلایی می‌گیرد و
+   حلقه‌ای از نور دورش می‌چرخد، کلمهٔ اختیاردار در متن روشن می‌شود، و زیرِ
+   متن یادداشتِ اختیار می‌آید. در بازی، نقطه و هجای همان جا نشان دارند. */
+
+@property --aruzr-lic-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.aruzr-panel[data-license="true"] {
+  border-color: var(--aruzr-gold-line);
+  box-shadow: var(--aruzr-btn-inner), 0 0 48px -20px var(--aruzr-gold-line);
+}
+
+/* حلقهٔ نور: فقط لبه، با ماسکِ content-box. */
+.aruzr-panel[data-license="true"]::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--aruzr-lic-angle),
+    transparent 0 58%,
+    var(--aruzr-gold) 76%,
+    #fff4d6 81%,
+    var(--aruzr-gold) 86%,
+    transparent 100%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 500ms ease;
+}
+
+.aruzr-root[data-phase="preview"] .aruzr-panel[data-license="true"]::before {
+  opacity: 1;
+  animation: aruzrLicSpin 2.8s linear infinite;
+}
+
+@keyframes aruzrLicSpin {
+  to {
+    --aruzr-lic-angle: 360deg;
+  }
+}
+
+/* کلمهٔ اختیاردار در متن: طلایی، با خطی که زیرش کشیده می‌شود. فقط رنگ و
+   پس‌زمینه عوض می‌شود، نه فونت؛ پس متریکِ دو لایه یکی می‌ماند. */
+.aruzr-text-visible .aruzr-lic-word {
+  color: var(--aruzr-gold);
+  text-shadow: 0 0 0.7em var(--aruzr-gold-soft);
+  background: linear-gradient(90deg, transparent, var(--aruzr-gold) 20% 80%, transparent) no-repeat 50% 88% / 100%
+    2px;
+}
+
+.aruzr-root[data-phase="preview"] .aruzr-text-visible .aruzr-lic-word {
+  animation:
+    aruzrLicDraw 900ms 250ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    aruzrLicGlow 2.2s 1s ease-in-out infinite;
+}
+
+@keyframes aruzrLicDraw {
+  from {
+    background-size: 0% 2px;
+  }
+}
+
+@keyframes aruzrLicGlow {
+  50% {
+    text-shadow: 0 0 0.9em var(--aruzr-gold-line);
+  }
+}
+
+.aruzr-lic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.5rem;
+  margin-top: 0.35rem;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+}
+
+.aruzr-lic-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.18rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--aruzr-gold-line);
+  background:
+    linear-gradient(110deg, transparent 30%, color-mix(in oklab, var(--aruzr-gold) 28%, transparent) 50%, transparent 70%)
+      -100% 0 / 250% 100% no-repeat,
+    var(--aruzr-gold-soft);
+  color: var(--aruzr-gold);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.aruzr-lic-spark {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.aruzr-lic[data-live="true"] .aruzr-lic-badge {
+  animation:
+    aruzrLicPop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    aruzrLicSheen 2.6s 600ms linear infinite;
+}
+
+.aruzr-lic[data-live="true"] .aruzr-lic-spark {
+  animation: aruzrLicTwinkle 1.6s ease-in-out infinite;
+}
+
+@keyframes aruzrLicPop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@keyframes aruzrLicSheen {
+  to {
+    background-position: 200% 0, 0 0;
+  }
+}
+
+@keyframes aruzrLicTwinkle {
+  50% {
+    transform: scale(0.75) rotate(20deg);
+    opacity: 0.7;
+  }
+}
+
+.aruzr-lic-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  transition: filter 320ms ease, opacity 320ms ease;
+}
+
+/* مصراع پوشیده است: نامِ کلمه‌ها لو ندهد. */
+.aruzr-lic[data-veiled="true"] .aruzr-lic-list {
+  filter: blur(5px);
+  opacity: 0.45;
+  user-select: none;
+}
+
+.aruzr-lic-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.12rem 0.6rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--aruzr-border);
+  background: var(--aruzr-surface-2);
+  color: var(--aruzr-text-2);
+  white-space: nowrap;
+}
+
+.aruzr-lic[data-live="true"] .aruzr-lic-item {
+  animation: aruzrLicIn 480ms calc(220ms + var(--i, 0) * 90ms) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes aruzrLicIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: blur(6px);
+  }
+}
+
+.aruzr-lic-ref,
+.aruzr-lic-unit {
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+}
+
+.aruzr-lic-ref {
+  color: var(--aruzr-text);
+}
+
+.aruzr-lic-unit {
+  color: var(--aruzr-gold);
+  font-weight: 700;
+}
+
+.aruzr-lic-len {
+  font-weight: 800;
+  color: var(--aruzr-text);
+}
+
+.aruzr-lic-kind {
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--aruzr-gold-soft);
+  color: var(--aruzr-gold);
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+/* نقطهٔ هجای اختیاری: حلقهٔ طلایی. پس از قاعده‌های data-state می‌آید تا
+   روی سایهٔ آن‌ها بنشیند. */
+.aruzr-dot[data-license="true"] {
+  box-shadow: 0 0 0 1.5px var(--aruzr-gold);
+}
+
+.aruzr-dot[data-license="true"][data-state="done"] {
+  box-shadow: 0 0 0 1.5px var(--aruzr-gold), 0 0 10px -2px var(--aruzr-accent-glow);
+}
+
+.aruzr-dot[data-license="true"][data-state="current"] {
+  box-shadow: 0 0 0 1.5px var(--aruzr-surface), 0 0 0 3px var(--aruzr-gold);
+}
+
+/* هجای اختیاری در کانون. بازخوردِ نادرست بر آن مقدم است؛ «درستِ» واحدِ
+   قبلی که هنوز روی قاب مانده، نه. */
+.aruzr-unit[data-license="true"] {
+  position: relative;
+}
+
+.aruzr-unit[data-license="true"]:not([data-feedback="wrong"], [data-feedback="timeout"]) {
+  border-color: var(--aruzr-gold-line);
+  background:
+    radial-gradient(120% 140% at 50% 0%, var(--aruzr-gold-soft), transparent 70%),
+    var(--aruzr-surface-2);
+  box-shadow: var(--aruzr-btn-inner), 0 0 60px -26px var(--aruzr-gold);
+}
+
+.aruzr-unit-lic {
+  position: absolute;
+  top: -0.72rem;
+  inset-inline: 0;
+  width: max-content;
+  margin-inline: auto;
+  padding: 0.05rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--aruzr-gold-line);
+  background: var(--aruzr-surface);
+  color: var(--aruzr-gold);
+  font-family: var(--font-sans);
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aruzr-root[data-phase="preview"] .aruzr-panel[data-license="true"]::before,
+  .aruzr-root[data-phase="preview"] .aruzr-text-visible .aruzr-lic-word,
+  .aruzr-lic[data-live="true"] .aruzr-lic-badge,
+  .aruzr-lic[data-live="true"] .aruzr-lic-spark,
+  .aruzr-lic[data-live="true"] .aruzr-lic-item {
+    animation: none;
+  }
+}
+
+/* --- صفحه‌های آغاز و نتیجه --- */
+
+.aruzr-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.75rem;
+  border: 1px solid var(--aruzr-border);
+  box-shadow: var(--aruzr-shadow);
+}
+
+.aruzr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--aruzr-accent-line);
+  background: var(--aruzr-accent-soft);
+  color: var(--aruzr-accent);
+  padding: 0.25rem 0.9rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.aruzr-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 3.4rem;
+  padding-inline: 2.6rem;
+  border-radius: 1.1rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--aruzr-cta-ink, #ffffff);
+  background: var(--aruzr-cta-bg, linear-gradient(180deg, #0a9b95, #007270));
+  box-shadow: 0 16px 34px -20px var(--aruzr-accent-glow);
+  transition: transform 140ms ease, box-shadow 200ms ease, filter 200ms ease;
+  touch-action: manipulation;
+}
+
+.dark .aruzr-cta {
+  --aruzr-cta-ink: #04231f;
+  --aruzr-cta-bg: linear-gradient(180deg, #47e2d4, #12867e);
+}
+
+.aruzr-cta:hover {
+  filter: brightness(1.06);
+}
+
+.aruzr-cta:active {
+  transform: scale(0.975);
+}
+
+.aruzr-ghost-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.9rem;
+  padding-inline: 1.4rem;
+  border-radius: 1rem;
+  border: 1px solid var(--aruzr-border);
+  background: var(--aruzr-surface-2);
+  color: var(--aruzr-text-2);
+  font-size: 0.9rem;
+  transition: color 180ms ease, border-color 180ms ease, transform 140ms ease;
+  touch-action: manipulation;
+}
+
+.aruzr-ghost-btn:hover {
+  color: var(--aruzr-text);
+  border-color: var(--aruzr-accent-line);
+}
+
+.aruzr-ghost-btn:active {
+  transform: scale(0.975);
+}
+
+.aruzr-stat {
+  border-radius: 1.1rem;
+  border: 1px solid var(--aruzr-border);
+  background: var(--aruzr-inset);
+  padding: 0.85rem 0.6rem;
+  text-align: center;
+}
+
+.aruzr-stat[data-primary="true"] {
+  border-color: var(--aruzr-accent-line);
+  background: var(--aruzr-accent-soft);
+}
+
+.aruzr-stat-value {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--aruzr-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.aruzr-stat[data-primary="true"] .aruzr-stat-value {
+  color: var(--aruzr-accent);
+}
+
+.aruzr-stat-label {
+  margin-top: 0.15rem;
+  font-size: 0.68rem;
+  color: var(--aruzr-text-2);
+}
+
+.aruzr-result-text {
+  font-family: var(--font-serif);
+  font-size: clamp(1.3rem, 4.2vw, 2rem);
+  line-height: 2;
+  font-weight: 500;
+  color: var(--aruzr-text);
+}
+
+.aruzr-muted {
+  color: var(--aruzr-text-2);
+}
+
+.aruzr-subtle {
+  color: var(--aruzr-text-3);
+}
+
+.aruzr-warn {
+  color: var(--aruzr-gold);
+}
+
+/* --- صفحهٔ نتیجه: شیشهٔ مات ---
+   همان زبانِ «رنگ‌آرا»: نشانِ سروا پشتِ شیشهٔ مات، دانهٔ ریز، و درخششی
+   اریب روی شیشه. پرتوِ لبه (BorderBeam) فیروزه‌ای به طلایی می‌رود. */
+
+.aruzr-res {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 1.75rem;
+  padding: clamp(1.25rem, 4vw, 2.25rem);
+  text-align: center;
+  color: var(--aruzr-text);
+  background:
+    radial-gradient(120% 80% at 85% -10%, var(--aruzr-ambient-a), transparent 60%),
+    radial-gradient(90% 70% at 0% 110%, var(--aruzr-ambient-b), transparent 62%),
+    var(--aruzr-surface);
+  box-shadow:
+    0 0 0 1px var(--aruzr-border),
+    var(--aruzr-shadow);
+}
+
+/* محتوا روی شیشه؛ پرتوِ لبه (absolute) دست نمی‌خورد. */
+.aruzr-res-head,
+.aruzr-res-hero,
+.aruzr-res-verse,
+.aruzr-res-actions,
+.aruzr-res-back {
+  position: relative;
+  z-index: 1;
+}
+
+.aruzr-res-glass {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.aruzr-res-logo {
+  position: absolute;
+  inset: 6% -8% auto;
+  height: 78%;
+  display: grid;
+  place-items: center;
+  opacity: 0.55;
+}
+
+.aruzr-res-logo svg {
+  width: auto !important;
+  height: 100% !important;
+}
+
+.aruzr-res-frost {
+  position: absolute;
+  inset: 0;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .7 -.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")
+      0 0 / 180px 180px,
+    color-mix(in oklab, var(--aruzr-surface) 62%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(1.25);
+  backdrop-filter: blur(12px) saturate(1.25);
+}
+
+.dark .aruzr-res-frost {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .2 -.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")
+      0 0 / 180px 180px,
+    color-mix(in oklab, var(--aruzr-surface) 68%, transparent);
+}
+
+.aruzr-res-sheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    118deg,
+    rgba(255, 255, 255, 0.45) 0%,
+    transparent 28%,
+    transparent 70%,
+    rgba(255, 255, 255, 0.14) 100%
+  );
+  opacity: 0.6;
+}
+
+.dark .aruzr-res-sheen {
+  opacity: 0.12;
+}
+
+/* نورِ لبهٔ بالا */
+.aruzr-res::before {
+  content: "";
+  position: absolute;
+  inset: 0 22px auto;
+  z-index: 2;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+  pointer-events: none;
+}
+
+.dark .aruzr-res::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+}
+
+.aruzr-res-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.aruzr-res-title {
+  font-size: clamp(1.3rem, 4.5vw, 1.75rem);
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+.aruzr-res-hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1rem, 4vw, 2rem);
+  margin-top: 1.4rem;
+  flex-wrap: wrap;
+}
+
+.aruzr-res-ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--aruzr-text);
+}
+
+.aruzr-res-ring-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--aruzr-text-2);
+}
+
+.aruzr-res-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  flex: 1 1 16rem;
+  max-width: 22rem;
+}
+
+.aruzr-res-stat {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.15rem;
+  padding: 0.7rem 0.6rem;
+  border-radius: 1rem;
+  border: 1px solid var(--aruzr-border);
+  background: color-mix(in oklab, var(--aruzr-surface-2) 70%, transparent);
+  box-shadow: var(--aruzr-btn-inner);
+}
+
+.aruzr-res-stat dt {
+  font-size: 0.68rem;
+  color: var(--aruzr-text-2);
+}
+
+.aruzr-res-stat dd {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.25rem;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--aruzr-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.aruzr-res-stat-unit {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--aruzr-text-3);
+}
+
+.aruzr-res-verse {
+  margin: 1.5rem 0 0;
+  padding: 1.1rem clamp(0.75rem, 3vw, 1.25rem) 1rem;
+  border-radius: 1.35rem;
+  border: 1px solid var(--aruzr-border);
+  background: color-mix(in oklab, var(--aruzr-inset) 72%, transparent);
+  box-shadow: var(--aruzr-btn-inner);
+}
+
+.aruzr-res-meta {
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  color: var(--aruzr-text-2);
+}
+
+.aruzr-res-units {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.aruzr-res-tile {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 2.3rem;
+  padding: 0.25rem 0.45rem 0.3rem;
+  border-radius: 0.8rem;
+  border: 1px solid var(--aruzr-border);
+  background: var(--aruzr-surface-2);
+}
+
+.aruzr-res-tile[data-length="long"] {
+  border-color: var(--aruzr-accent-line);
+  background: linear-gradient(180deg, var(--aruzr-accent-soft), transparent), var(--aruzr-surface-2);
+}
+
+.aruzr-res-tile[data-license="true"] {
+  border-color: var(--aruzr-gold);
+  background: linear-gradient(180deg, var(--aruzr-gold-soft), transparent), var(--aruzr-surface-2);
+  box-shadow: 0 0 18px -8px var(--aruzr-gold);
+}
+
+.aruzr-res-tile-text {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  line-height: 1.9;
+  color: var(--aruzr-text);
+}
+
+.aruzr-res-tile-mark {
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--aruzr-text-2);
+}
+
+.aruzr-res-tile[data-length="long"] .aruzr-res-tile-mark {
+  color: var(--aruzr-accent);
+}
+
+.aruzr-res-tile[data-license="true"] .aruzr-res-tile-mark {
+  color: var(--aruzr-gold);
+}
+
+.aruzr-res-tile-spark {
+  position: absolute;
+  top: -0.4rem;
+  inset-inline-end: -0.35rem;
+  width: 0.85rem;
+  height: 0.85rem;
+  color: var(--aruzr-gold);
+  filter: drop-shadow(0 0 4px var(--aruzr-gold-line));
+}
+
+.aruzr-res-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.8rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--aruzr-gold);
+}
+
+.aruzr-res-note {
+  margin-top: 0.5rem;
+  font-size: 0.74rem;
+  line-height: 1.9;
+  color: var(--aruzr-text-2);
+}
+
+.aruzr-res-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 1.6rem;
+}
+
+.aruzr-res-back {
+  display: inline-block;
+  margin-top: 1.1rem;
+  font-size: 0.74rem;
+  color: var(--aruzr-text-3);
+  transition: color 180ms ease;
+}
+
+.aruzr-res-back:hover {
+  color: var(--aruzr-accent);
+}
+
+/* --- ریزه‌کاری‌ها --- */
+
+/* متنِ فقط-برای-صفحه‌خوان.
+   sr-only در تیلویند با margin:-1px کار می‌کند؛ در RTL جای استاتیکش لبهٔ
+   راست است و همان یک پیکسل، کلِ صفحه را یک پیکسل اسکرولِ افقی می‌داد. */
+.aruzr-root .sr-only {
+  right: 0;
+  left: auto;
+  margin: 0;
+}
+
+.aruzr-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  padding: 4rem 1rem;
+  color: var(--aruzr-text-2);
+}
+
+.aruzr-spinner {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  border: 2px solid var(--aruzr-accent-soft);
+  border-top-color: var(--aruzr-accent);
+  animation: aruzrSpin 700ms linear infinite;
+}
+
+@keyframes aruzrSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.aruzr-kbd {
+  display: inline-block;
+  border-radius: 0.4rem;
+  border: 1px solid var(--aruzr-border);
+  background: var(--aruzr-surface-2);
+  padding: 0.08rem 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--aruzr-text-2);
+}
+
+/* ---------- B) موبایلِ ایستاده ---------- */
+@media (max-width: 767px) and (min-height: 561px) {
+  .aruzr-text {
+    font-size: clamp(1.35rem, 6.4vw, 2.1rem);
+  }
+
+  .aruzr-unit {
+    font-size: clamp(2.6rem, 15vw, 4rem);
+    min-width: clamp(7rem, 38vw, 11rem);
+    padding: clamp(0.5rem, 1.4vh, 1rem) 1.8rem clamp(0.7rem, 1.8vh, 1.2rem);
+  }
+
+  .aruzr-unit-wrap {
+    min-height: clamp(5.5rem, 17vh, 9rem);
+  }
+
+  .aruzr-answer {
+    min-height: clamp(5rem, 11vh, 7rem);
+  }
+
+  .aruzr-panel {
+    padding: clamp(0.85rem, 2.2vh, 1.5rem) 0.85rem;
+  }
+
+  .aruzr-root-immersive .aruzr-board {
+    gap: clamp(0.9rem, 3.6vh, 2.6rem);
+  }
+}
+
+/* ---------- C) صفحهٔ کوتاه (گوشیِ خوابیده) ---------- */
+@media (max-height: 560px) {
+  .aruzr-topbar {
+    padding: 0.4rem 0.85rem;
+  }
+
+  .aruzr-icon-btn {
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 0.7rem;
+  }
+
+  .aruzr-text {
+    font-size: clamp(1.05rem, 4.2vh, 1.7rem);
+    line-height: 1.95;
+  }
+
+  .aruzr-panel {
+    padding: 0.5rem 0.75rem;
+    border-radius: 1rem;
+  }
+
+  .aruzr-panel-label {
+    display: none;
+  }
+
+  .aruzr-unit {
+    font-size: clamp(1.8rem, 11vh, 2.9rem);
+    line-height: 1.5;
+    padding: 0.2rem 1.2rem 0.35rem;
+    border-radius: 1.1rem;
+    min-width: clamp(5rem, 16vw, 8rem);
+  }
+
+  .aruzr-unit-wrap {
+    min-height: 3rem;
+  }
+
+  .aruzr-answer {
+    min-height: clamp(2.9rem, 16vh, 4.25rem);
+    border-radius: 1.1rem;
+  }
+
+  .aruzr-answer-symbol {
+    font-size: 1.7rem;
+  }
+
+  .aruzr-root-immersive .aruzr-board {
+    gap: 0.5rem;
+    padding-inline: 1.5rem;
+  }
+
+  .aruzr-root-immersive .aruzr-play-region {
+    gap: 0.55rem;
+  }
+
+  .aruzr-preview-scroll {
+    padding-block: 0.3em;
+  }
+
+  .aruzr-dots {
+    min-height: 0.4rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aruzr-text-stack,
+  .aruzr-text-spoiler,
+  .aruzr-preview-progress,
+  .aruzr-dot {
+    transition-duration: 1ms;
+  }
+
+  .aruzr-unit-in,
+  .aruzr-pause-overlay,
+  .aruzr-panel[data-complete="true"],
+  .aruzr-timer[data-flash="timeout"] {
+    animation: none;
+  }
+
+  .aruzr-answer:not(:disabled):hover,
+  .aruzr-answer:not(:disabled):active,
+  .aruzr-cta:active,
+  .aruzr-ghost-btn:active {
+    transform: none;
+  }
+
+  .aruzr-spinner {
+    animation-duration: 2s;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   نوار بی‌پایانِ حامیان
+   ---------------------------------------------------------------------------
+   با CSS خالص و نه با جاوااسکریپت: یک انیمیشنِ transform روی لایهٔ ترکیب
+   مرورگر اجرا می‌شود و هیچ کاری به رشتهٔ اصلی نمی‌دهد — یعنی حتی روی گوشیِ
+   ضعیف هم نرم می‌ماند. نسخهٔ جاوااسکریپتی‌اش با هر رندرِ React تِته‌پِته
+   می‌کرد.
+
+   محتوا در کامپوننت دو بار پشت سر هم رندر می‌شود و این انیمیشن دقیقاً نصفِ
+   عرض را جابه‌جا می‌کند؛ لحظهٔ برگشت به صفر با شروع، مو نمی‌زند. */
+@keyframes sarva-marquee-rtl {
+  from { transform: translateX(0); }
+  to   { transform: translateX(50%); }
+}
+@keyframes sarva-marquee-ltr {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.sarva-marquee-track {
+  display: flex;
+  width: max-content;
+  animation-duration: var(--sarva-marquee-duration, 60s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.sarva-marquee-track[data-direction="rtl"] { animation-name: sarva-marquee-rtl; }
+.sarva-marquee-track[data-direction="ltr"] { animation-name: sarva-marquee-ltr; }
+
+/* ایستادن روی نگه‌داشتنِ اشاره‌گر و روی فوکوسِ صفحه‌کلید — بدون دومی، کسی که
+   با Tab میان کارت‌ها می‌رود نمی‌تواند بخواندشان. */
+.sarva-marquee:hover .sarva-marquee-track,
+.sarva-marquee:focus-within .sarva-marquee-track {
+  animation-play-state: paused;
+}
+
+/* کسی که حرکت را نمی‌خواهد، به‌جای نوارِ متحرک یک ردیفِ قابلِ اسکرول می‌بیند.
+   انیمیشن فقط «کند» نمی‌شود؛ کاملاً برداشته می‌شود. */
+@media (prefers-reduced-motion: reduce) {
+  .sarva-marquee { overflow-x: auto; }
+  .sarva-marquee-track { animation: none; }
+}
+
+/* ---------------------------------------------------- درخششِ نوارِ اعلان */
+/* یک بازتابِ آرام که از عرضِ نوار رد می‌شود. فقط `transform` انیمیت می‌شود،
+   پس روی رشتهٔ compositor اجرا می‌شود و نوار را در هیچ فریمی دوباره
+   رنگ‌آمیزی نمی‌کند — چیزی که برای عنصری که بالای *همهٔ* صفحه‌ها می‌نشیند
+   اهمیت دارد. */
+@keyframes annSheen {
+  from { transform: translateX(-140%); }
+  to   { transform: translateX(420%); }
+}
+.ann-sheen {
+  animation: annSheen 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ann-sheen { animation: none; opacity: 0.5; transform: none; }
+}
+
+/* ============================================================
+   کارایی: خواباندنِ کارِ تزئینی وقتی کسی نگاهش نمی‌کند
+   ============================================================
+
+   دو کلید اینجا هست که جاوااسکریپت روی <html> می‌نویسد:
+
+     data-scrolling   حین اسکرول (lib/perf/use-perf.ts)
+     data-quality     سطحِ کیفیتِ تشخیص‌داده‌شده
+
+   چرا CSS و نه props: این انیمیشن‌ها در استایل‌شیت‌اند. وصل کردنشان به
+   stateِ ری‌اکت یعنی رندرِ دوباره برای کاری که خودِ مرورگر بلد است. */
+
+/* ---- حین اسکرول: هر انیمیشنِ دائمیِ تزئینی می‌ایستد ----
+
+   `paused` و نه `none`: انیمیشن سرِ جایش می‌ماند و با پایانِ اسکرول از
+   همان‌جا ادامه می‌دهد. با `none` همه‌چیز به فریمِ صفر می‌پرید و خودِ آن
+   پرش دیده می‌شد. */
+html[data-scrolling] .aruz-aurora,
+html[data-scrolling] .aruz-grid-floor::before,
+html[data-scrolling] .aruz-gradient-text,
+html[data-scrolling] .arkan-orbit,
+html[data-scrolling] .ninja-aurora,
+html[data-scrolling] .animate-ping {
+  animation-play-state: paused;
+}
+
+/* ---- درخششِ متنِ گرادیانی: فقط در بالاترین کیفیت ----
+
+   background-position قابلِ ترکیب در compositor نیست، پس این درخشش در هر
+   فریمی که اجرا شود متن را دوباره رنگ می‌کند — و چون infinite است، تا ابد.
+   ارتقای لایه دامنه‌اش را به عرضِ کلمات محدود می‌کند ولی خودِ رنگ‌آمیزی سرِ
+   جایش می‌ماند. روی دستگاهِ متوسط و ضعیف ارزشش را ندارد. */
+html[data-quality="balanced"] .aruz-gradient-text,
+html[data-quality="low"] .aruz-gradient-text {
+  animation: none;
+  /* بدونِ انیمیشن، لایهٔ اختصاصی هم لازم نیست. will-changeِ دائمی روی
+     GPUِ کم‌حافظه یعنی حافظهٔ بی‌مصرف و در بدترین حالت بیرون‌راندنِ لایه‌های
+     دیگر. رنگ‌ها و ظاهر دست‌نخورده می‌مانند — فقط ثابت‌اند. */
+  will-change: auto;
+  background-position: 30% 50%;
+}
+
+/* ---- کیفیتِ پایین: پس‌زمینه‌های متحرک کنار می‌روند ---- */
+html[data-quality="low"] .aruz-aurora,
+html[data-quality="low"] .aruz-grid-floor::before,
+html[data-quality="low"] .arkan-orbit {
+  animation: none;
+}
+
+/* ---- backdrop-filter: گران‌ترین چیزِ این صفحه روی سافاری و موبایلِ ضعیف ----
+
+   شیشه با یک پس‌زمینهٔ نیمه‌شفافِ تیره جایگزین می‌شود. حسِ لایه‌لایه بودن
+   می‌ماند، ولی مرورگر دیگر مجبور نیست پشتِ هر کارت را تار کند. */
+html[data-quality="balanced"] .glass,
+html[data-quality="low"] .glass,
+html[data-quality="balanced"] [class*="backdrop-blur"],
+html[data-quality="low"] [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background-color: color-mix(in oklch, var(--color-card) 88%, transparent);
+}
+
+/* ---- حرکتِ کم: هیچ انیمیشنِ دائمی‌ای باقی نمی‌ماند ---- */
+@media (prefers-reduced-motion: reduce) {
+  .aruz-aurora,
+  .aruz-grid-floor::before,
+  .aruz-gradient-text,
+  .arkan-orbit {
+    animation: none;
+    will-change: auto;
+  }
+}
+
+
+/* ── ضربانِ عددِ شمارشِ معکوسِ پلِ وزن ──────────────────────────────────────
+   ⚠️ فقط `transform` و `opacity` — همان قاعده‌ای که در «مدار دستور» با
+   اندازه‌گیری ثابت شد (انیمیت کردنِ فیلتر، ۵۷fps را به ۳۰ می‌رساند).
+
+   هر عدد کلیدِ React خودش را دارد، پس با عوض شدنِ عدد کامپوننت از نو ساخته
+   می‌شود و انیمیشن دوباره از صفر اجرا می‌شود — بدونِ نیاز به delay دستی. */
+@keyframes gcCountdownBeat {
+  0% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+.gc-countdown-beat {
+  animation: gcCountdownBeat var(--gc-countdown-beat-ms, 800ms) ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gc-countdown-beat {
+    animation: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   پلِ وزن — HUD و لایهٔ بازخوردِ روی صحنه
+   ═══════════════════════════════════════════════════════════════════════
+
+   ⚠️ دو قاعده در کلِ این بخش:
+   ۱. فقط `transform` و `opacity` متحرک‌اند. رنگ و سایه فقط با عوض‌شدنِ
+      `data-level` (دو بار در هر پرسش) تغییر می‌کنند، نه در هر فریم.
+   ۲. هیچ `backdrop-filter`ـی روی بوم نیست؛ تار کردنِ بومی که هر فریم عوض
+      می‌شود یعنی تار کردنِ دوباره در هر فریم — روی گوشی همین لگ می‌سازد.
+
+   همهٔ رنگ‌ها از توکن‌های سایت‌اند، پس با پالت و تمِ روشن/تیره عوض می‌شوند. */
+
+.ab-hud {
+  background:
+    radial-gradient(120% 140% at 50% -40%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 60%),
+    var(--card);
+}
+
+.ab-word {
+  display: inline-block;
+  font-family: var(--font-morabba), var(--font-sans);
+  font-weight: 700;
+  color: var(--foreground);
+  animation: abWordIn 420ms cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+}
+
+@keyframes abWordIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.ab-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklch, var(--border) 80%, var(--primary));
+  background: color-mix(in oklch, var(--background) 70%, transparent);
+  padding: 0.2rem 0.6rem 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--foreground);
+  line-height: 1.2;
+}
+
+.ab-chip-icon {
+  display: inline-flex;
+  color: var(--primary);
+}
+
+.ab-chip-value {
+  display: inline-block;
+  animation: abChipPop 360ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+.ab-chip-hot {
+  border-color: color-mix(in oklch, var(--gold) 70%, transparent);
+  background: color-mix(in oklch, var(--gold) 16%, var(--background));
+  box-shadow: 0 0 14px -2px color-mix(in oklch, var(--gold) 55%, transparent);
+}
+
+.ab-chip-hot .ab-chip-icon {
+  color: var(--gold-ink);
+  animation: abFlicker 900ms ease-in-out infinite alternate;
+}
+
+@keyframes abChipPop {
+  from {
+    transform: scale(1.35);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes abFlicker {
+  from {
+    transform: scale(1) rotate(-4deg);
+  }
+  to {
+    transform: scale(1.18) rotate(4deg);
+  }
+}
+
+/* نوارِ زمان: پهنای کامل، از راست به چپ خالی می‌شود — جهتِ خواندنِ فارسی. */
+.ab-timer {
+  position: relative;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--foreground) 10%, transparent);
+}
+
+.ab-timer-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: inherit;
+  transform-origin: right center;
+  background: linear-gradient(90deg, color-mix(in oklch, var(--primary) 55%, var(--card)), var(--primary));
+  box-shadow: 0 0 12px color-mix(in oklch, var(--primary) 60%, transparent);
+}
+
+.ab-timer[data-level="idle"] .ab-timer-fill {
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+.ab-timer[data-level="pressure"] .ab-timer-fill {
+  background: linear-gradient(90deg, var(--gold-light), var(--gold));
+  box-shadow: 0 0 14px color-mix(in oklch, var(--gold) 70%, transparent);
+}
+
+.ab-timer[data-level="panic"] .ab-timer-fill {
+  background: linear-gradient(90deg, color-mix(in oklch, var(--destructive) 55%, white), var(--destructive));
+  box-shadow: 0 0 16px color-mix(in oklch, var(--destructive) 75%, transparent);
+}
+
+/* ── لایهٔ روی صحنه ─────────────────────────────────────────────────────── */
+
+/* قابِ فشار: دو انیمیشن با یک delay (از `style` می‌آید). اولی با
+   fill-mode: both تا رسیدنِ آستانه قاب را در صفر نگه می‌دارد؛ دومی — که در
+   فهرست بعدی است و برنده می‌شود — از همان لحظه می‌تپد. */
+.ab-pressure {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  box-shadow: inset 0 0 70px 10px color-mix(in oklch, var(--gold) 55%, transparent);
+  animation:
+    abFadeIn 250ms ease-out both,
+    abPressure 900ms ease-in-out infinite alternate;
+}
+
+.ab-pressure.ab-panic {
+  box-shadow: inset 0 0 90px 18px color-mix(in oklch, var(--destructive) 70%, transparent);
+  animation:
+    abFadeIn 150ms ease-out both,
+    abPressure 380ms ease-in-out infinite alternate;
+}
+
+@keyframes abFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes abPressure {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.ab-crack-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 70%, color-mix(in oklch, var(--destructive) 45%, transparent), transparent 70%);
+  box-shadow: inset 0 0 120px 30px color-mix(in oklch, var(--destructive) 55%, transparent);
+  animation: abFlash 700ms ease-out both;
+}
+
+@keyframes abFlash {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.ab-gain {
+  position: absolute;
+  inset-inline: 0;
+  top: 22%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  animation: abGain 1150ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.ab-gain-praise {
+  font-size: clamp(1.1rem, 2.6vw, 1.6rem);
+  color: var(--game-night-ink);
+  text-shadow:
+    0 0 18px color-mix(in oklch, var(--primary) 80%, transparent),
+    0 2px 0 color-mix(in oklch, var(--primary-deep) 90%, transparent);
+}
+
+.ab-gain-points {
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  line-height: 1;
+  color: var(--gold-light);
+  text-shadow:
+    0 0 22px color-mix(in oklch, var(--gold) 85%, transparent),
+    0 3px 0 var(--gold-deep);
+}
+
+:root:not(.dark) .ab-gain-praise {
+  color: var(--primary-deep);
+  text-shadow:
+    0 0 14px var(--background),
+    0 0 4px var(--background);
+}
+
+:root:not(.dark) .ab-gain-points {
+  color: var(--gold-ink);
+  text-shadow:
+    0 0 18px var(--background),
+    0 0 4px var(--background),
+    0 3px 0 color-mix(in oklch, var(--gold) 45%, transparent);
+}
+
+.ab-gain-combo {
+  margin-top: 0.2rem;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--gold-deep) 70%, transparent);
+  padding: 0.1rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--gold-light);
+}
+
+@keyframes abGain {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.6);
+  }
+  18% {
+    opacity: 1;
+    transform: translateY(0) scale(1.08);
+  }
+  30% {
+    transform: scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-26px) scale(0.96);
+  }
+}
+
+.ab-hint {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0.9rem;
+  margin-inline: auto;
+  width: fit-content;
+  max-width: calc(100% - 2rem);
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklch, var(--primary) 35%, transparent);
+  background: color-mix(in oklch, var(--card) 82%, transparent);
+  padding: 0.35rem 0.9rem;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--muted-foreground);
+  animation: abWordIn 500ms 300ms ease-out both;
+}
+
+.ab-hint kbd {
+  display: inline-block;
+  min-width: 1.35rem;
+  border-radius: 0.35rem;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  background: var(--background);
+  padding: 0 0.3rem;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+/* ── پیش‌نمایشِ پل روی صفحهٔ تنظیمات (SessionSetup) ──────────────────────── */
+.ab-hero {
+  position: relative;
+  height: 10.5rem;
+  margin: -0.5rem -0.5rem 1rem;
+  overflow: hidden;
+  border-radius: 1rem;
+  background:
+    radial-gradient(90% 80% at 50% 0%, color-mix(in oklch, var(--primary) 26%, transparent), transparent 70%),
+    linear-gradient(to bottom, color-mix(in oklch, var(--primary) 10%, var(--card)), var(--card));
+  perspective: 30rem;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 30%);
+  mask-image: linear-gradient(to bottom, transparent, #000 30%);
+}
+
+.ab-hero-deck {
+  position: absolute;
+  inset-inline-start: 50%;
+  bottom: 0.4rem;
+  display: grid;
+  width: 16rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.1rem 1.6rem;
+  transform: translateX(50%) rotateX(56deg);
+  transform-origin: 50% 100%;
+}
+
+/* نرده‌های نئون، دو طرفِ پل */
+.ab-hero-deck::before,
+.ab-hero-deck::after {
+  content: "";
+  position: absolute;
+  top: -40%;
+  bottom: 0;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(to bottom, transparent, var(--primary));
+  box-shadow: 0 0 10px var(--primary);
+}
+
+.ab-hero-deck::before {
+  inset-inline-start: -1.2rem;
+}
+
+.ab-hero-deck::after {
+  inset-inline-end: -1.2rem;
+}
+
+.ab-hero-tile {
+  position: relative;
+  display: flex;
+  height: 4.2rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 0.6rem;
+  border: 1.5px solid color-mix(in oklch, var(--primary) 70%, var(--card));
+  background: linear-gradient(135deg, color-mix(in oklch, var(--primary) 32%, transparent), color-mix(in oklch, var(--primary) 10%, transparent));
+  box-shadow:
+    0 0 16px color-mix(in oklch, var(--primary) 35%, transparent),
+    inset 0 0 14px color-mix(in oklch, var(--primary) 25%, transparent);
+  font-family: var(--font-morabba), var(--font-sans);
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: var(--foreground);
+  text-shadow: 0 0 12px color-mix(in oklch, var(--primary) 70%, transparent);
+}
+
+.ab-hero-tile:nth-child(-n + 2) {
+  opacity: 0.35;
+}
+
+.ab-hero-tile:nth-child(3),
+.ab-hero-tile:nth-child(4) {
+  opacity: 0.6;
+}
+
+/* بازتابِ مورب که آرام از روی شیشه‌ها می‌گذرد — فقط transform. */
+.ab-hero-tile::after {
+  content: "";
+  position: absolute;
+  inset: -50% -30%;
+  background: linear-gradient(105deg, transparent 42%, color-mix(in oklch, white 45%, transparent) 50%, transparent 58%);
+  transform: translateX(-60%);
+  animation: abSheen 4.5s ease-in-out infinite;
+}
+
+.ab-hero-tile-glow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 22px color-mix(in oklch, var(--gold) 75%, transparent);
+  animation: abPressure 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes abSheen {
+  0%,
+  55% {
+    transform: translateX(-60%);
+  }
+  100% {
+    transform: translateX(60%);
+  }
+}
+
+/* دکمهٔ شروع: درخششِ نرمِ پالت، همان زبانِ نورِ خودِ پل. */
+.ab-start {
+  box-shadow:
+    0 8px 24px -8px color-mix(in oklch, var(--primary) 70%, transparent),
+    inset 0 -3px 0 var(--primary-deep);
+}
+
+/* شمارشِ معکوس: عدد درونِ یک حلقهٔ نور. */
+.ab-countdown-ring {
+  position: absolute;
+  inset: -1.4rem;
+  border-radius: 999px;
+  border: 2px solid color-mix(in oklch, var(--gold) 70%, transparent);
+  box-shadow:
+    0 0 40px color-mix(in oklch, var(--primary) 55%, transparent),
+    inset 0 0 30px color-mix(in oklch, var(--gold) 35%, transparent);
+  animation: abRing var(--gc-countdown-beat-ms, 800ms) ease-out both;
+}
+
+@keyframes abRing {
+  from {
+    opacity: 1;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-word,
+  .ab-chip-value,
+  .ab-chip-hot .ab-chip-icon,
+  .ab-hint,
+  .ab-countdown-ring,
+  .ab-hero-tile::after,
+  .ab-hero-tile-glow::before {
+    animation: none;
+  }
+  .ab-pressure,
+  .ab-pressure.ab-panic {
+    animation: abFadeIn 1ms linear both;
+  }
+  .ab-gain {
+    animation: abFlash 1150ms linear both;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   سروا پلاس — هویتِ بصری
+   ═══════════════════════════════════════════════════════════════════════
+
+   ⚠️ قاعده‌ای که کلِ این بخش رویش ایستاده: **سروا پلاس یک سایتِ دوم نیست.**
+
+   وسوسه‌اش هست — طلایی‌کردنِ همه‌چیز، درخششِ فراوان، گرادیانِ افراطی. نتیجه‌اش
+   اما دو Design System موازی است که هر تغییرِ بعدی باید در هر دو انجام شود، و
+   کاربری که مطمئن نیست هنوز در همان سایت است.
+
+   پس فقط چهار چیز اضافه می‌شود و نه بیشتر:
+     ۱) کلمهٔ «پلاس» با ستارهٔ چهارپر کنارِ نامِ سروا (`header.module.css`)
+     ۲) حلقهٔ گرادیانیِ چرخان دورِ تصویرِ کاربر (`account-menu.module.css`)
+     ۳) یک accent محدود (طلاییِ همان پالت، نه رنگِ تازه)
+     ۴) یک حاشیهٔ ظریف برای کارت‌های پلاس
+
+   رنگ‌ها همان --gold و --gold-ink پالتِ سروا هستند؛ هیچ رنگِ تازه‌ای معرفی
+   نمی‌شود.
+
+   ⚠️ و نشان **فقط با رنگ مشخص نمی‌شود**: کلمهٔ «پلاس» همیشه در آن هست (در
+   موبایل aria-label)، پس کسی که رنگ را تشخیص نمی‌دهد هم می‌فهمد. */
+
+/* کارت/بخشِ ویژهٔ پلاس — فقط یک حاشیه و یک ته‌رنگِ بسیار ملایم. */
+.plus-surface {
+  border: 1px solid color-mix(in oklch, var(--gold) 32%, var(--border));
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--gold) 6%, transparent),
+    transparent 60%
+  );
+}
+
+/* عنوانِ بخش‌های پلاس. */
+.plus-ink {
+  color: var(--gold-ink);
+}
+
+/* نشانِ سروا در لحظهٔ فعال‌شدنِ اشتراک (صفحهٔ نتیجهٔ پرداخت). */
+@keyframes plus-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-8deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="animate-[plus-pop"] {
+    animation: none !important;
+  }
+}
+
+/* قفلِ قابلیتِ پولی: محتوای پشتِ آن دیده می‌شود ولی خوانده نمی‌شود.
+   ⚠️ این فقط برای *تجربهٔ کاربری* است. دادهٔ واقعی هرگز به مرورگر فرستاده
+   نمی‌شود؛ گاردِ سرور (`requirePlus`) قبل از رسیدن به این لایه جلویش را
+   می‌گیرد. اگر روزی کسی این کلاس را دیدِ «امنیت» بگیرد، اشتباه کرده. */
+.plus-locked-preview {
+  filter: blur(5px);
+  opacity: 0.55;
+  user-select: none;
+  pointer-events: none;
+}
+
+
+/* ============================================================
+   پنل کاربری — ریتمِ عمودی و سطح‌ها
+   ============================================================ */
+
+/* ⚠️ چرا `.panel-scope *` و نه فقط `.panel-scope`:
+   بالاتر در همین فایل یک `* { line-height: 2 }` هست که روی *هر عنصر*
+   مستقیماً می‌نشیند، پس ارث‌بری از والد هیچ‌وقت به آن نمی‌رسد. تنها راهِ
+   پس‌گرفتنش، یک انتخابگر با ویژگیِ بالاتر روی همان عناصر است.
+
+   و چرا اصلاً پس گرفته می‌شود: خطِ ۲ برای متنِ روانِ فارسی خوب است ولی
+   عددِ ۳۴ پیکسلی را در کارتِ KPI شناور می‌کند و کارت را بی‌دلیل بلند
+   می‌سازد. متن ۱٫۸، عنوان و عدد ۱٫۴. */
+.panel-scope,
+.panel-scope * {
+  line-height: 1.8;
+}
+
+.panel-scope :is(h1, h2, h3, h4, h5, button, input, .panel-num) {
+  line-height: 1.4;
+}
+
+/* مربّع — قلمِ عنوان‌هایِ پنل، و فقط عنوان‌ها.
+
+   ⚠️ عمداً روی `body` ننشسته. مربّع یک قلمِ نمایشی است با دورهایِ
+   بسته و کنتراستِ بالای ضخامت، که در تیتر عالی است و در متنِ ۱۲ پیکسلی
+   خسته‌کننده. متن، دکمه و ورودی‌ها وزیرمتن می‌مانند.
+
+   ⚠️ و عددها هم نه: رقمِ مربّع عرضِ ثابت ندارد، پس یک شمارندهٔ
+   متحرک (۹۹٪ → ۱۰۰٪) را جابه‌جا می‌کند. `.panel-num` صریحاً برمی‌گرداند
+   به وزیرمتن، حتی وقتی داخلِ یک عنوان باشد. */
+.panel-scope :is(h1, h2, h3, .panel-display) {
+  font-family: var(--font-morabba), var(--font-sans);
+  letter-spacing: 0;
+}
+
+.panel-scope .panel-num,
+.panel-scope :is(h1, h2, h3) .panel-num {
+  font-family: var(--font-sans);
+}
+
+/* هر جا عدد در ستون روی هم می‌نشیند (KPI، کارنامه‌ها، محورِ نمودار). */
+.panel-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* بیت، فقط جایی که واقعاً بیت است — نه هر متنِ فارسی.
+   نسخِ عربی برای شعر خوانده می‌شود و وزیرمتن برای رابط کاربری. */
+.panel-verse {
+  font-family: var(--font-naskh), "Noto Naskh Arabic", var(--font-sans), serif;
+  line-height: 2.1;
+}
+
+/* =============================================================================
+   تایپوگرافیِ ناحیهٔ بازی‌ها — سه کلاس، و فقط همین سه تا
+   =============================================================================
+
+   ⚠️ اینجا عمداً هیچ `.game-scope *` ای وجود ندارد.
+
+   وسوسه‌اش بود: یک انتخابگر روی ریشهٔ هر بازی و تمامِ متن‌ها پفکی می‌شوند.
+   نتیجه‌اش کلِ سروا را کودکانه می‌کرد، در حالی که هدف *شخصیت دادن* به
+   بازی‌هاست. مخاطب دبیرستانی است و متنی که شبیهِ کتابِ کودک باشد، همان
+   لحظه‌ای که دانش‌آموز می‌خواهد جدی بگیردش، جدی گرفته نمی‌شود.
+
+   پس مصرف صریح است: هر جا پفک دیده می‌شود، یک نفر آنجا `.game-display`
+   نوشته. روی هر صفحهٔ بازی معمولاً چند عنصر است و نه چند ده‌تا.
+
+   کجا بله: نامِ بازی، عنوانِ مرحله، امتیاز، رکورد، «آفرین!»، برچسبِ کوتاه،
+   نقشی که رمزگشا رو می‌کند، تیترِ صفحهٔ نتیجه.
+
+   کجا نه: مصراع و بیت، پاراگرافِ توضیح، متنِ درسنامه، تحلیل، جدول، تنظیمات،
+   فرم و هر پیامِ سیستمیِ جدی. */
+
+/* =============================================================================
+   ⚠️ سه قلم، سه کار — و هیچ‌کدام جای دیگری را نمی‌گیرد
+   =============================================================================
+
+   پروژه سه قلمِ نمایشی دارد و پخش کردنِ بی‌قاعده‌شان بدتر از استفاده نکردن
+   است. تقسیمِ کار:
+
+     پفک (`.game-display`)  → لحظه‌های *بازیگوش*: نامِ بازی، «آفرین!»،
+                              امتیاز، رکورد، نقشی که رو می‌شود، دکمهٔ شروع.
+                              چیزی که اگر با وزیرمتن نوشته شود، «اداری»
+                              به نظر می‌رسد.
+
+     مربّع (`.game-title`)   → تیترهای *ساختاری* داخلِ بازی: «تنظیمات بازی»،
+                              «این‌ها را بشناس»، «هنوز آماده نیست». این‌ها
+                              اعلامِ شادی نیستند، اعلامِ *جای* کاربرند — و
+                              پفک آن‌ها را شوخی جلوه می‌دهد.
+
+     نسخ (`.game-verse`)     → فقط شعر. خطِ قرمز.
+
+     وزیرمتن                → هر چیزِ دیگری: توضیح، گام‌ها، برچسب، عدد.
+
+   ⚠️ عدد هیچ‌وقت با پفک یا مربّع نوشته نمی‌شود (`.game-num`) — رقم‌هایشان
+   عرضِ ثابت ندارند و شمارنده در هر تغییرِ رقم می‌پرد. */
+
+/* تیترِ ساختاریِ داخلِ بازی — مربّع، همان قلمِ عنوان‌های پنل. */
+.game-title {
+  font-family: var(--font-morabba), var(--font-sans);
+  letter-spacing: 0;
+}
+
+/* قلمِ نمایشیِ بازی‌ها. */
+.game-display {
+  font-family: var(--font-pofak), var(--font-sans);
+  /* ⚠️ پفک خودش گشاد است؛ فاصلهٔ حرفیِ اضافه آن را شل و بی‌شکل می‌کند. */
+  letter-spacing: 0;
+}
+
+/* ⚠️ عدد هرگز با پفک نوشته نمی‌شود.
+   رقم‌های پفک عرضِ ثابت ندارند، پس شمارندهٔ امتیاز در هر تغییرِ رقم
+   می‌پرد — همان چیزی که `.panel-num` برای مربّع حلش کرد. اگر `.game-num`
+   داخلِ یک `.game-display` بنشیند، صریحاً برمی‌گردد به وزیرمتن. */
+.game-num,
+.game-display .game-num,
+.game-title .game-num {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+/* مصراع و بیت — نسخِ عربی، همان‌طور که در پنل.
+   ⚠️ شعر هیچ‌وقت پفکی نمی‌شود؛ این خطِ قرمزِ کلِ این بخش است. */
+.game-verse {
+  font-family: var(--font-naskh), "Noto Naskh Arabic", var(--font-sans), serif;
+  line-height: 2.05;
+}
+
+/* نوارِ کنارِ آیتمِ فعالِ سایدبار. با ::before ساخته می‌شود تا جای عنصر را
+   نگیرد و با باز و بستهٔ کشو جابه‌جا نشود. */
+.panel-nav-active {
+  position: relative;
+}
+.panel-nav-active::before {
+  content: "";
+  position: absolute;
+  inset-inline-end: -0.75rem;
+  top: 50%;
+  translate: 0 -50%;
+  width: 3px;
+  height: 1.25rem;
+  border-radius: 3px;
+  background: var(--color-primary);
+}
+
+/* هالهٔ کارتِ «از همین‌جا ادامه بده» — تنها جایی از پنل که پس‌زمینهٔ رنگی
+   دارد، چون تنها جایی است که باید اول دیده شود. */
+.panel-focus {
+  background:
+    radial-gradient(
+      120% 140% at 88% -20%,
+      color-mix(in oklch, var(--primary) 18%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      90% 120% at 4% 120%,
+      color-mix(in oklch, var(--gold) 9%, transparent),
+      transparent 60%
+    ),
+    var(--surface-2);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   قلمِ درسنامه — انتخابِ خودِ خواننده.
+
+   منطقش در `lib/theme/reading-font.ts` است و دکمه‌اش
+   `components/UI/doroos/ReadingFontDock.tsx`. اینجا فقط دو چیز اتفاق
+   می‌افتد: اتریبیوتِ روی <html> یک متغیّر را عوض می‌کند، و `.reading-scope`
+   آن متغیّر را مصرف می‌کند.
+
+   ⚠️ چرا دو مرحله و نه یک قاعده به‌ازای هر قلم روی هر عنصر: چون مصرف‌کننده
+   ممکن است بیشتر از یکی شود (امروز درسنامه، فردا شاید باشگاه). با متغیّر،
+   افزودنِ مصرف‌کنندهٔ تازه یک خط است و افزودنِ قلمِ تازه هم یک خط.
+
+   ⚠️ دامنه عمداً `.reading-scope` است و نه `:root`. اگر روی ریشه می‌نشست،
+   هدر و فوتر و پنل هم عوض می‌شدند — یعنی کاربر می‌توانست هویتِ تایپوگرافیکِ
+   کلِ سروا را با یک کلیک بردارد. */
+:root {
+  --font-reading: var(--font-sans);
+}
+
+[data-reading-font="peyda"] {
+  --font-reading: var(--font-peyda), var(--font-sans);
+}
+[data-reading-font="lahzeh"] {
+  --font-reading: var(--font-lahzeh), var(--font-sans);
+}
+[data-reading-font="dorna"] {
+  --font-reading: var(--font-dorna), var(--font-sans);
+}
+[data-reading-font="pofak"] {
+  --font-reading: var(--font-pofak), var(--font-sans);
+}
+
+/* ⚠️ فقط روی خودِ ظرف و نه `.reading-scope *`.
+   ارث‌بری کارِ خودش را می‌کند، و آن ستاره دقیقاً چیزی را می‌شکست که نباید:
+   هر عنصری که قلمِ خودش را *عمداً* اعلام کرده (بیت با نسخ، عنوان با
+   مربّع) باید همان بماند. با ارث‌بری، آن‌ها دست‌نخورده می‌مانند و بقیهٔ
+   متن انتخابِ کاربر را می‌گیرد. */
+.reading-scope {
+  font-family: var(--font-reading);
+}
+
+/* ⚠️ بیت و متنِ خودِ درس — تنها جایی که ارث‌بری کافی نیست.
+
+   متنِ روان (معنی، مفهوم، قلمروها) قلمی اعلام نمی‌کند و خودش از
+   `.reading-scope` ارث می‌برد. ولی خودِ بیت با `font-serif` نوشته می‌شود
+   — و آن کلاس، برخلافِ انتظار، `var(--font-serif)` نمی‌نویسد.
+
+   دلیلش `@theme inline` است: واژهٔ `inline` یعنی تیلویند مقدارِ توکن را
+   درجا داخلِ کلاس می‌ریزد، پس `.font-serif` همان پشتهٔ نسخ را عیناً
+   می‌نویسد و هرگز `--font-serif` را نمی‌خواند. بازتعریفِ آن متغیّر روی
+   این دامنه — کاری که اول کردیم — بی‌اثر بود: سنجیدیم و بیت روی
+   Noto Naskh مانده بود در حالی که بقیهٔ صفحه عوض شده بود.
+
+   پس خودِ کلاس هدف گرفته می‌شود. این قاعده در هیچ لایه‌ای نیست و
+   تیلویند کلاس‌هایش را در `@layer utilities` می‌گذارد، پس بدونِ جنگِ
+   specificity می‌برد.
+
+   ⚠️ فقط در حالتِ غیرپیش‌فرض. با «اصلی»، بیت به نسخ برمی‌گردد — نسخ
+   برای شعر انتخاب شده، نه پیش‌فرضِ تنبلانه. ولی وقتی خواننده
+   صریحاً قلمی را انتخاب می‌کند، انتظارش این است که متنِ درس هم عوض
+   شود؛ یک بیتِ جامانده به‌جای «طرّاحی مقصود» شبیهِ باگ دیده می‌شود. */
+[data-reading-font]:not([data-reading-font="site"])
+  .reading-scope
+  :is(.font-serif, .font-sans) {
+  font-family: var(--font-reading);
+}
+
+/* ⚠️ عدد همان درسِ `.panel-num` و `.game-num` را دارد: رقم‌های پفک و درنا
+   عرضِ ثابت ندارند. جدولِ تقطیع و شمارهٔ بیت باید ستون‌هایشان را نگه
+   دارند، پس هر جا عدد با عرضِ ثابت لازم است، خودش را از انتخابِ کاربر
+   بیرون می‌کشد. */
+.reading-scope .reading-num {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------- ستاره‌های شبِ امتحان */
+/* فقط `opacity` — روی compositor، بدونِ رنگ‌آمیزیِ دوباره. */
+@keyframes examNightTwinkle {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 0.25; }
+}
+.exam-night-twinkle {
+  animation: examNightTwinkle 3.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .exam-night-twinkle { animation: none; opacity: 0.7; }
+}

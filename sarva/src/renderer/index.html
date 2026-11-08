@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="fa" dir="rtl" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>سروا — مسیری نو برای یادگیری ادبیات پارسی</title>
+    <meta
+      name="description"
+      content="سروا: درسنامهٔ فارسی دهم، یازدهم و دوازدهم، امتحان‌های نهایی، وزن‌یاب و بازی‌های ادبی — روی میزِ کارِ شما، بی‌نیاز از اینترنت."
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: file:; font-src 'self' data:; media-src 'self' file: blob: data:; connect-src 'self' https://api.ganjoor.net; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <script>
+      // تم پیش از نخستین رندر اعمال می‌شود تا پرشِ رنگ دیده نشود.
+      // سروا در وب هم با «شب و طلا» بالا می‌آید؛ اینجا همان را حفظ می‌کنیم
+      // مگر اینکه کاربر چیز دیگری خواسته باشد.
+      ;(function () {
+        try {
+          var saved = localStorage.getItem('sarva-theme-v1')
+          var theme = saved ? JSON.parse(saved) : 'dark'
+          document.documentElement.classList.toggle('dark', theme !== 'light')
+        } catch (e) {
+          document.documentElement.classList.add('dark')
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
