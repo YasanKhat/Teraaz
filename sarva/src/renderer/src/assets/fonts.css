@@ -1,0 +1,158 @@
+/**
+ * قلم‌های سروا — نسخهٔ دسکتاپ.
+ *
+ * این فایل جانشینِ بلوکِ `next/font` در `app/layout.tsx` است. هفت قلم
+ * تعریف می‌شوند و هر کدام یک متغیّرِ CSS می‌سازد؛ همان متغیّرهایی که
+ * `globals.css` و کلِ کامپوننت‌ها مصرف می‌کنند.
+ *
+ * ⚠️ چرا این پنج قلمِ آخر حیاتی‌اند: `globals.css` در چند قاعده
+ * (`panel-scope`، `.game-display`، `.reading-scope`) از
+ * `var(--font-morabba)` تا `var(--font-dorna)` استفاده می‌کند. اگر آن
+ * متغیّر تعریف نشده باشد، `var()` تهی می‌شود و کلِ اعلانِ `font-family`
+ * **باطل** می‌گردد — نه اینکه به قلمِ بعدی بیفتد. نتیجه: عنوانِ پنل،
+ * نمایشِ بازی و قلمِ خواندنِ درسنامه همگی به قلمِ پیش‌فرضِ سیستم
+ * برمی‌گردند و صفحه بی‌هیچ خطایی زشت می‌شود.
+ *
+ * ⚠️ `font-display: swap` عمدی است و از نسخهٔ اصلی آمده: عنوان باید با
+ * وزیرمتن دیده شود و بعد جایش را بدهد، نه اینکه تا رسیدنِ فایل نادیده
+ * بماند.
+ *
+ * ⚠️ وزن‌های بازه (`100 500` / `600 900`) برای قلم‌های درسنامه تصادفی
+ * نیست: متنِ درس پر است از `font-bold` و `font-black`، ولی این قلم‌ها فقط
+ * دو وزن دارند. اگر وزنِ ۷۰۰ به هیچ فایلی نسبت داده نشود، مرورگر خودش
+ * سیاهِ جعلی می‌سازد (synthetic bold) که روی فارسی فاجعه است — اتّصال‌ها
+ * پر می‌شوند و نقطه‌ها به هم می‌چسبند.
+ */
+
+/* ── مربّع — قلمِ عنوان‌های پنل ─────────────────────────────────────────
+   فقط متغیّرش اینجا تعریف می‌شود و هیچ عنصری خودبه‌خود آن را نمی‌گیرد:
+   مصرفِ واقعی‌اش یک قاعده در globals.css است که تنها زیرِ `.panel-scope`
+   را هدف می‌گیرد. یک قلمِ نمایشی در متنِ دوازده پیکسلی خوانایی را
+   پایین می‌آورد. */
+@font-face {
+  font-family: "Morabba";
+  src: url("/fonts/morabba/Morabba-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Morabba";
+  src: url("/fonts/morabba/Morabba-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Morabba";
+  src: url("/fonts/morabba/Morabba-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Morabba";
+  src: url("/fonts/morabba/Morabba-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── پفک — قلمِ بازیگوشِ ناحیهٔ بازی‌ها ──────────────────────────────────
+   روی «شکار نقش‌ها»، امتیاز، رکورد و «آفرین!» جان می‌دهد؛ روی یک
+   پاراگرافِ توضیح یا جدولِ تحلیل، متن را از جدی بودن می‌اندازد. برای
+   همین عمداً «قلمِ سایت» نمی‌شود و فقط با کلاسِ `.game-display`
+   دستی گذاشته می‌شود.
+   هر دو قالب داده شده و ترتیب مهم است: مرورگر اولین قالبی را
+   برمی‌دارد که می‌شناسد، پس woff2 اول می‌آید و woff برای مرورگرهای
+   قدیمی‌تر می‌ماند. */
+@font-face {
+  font-family: "Pofak";
+  src:
+    url("/fonts/pofak/woff2/Pofak-Regular.woff2") format("woff2"),
+    url("/fonts/pofak/woff/Pofak-Regular.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Pofak";
+  src:
+    url("/fonts/pofak/woff2/Pofak-Bold.woff2") format("woff2"),
+    url("/fonts/pofak/woff/Pofak-Bold.woff") format("woff");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── قلم‌های اختیاریِ درسنامه ────────────────────────────────────────────
+   خواننده در درسنامه می‌تواند قلمِ خواندن را عوض کند
+   (components/UI/doroos/ReadingFontDock.tsx). اینجا فقط متغیّرشان
+   ساخته می‌شود؛ اعمالش یک قاعدهٔ CSS زیرِ `.reading-scope` است. */
+
+@font-face {
+  font-family: "Peyda";
+  src: url("/fonts/peyda/PeydaWeb-Regular.woff2") format("woff2");
+  font-weight: 100 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Peyda";
+  src: url("/fonts/peyda/PeydaWeb-Medium.woff2") format("woff2");
+  font-weight: 600 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lahzeh";
+  src: url("/fonts/lahzeh/Lahzeh-Regular.woff2") format("woff2");
+  font-weight: 100 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Lahzeh";
+  src: url("/fonts/lahzeh/Lahzeh-Medium.woff2") format("woff2");
+  font-weight: 600 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dorna";
+  src: url("/fonts/dorna/Dorna Light.woff2") format("woff2");
+  font-weight: 100 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Dorna";
+  src: url("/fonts/dorna/Dorna Regular.woff2") format("woff2");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── متغیّرها ────────────────────────────────────────────────────────────
+   این هفت متغیّر همان‌هایی‌اند که `app/layout.tsx` با کلاسِ
+   `${vazirmatn.variable} ${naskh.variable} …` روی <html> می‌نشاند.
+   زنجیرهٔ fallback از خودِ نسخهٔ اصلی آمده تا جایگزینیِ قلم طولِ
+   عنوان را نپراند. */
+:root {
+  --font-vazirmatn:
+    "Vazirmatn", "Segoe UI", Tahoma, sans-serif;
+  --font-naskh:
+    "Noto Naskh Arabic", "Vazirmatn", serif;
+  --font-morabba:
+    "Morabba", "Vazirmatn", system-ui, sans-serif;
+  --font-pofak:
+    "Pofak", "Vazirmatn", system-ui, sans-serif;
+  --font-peyda:
+    "Peyda", "Vazirmatn", system-ui, sans-serif;
+  --font-lahzeh:
+    "Lahzeh", "Vazirmatn", system-ui, sans-serif;
+  --font-dorna:
+    "Dorna", "Vazirmatn", system-ui, sans-serif;
+}

@@ -1,5 +1,24 @@
 <!doctype html>
-<html lang="fa" dir="rtl" class="dark">
+<!--
+  این فایل همان `app/layout.tsx`ِ سرواست، در سطحِ HTML.
+
+  ⚠️ هر سه ویژگیِ زیر روی خودِ <html> معنا دارند و جایشان مهم است:
+
+    • `dir="rtl"` — و نه فقط `text-right` روی <body>. این دو یکی نیستند:
+      `text-right` فقط *تراز* است، ولی جهتِ دوسویهٔ متن (bidi) همچنان
+      چپ‌به‌راست می‌ماند. نتیجه‌اش این بود که هر نویسهٔ خنثی در انتهای یک
+      جملهٔ فارسی — سه‌نقطه، پرانتز، علامتِ تعجب — به آن سرِ دیگر می‌پرید:
+      «در حال ورود…» روی صفحه «…در حال ورود» دیده می‌شد.
+
+    • `data-palette` — پالتِ پیش‌فرض در HTML. اسکریپتِ اولِ <body> اگر
+      کاربر چیزِ دیگری انتخاب کرده باشد، پیش از اولین رنگ‌آمیزی عوضش
+      می‌کند. بی‌این ویژگی، هیچ‌کدام از انتخاب‌گرهای `[data-palette=…]`ِ
+      globals.css با چیزی جور نمی‌آیند و کلِ سایت روی رنگِ پایه می‌ماند.
+
+    • `class="h-full antialiased dark"` — `dark` تمِ شبانه است و سروا با آن
+      بالا می‌آید.
+-->
+<html lang="fa" dir="rtl" data-palette="turquoise" class="h-full antialiased dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,13 +29,30 @@
     />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: file:; font-src 'self' data:; media-src 'self' file: blob: data:; connect-src 'self' https://api.ganjoor.net; object-src 'none'; base-uri 'none'; form-action 'none'"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: file:; font-src 'self' data:; media-src 'self' file: blob: data:; connect-src 'self' https://api.ganjoor.net; object-src 'none'; base-uri 'none'; form-action 'none'"
     />
+
+    <!-- ⚠️ باید اولین چیزِ داخلِ <body> بماند (و اینجا در <head> پیش از هر
+         رنگ‌آمیزی اجرا می‌شود): یک اسکریپتِ همگامِ کوچک که پالت و قلمِ
+         خواندنِ ذخیره‌شده را روی <html> می‌نشاند. اگر پایین‌تر می‌رفت — یا
+         به یک useEffect سپرده می‌شد — کاربر در هر بار باز کردنِ هر صفحه یک
+         پرشِ رنگ و یک بازچیدمانِ متنِ درس می‌دید.
+
+         در `try` است چون در حالتِ خصوصیِ بعضی مرورگرها صرفِ *خواندنِ*
+         localStorage استثنا پرت می‌کند؛ آن‌وقت بی‌سروصدا روی پیش‌فرض
+         می‌ماند. -->
     <script>
-      // تم پیش از نخستین رندر اعمال می‌شود تا پرشِ رنگ دیده نشود.
-      // سروا در وب هم با «شب و طلا» بالا می‌آید؛ اینجا همان را حفظ می‌کنیم
-      // مگر اینکه کاربر چیز دیگری خواسته باشد.
       ;(function () {
+        try {
+          var palettes = ['turquoise','lilac','mint','sky','pistachio','peach','rose','saffron']
+          var p = localStorage.getItem('sarva-palette')
+          if (palettes.indexOf(p) > -1) document.documentElement.dataset.palette = p
+        } catch (e) {}
+        try {
+          var fonts = ['site','peyda','lahzeh','dorna','pofak']
+          var f = localStorage.getItem('sarva-reading-font')
+          if (fonts.indexOf(f) > -1) document.documentElement.dataset.readingFont = f
+        } catch (e) {}
         try {
           var saved = localStorage.getItem('sarva-theme-v1')
           var theme = saved ? JSON.parse(saved) : 'dark'
@@ -27,7 +63,10 @@
       })()
     </script>
   </head>
-  <body>
+
+  <!-- همان کلاس‌های <body>یِ نسخهٔ اصلی: ستونیِ انعطاف‌پذیر با کمینهٔ بلندای
+       تمامِ صفحه، تا `flex-1`ِ <main> پاورقی را به تهِ صفحه بفرستد. -->
+  <body class="text-right flex flex-col min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

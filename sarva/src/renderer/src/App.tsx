@@ -5,6 +5,9 @@ import Footer from '@/components/UI/Footer'
 import AnnouncementBar from '@/components/site/AnnouncementBar'
 import { GeometricPattern } from '@/components/persian-patterns'
 import LogoReveal from '@/components/UI/LogoReveal'
+import { NavigationProgress } from '@/components/UI/NavigationProgress'
+import { SiteContentProvider } from '@/lib/site/use-site-content'
+import PanelShell from '@/components/UI/panel/shell/PanelShell'
 import * as db from '@/platform/db'
 import * as auth from '@/platform/auth'
 
@@ -123,6 +126,8 @@ export default function App() {
   const path = usePathname()
   const chrome = chromeModeFor(path)
   const isGalaxy = path === '/game'
+  /** پنل و مدیریت پوستهٔ خودشان را دارند و هدر/پاورقیِ سایت را نمی‌خواهند. */
+  const isPanel = path === '/panel' || path.startsWith('/panel/')
 
   // نخستین مدیر: اگر هیچ حسابی نیست، یکی ساخته می‌شود تا پنلِ مدیریت از همان
   // راه‌اندازیِ اول در دسترس باشد (همان نقشی که seed-admin.mjs روی سرور داشت).
@@ -145,17 +150,42 @@ export default function App() {
   return (
     <>
       <LogoReveal />
-      {chrome !== 'fullscreen' && <AnnouncementBar />}
-      {chrome !== 'fullscreen' && <Header compact={chrome === 'compact'} />}
-      <main className="flex-1">
-        {/* خطای یک صفحه نباید کلِ برنامه را سفید کند؛ هر مسیر را جدا می‌گیریم. */}
+
+      {/* ⚠️ «در حال رفتن»ِ سراسری برای جابه‌جاییِ صفحه‌ها — همان حسِ nprogressِ
+          سایت. داخلِ Suspense است چون خودش مسیریاب را می‌خواند. */}
+      <Suspense fallback={null}>
+        <NavigationProgress />
+      </Suspense>
+
+      {isPanel ? (
+        /* پنل پوستهٔ خودش را دارد: سایدبار، یک نوارِ بالا، و بس. هدر و
+           پاورقیِ سایت اینجا رندر نمی‌شوند. */
         <ErrorBoundary resetKey={path}>
-          <Suspense fallback={<PageLoading />}>{render(path)}</Suspense>
+          <Suspense fallback={<PageLoading />}>
+            <PanelShell>{render(path)}</PanelShell>
+          </Suspense>
         </ErrorBoundary>
-      </main>
-      {chrome === 'off' && <Footer />}
-      {chrome !== 'fullscreen' && !isGalaxy && (
-        <GeometricPattern className="fixed z-10 h-screen text-gold" opacity={0.06} />
+      ) : (
+        <SiteContentProvider>
+          {/* بالاترین چیزِ صفحه، بالاتر از هدر و در جریانِ عادیِ صفحه — نه
+              شناور رویش. در حالتِ تمام‌صفحهٔ بازی کنار می‌رود، چون آنجا
+              هیچ‌چیز جز بازی نباید باشد. */}
+          {chrome !== 'fullscreen' && <AnnouncementBar />}
+          {chrome !== 'fullscreen' && <Header compact={chrome === 'compact'} />}
+
+          <main className="flex-1">
+            {/* خطای یک صفحه نباید کلِ برنامه را سفید کند؛ هر مسیر را جدا می‌گیریم. */}
+            <ErrorBoundary resetKey={path}>
+              <Suspense fallback={<PageLoading />}>{render(path)}</Suspense>
+            </ErrorBoundary>
+          </main>
+
+          {/* پاورقیِ بزرگ نباید با بازیِ در جریان رقابت کند. */}
+          {chrome === 'off' && <Footer />}
+          {chrome !== 'fullscreen' && !isGalaxy && (
+            <GeometricPattern className="fixed z-10 h-screen text-gold" opacity={0.06} />
+          )}
+        </SiteContentProvider>
       )}
     </>
   )

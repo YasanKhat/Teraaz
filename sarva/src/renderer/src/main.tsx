@@ -13,6 +13,9 @@ import '@fontsource/noto-naskh-arabic/400.css'
 import '@fontsource/noto-naskh-arabic/600.css'
 import '@fontsource/noto-naskh-arabic/700.css'
 
+/* قلم‌های سروا: هفت خانواده با همان وزن‌ها و زنجیرهٔ fallbackِ نسخهٔ اصلی.
+   پیش از styles.css می‌آید چون آن فایل از متغیّرهایش مصرف می‌کند. */
+import './assets/fonts.css'
 import './assets/styles.css'
 import './styles/rtl.css'
 
