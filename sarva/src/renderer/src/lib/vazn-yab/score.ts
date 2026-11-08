@@ -54,6 +54,8 @@ function makeRng(seed: number): () => number {
 
 export type Hemi = { longs: boolean[]; footStart: boolean[] }
 
+import { bareHemi } from "./prosody";
+
 /** روی هجاهای هر مصراع ملودی می‌سازد. خروجی: شمارهٔ MIDIِ هر هجا. */
 export function compose(hemis: boolean[][], mode: RhythmMode): number[][] {
   const { notes, stable } = SCALES[mode]
@@ -507,4 +509,23 @@ export function renderScore({
   }
 
   return { left: dryL, right: dryR, sr: SR, onsets, cadence, duration: total }
+}
+
+/* ── نیمه‌هایی که روی صحنه می‌آیند ─────────────────────────────────────── */
+
+/**
+ * `bareHemi` یِ یک وزن را به دو نیمه‌یِ هم‌شکل تبدیل می‌کند.
+ *
+ * ⚠️ در سایتِ اصلی همین است: یک بیت دو مصراعِ هم‌وزن دارد، پس الگویِ وزن
+ *    **دو بار** تکرار می‌شود (`hemis:[bareHemi(feet), bareHemi(feet)]`) و
+ *    نه اینکه یک الگو به دو نیمه تقسیم شود. نیمه‌کردنِ الگو ارکانِ آخر را
+ *    می‌بُرد و وزنِ شاهنامه را «فعولن فعولن فعولن فعولن» نشان می‌داد.
+ */
+export function buildHemis(feet: string): Hemi[] {
+  const bare = bareHemi(feet)
+  if (!bare.length) return []
+  return [bare, bare].map((h) => ({
+    longs: h.map((x) => x.long),
+    footStart: h.map((x, i) => i === 0 || (x.foot >= 0 && x.foot !== h[i - 1].foot)),
+  }))
 }

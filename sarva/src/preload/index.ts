@@ -15,6 +15,9 @@ const api = {
   pickFile: () => ipcRenderer.invoke('sarva:pick-file') as Promise<string | null>,
   saveFile: (data: string, name: string) =>
     ipcRenderer.invoke('sarva:save-file', data, name) as Promise<string | null>,
+  randomBeyt: () => ipcRenderer.invoke('sarva:random-beyt') as Promise<import('../renderer/src/lib/vazn-yab/ganjoor').Beyt>,
+  ganjoorMeter: (poem1: string, poem2: string) =>
+    ipcRenderer.invoke('sarva:ganjoor-meter', poem1, poem2) as Promise<import('../renderer/src/lib/vazn-yab/ganjoor').GanjoorMeter | null>,
   onNavigate: (cb: (path: string) => void) => {
     const handler = (_e: unknown, path: string) => cb(path)
     ipcRenderer.on('sarva:navigate', handler)

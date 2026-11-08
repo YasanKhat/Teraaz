@@ -144,6 +144,111 @@ function registerIpc() {
     await writeFile(res.filePath, data, 'utf8')
     return res.filePath
   })
+
+  ipcMain.handle('sarva:random-beyt', async () => randomBeyt())
+
+  ipcMain.handle('sarva:ganjoor-meter', async (_e, poem1: string, poem2: string) =>
+    ganjoorMeter(poem1, poem2)
+  )
+}
+
+/* ── بیتِ تصادفیِ گنجور ─────────────────────────────────────────────────
+ *
+ * در سایتِ اصلی مسیرِ `/api/random-beyt` سمتِ سرور اجرا می‌شود و از گنجور
+ * یک بیتِ تصادفی با وزنِ ثبت‌شده می‌گیرد. اینجا همان کار در فرآیندِ اصلی
+ * انجام می‌شود، چون پنجره‌ی الکترون سروری ندارد که مسیر را سرو کند.
+ *
+ * همان فهرستِ شاعرانی که خودِ سایت در جدولِ زمان‌خطِ ادبی به کار می‌برد؛
+ * از بسته‌ی زنده استخراج شده و چیزی به آن افزوده نشده.
+ */
+const GANJOOR_POETS = [
+  'abdullah','adib','aghakhan','anvari','aref','attar','bahaee','bahar','balami','bidel',
+  'daghighi','daye','ebneyamin','eraghi','eshghi','faghani','fani','farrokhi','ferdousi',
+  'forooghi','ghaani','ghaemmagham','ghatran','hafez','hanzale','hatef','iraj','jamal','jami',
+  'kalim','kamal','keikavus','kesayee','khaghani','khajoo','manoochehri','meybodi','mohtasham',
+  'monshi','moshtagh','moulavi','naserkhosro','neshat','nezami','obeyd','onsori','orfi','parvin',
+  'roodaki','saadi','saeb','salman','sanaee','seyf','shahid','shahnematollah','shahriar','vahid',
+  'vahshi','yazdi'
+]
+
+type Beyt = {
+  couplet: { first: string; second: string }
+  poet?: string
+  book?: string
+  poem?: string
+  url?: string
+  meter?: string
+}
+
+/** `title » book » poem` را به سه بخش می‌شکند — همان ترتیبِ گنجور. */
+function splitFullTitle(fullTitle: string): { poet?: string; book?: string; poem?: string } {
+  const parts = String(fullTitle || '')
+    .split('»')
+    .map((p) => p.trim())
+    .filter(Boolean)
+  return { poet: parts[0], book: parts[1], poem: parts[2] }
+}
+
+async function getJson(url: string, ms = 12_000): Promise<any> {
+  const res = await fetch(url, {
+    headers: { accept: 'application/json' },
+    signal: AbortSignal.timeout(ms)
+  })
+  if (!res.ok) throw new Error(`ganjoor ${res.status}`)
+  return await res.json()
+}
+
+/**
+ * یک بیتِ تصادفی از گنجور.
+ *
+ * دو درخواست لازم است: نخست شاعر را با نامک برمی‌گردانیم تا پاسخِ بیت
+ * «شاعر، کتاب، شعر» داشته باشد؛ بعد یک شعرِ تصادفی از همان شاعر.
+ * اگر هر مرحله ناموفق بود، به بیتِ تصادفیِ بی‌نامِ کلِ گنجور برمی‌گردیم.
+ */
+async function randomBeyt(): Promise<Beyt> {
+  const slug = GANJOOR_POETS[Math.floor(Math.random() * GANJOOR_POETS.length)]
+
+  let poet: any = null
+  try {
+    poet = await getJson(`https://api.ganjoor.net/api/ganjoor/poet?url=/${slug}`)
+  } catch {
+    poet = null
+  }
+
+  const endpoints = poet?.id
+    ? [
+        `https://api.ganjoor.net/api/ganjoor/poem/random?poetId=${poet.id}&fmt=json`,
+        `https://api.ganjoor.net/api/ganjoor/poem/random?fmt=json`
+      ]
+    : [`https://api.ganjoor.net/api/ganjoor/poem/random?fmt=json`]
+
+  let poem: any = null
+  for (const url of endpoints) {
+    try {
+      poem = await getJson(url)
+      if (poem) break
+    } catch {
+      /* تلاشِ بعدی */
+    }
+  }
+  if (!poem) throw new Error('unavailable')
+
+  const lines = String(poem.plainText || poem.text || '')
+    .split(/\r?\n/)
+    .map((l: string) => l.trim())
+    .filter(Boolean)
+  if (lines.length < 2) throw new Error('no-couplet')
+
+  const { poet: p, book, poem: t } = splitFullTitle(poem.fullTitle)
+
+  return {
+    couplet: { first: lines[0], second: lines[1] },
+    poet: p || poet?.nickname || poet?.name,
+    book,
+    poem: t || poem.title,
+    url: poem.fullUrl || poem.ganjoorUrl,
+    meter: poem.rhythm || undefined
+  }
 }
 
 app.whenReady().then(async () => {
@@ -175,3 +280,53 @@ app.on('web-contents-created', (_e, contents) => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
+
+/* ── جست‌وجویِ وزن در گنجور ────────────────────────────────────────────
+ *
+ * معادلِ مسیرِ `/api/vazn-yab` در سایتِ اصلی: بیت را در گنجور جست‌وجو می‌کند و
+ * اگر آن را یافت، وزنِ ثبت‌شده (`rhythm`) را برمی‌گرداند. سایت فقط وقتی
+ * `source === "ganjoor"` باشد پاسخ را می‌پذیرد — اینجا هم همین است و هر شکستی
+ * `null` برمی‌گرداند تا موتورِ محلی کارش را بکند — درست مانندِ خودِ سایت.
+ */
+
+type GanjoorMeter = {
+  rhythm: string
+  source: 'ganjoor'
+  url?: string
+  poet?: string
+  book?: string
+  poem?: string
+}
+
+async function ganjoorMeter(poem1: string, poem2: string): Promise<GanjoorMeter | null> {
+  const term = String(poem1 || '').trim()
+  if (term.length < 4) return null
+
+  try {
+    // ۱) بیت را در گنجور جست‌وجو می‌کنیم تا شناسه‌ی شعر به دست آید
+    const res = await getJson(
+      `https://api.ganjoor.net/api/ganjoor/search?term=${encodeURIComponent(term)}`,
+      9_000
+    )
+    const hit = res?.poems?.[0] ?? res?.poem?.[0] ?? null
+    const id = hit?.id ?? hit?.poemId ?? null
+    if (!id) return null
+
+    // ۲) خودِ شعر را می‌گیریم: `rhythm` همان وزنِ ثبت‌شده است
+    const poem = await getJson(`https://api.ganjoor.net/api/ganjoor/poem/${id}`, 9_000)
+    const rhythm = poem?.rhythm ? String(poem.rhythm).trim() : ''
+    if (!rhythm) return null
+
+    const { poet, book, poem: t } = splitFullTitle(poem.fullTitle)
+    return {
+      rhythm,
+      source: 'ganjoor',
+      url: poem.fullUrl || poem.ganjoorUrl,
+      poet,
+      book,
+      poem: t || poem.title
+    }
+  } catch {
+    return null
+  }
+}
