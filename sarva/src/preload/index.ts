@@ -18,6 +18,14 @@ const api = {
   randomBeyt: () => ipcRenderer.invoke('sarva:random-beyt') as Promise<import('../renderer/src/lib/vazn-yab/ganjoor').Beyt>,
   ganjoorMeter: (poem1: string, poem2: string) =>
     ipcRenderer.invoke('sarva:ganjoor-meter', poem1, poem2) as Promise<import('../renderer/src/lib/vazn-yab/ganjoor').GanjoorMeter | null>,
+  renderScore: (input: unknown) => ipcRenderer.invoke('sarva:render-score', input) as Promise<{
+    left: Float32Array
+    right: Float32Array
+    sr: number
+    onsets: number[]
+    cadence: number
+    duration: number
+  } | null>,
   onNavigate: (cb: (path: string) => void) => {
     const handler = (_e: unknown, path: string) => cb(path)
     ipcRenderer.on('sarva:navigate', handler)

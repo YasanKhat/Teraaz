@@ -8,6 +8,14 @@ export interface SarvaBridge {
     poem1: string,
     poem2: string
   ): Promise<import('../renderer/src/lib/vazn-yab/ganjoor').GanjoorMeter | null>
+  renderScore(input: unknown): Promise<{
+    left: Float32Array
+    right: Float32Array
+    sr: number
+    onsets: number[]
+    cadence: number
+    duration: number
+  } | null>
   onNavigate(cb: (path: string) => void): () => void
   onExportBackup(cb: () => void): () => void
   onImportBackup(cb: () => void): () => void

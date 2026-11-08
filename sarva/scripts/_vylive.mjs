@@ -27,6 +27,33 @@ globalThis.__SARVA_WEB__ = true
 for (const k of ['window','document','navigator','location','history','HTMLElement','Element','Node','Event','CustomEvent','MouseEvent','KeyboardEvent','HashChangeEvent','PopStateEvent','DOMParser','getComputedStyle','requestAnimationFrame','cancelAnimationFrame','matchMedia','IntersectionObserver','ResizeObserver','MutationObserver','localStorage','sessionStorage','crypto','Image','Audio','Headers','Request','Response','AbortController','Blob','File','FileReader','URL','URLSearchParams','TextDecoder','TextEncoder','SVGElement','SVGSVGElement','SVGPathElement','HTMLCanvasElement','HTMLInputElement','HTMLTextAreaElement','HTMLSelectElement','HTMLAudioElement','Range','NodeList','FormData','XMLHttpRequest','screen']) { if (window[k] !== undefined) { try { globalThis[k] = window[k] } catch {} } }
 globalThis.window = window; globalThis.document = window.document; globalThis.self = window
 
+// بدلِ AudioContext — jsdom نداردش، ولی الکترون دارد. بی‌این، پخش هیچ‌وقت
+// شروع نمی‌شود و هیچ‌کدام از رفتارهایِ صدا سنجیده نمی‌شد.
+class FakeAudioContext {
+  constructor() {
+    this.currentTime = 0
+    this.destination = {}
+    this.outputLatency = 0
+    this.state = 'running'
+    this.sampleRate = 44100
+  }
+  resume() { return Promise.resolve() }
+  close() { return Promise.resolve() }
+  createBuffer(channels, length, sampleRate) {
+    const data = Array.from({ length: channels }, () => new Float32Array(length))
+    return {
+      length, sampleRate, numberOfChannels: channels,
+      copyToChannel(src, ch) { if (data[ch]) data[ch].set(src.subarray(0, data[ch].length)) },
+      getChannelData: (ch) => data[ch],
+    }
+  }
+  createBufferSource() {
+    return { buffer: null, connect() {}, start() {}, stop() {}, onended: null }
+  }
+}
+window.AudioContext = FakeAudioContext
+globalThis.AudioContext = FakeAudioContext
+
 // حافظه‌ی موقتِ ساختگی، تا بتوان محتوایِ «کپی تقطیع» را دید
 globalThis.__CLIP__ = null
 // Nodeِ ۲۲ خودش یک `navigator`ِ جهانیِ只خواندنی دارد، پس باید آن را هم عوض کرد؛
@@ -210,6 +237,86 @@ click(other)
 await wait(600)
 const pressed2 = [...(doc.querySelector('section[aria-labelledby="vy-meters"]')?.querySelectorAll('li > button') || [])].filter(b => b.getAttribute('aria-pressed') === 'true')
 check('زدن روی کارت، آن را انتخاب می‌کند', pressed2.length === 1 && pressed2[0] === other, pressed2.length + ' انتخاب')
+
+// ── ۹) «کوک ساز…» هنگامِ ساخت، و بی‌وقفه بودنِ بارِ دوم ─────────────
+const playBtn = () => $$('button').find((b) => /کوک ساز|توقف|پخش ریتم/.test(b.textContent))
+{
+  // به وضعیتِ نمونه برگردیم و یک دستگاهِ تازه برگزینیم (یعنی کلیدِ تازه)
+  const modeBtns = [...(doc.querySelector('[role=radiogroup][aria-label="دستگاه"]')?.querySelectorAll('button') || [])]
+  const currentMode = modeBtns.find((b) => b.getAttribute('aria-checked') === 'true')
+  // باید دستگاهی را برگزینیم که با کنونی فرق کند، وگرنه کلیدِ کش همان است
+  const otherMode = modeBtns.find((b) => b !== currentMode)
+  if (process.env.DBG) console.log('DBG mode:', currentMode?.textContent.trim(), '→', otherMode?.textContent.trim())
+  click(otherMode)
+  await wait(500)
+  const nowMode = modeBtns.find((b) => b.getAttribute('aria-checked') === 'true')
+  check('دستگاه عوض می‌شود', nowMode === otherMode, `${currentMode?.textContent.trim()} → ${nowMode?.textContent.trim()}`)
+
+  // نخستین پخش: باید «کوک ساز…» دیده شود
+  // اول مطمئن شویم چیزی در حال پخش نیست
+  if (/توقف/.test(playBtn()?.textContent || '')) { click(playBtn()); await wait(200) }
+  if (process.env.DBG) {
+    console.log('DBG before click:', JSON.stringify(playBtn()?.textContent))
+  }
+  const t0 = Date.now()
+  click(playBtn())
+  if (process.env.DBG) console.log('DBG بلافاصله:', JSON.stringify(playBtn()?.textContent))
+  await wait(0)
+  if (process.env.DBG) console.log('DBG بعد از ۰:', JSON.stringify(playBtn()?.textContent))
+  if (process.env.DBG) {
+    console.log('DBG after click :', JSON.stringify(playBtn()?.textContent))
+  }
+  // در jsdom کارگر نداریم، پس رندر نخِ اصلی را می‌بندد و این حالت را نمی‌شود
+  // پس از آن دید. به‌جایش با یک نگهبان ثبت می‌کنیم که این حالت رخ داده است.
+  const seen = []
+  const obs = new window.MutationObserver(() => {
+    const t = (playBtn()?.textContent || '').trim()
+    if (t && seen[seen.length - 1] !== t) seen.push(t)
+  })
+  obs.observe(doc.body, { childList: true, subtree: true, characterData: true })
+  const t1 = playBtn()?.textContent.trim() || ''
+  check('نخستین پخش از حالتِ «کوک ساز…» می‌گذرد', seen.includes('کوک ساز…') || /کوک ساز/.test(t1),
+    seen.join(' → ') || JSON.stringify(t1))
+
+  // صبر تا پخش شروع شود
+  let playMs = -1
+  for (let i = 0; i < 40 && !/توقف/.test(playBtn()?.textContent || ''); i++) { await wait(50); }
+  playMs = Date.now() - t0
+  if (process.env.DBG) console.log('DBG تا شروعِ پخش:', playMs, 'ms')
+  for (let i = 0; i < 40 && !/توقف/.test(playBtn()?.textContent || ''); i++) await wait(200)
+  const t2 = playBtn()?.textContent.trim() || ''
+  check('پخش آغاز می‌شود', /توقف/.test(t2), JSON.stringify(t2))
+
+  // توقف، و پخشِ دوبارهٔ همان: حالا کش دارد، پس نباید «کوک ساز…» بیاید
+  click(playBtn())
+  await wait(150)
+  click(playBtn())
+  await wait(60)
+  const t3 = playBtn()?.textContent.trim() || ''
+  check('بارِ دوم بی‌درنگ است و «کوک ساز…» نمی‌آید', /توقف|پخش ریتم/.test(t3) && !/کوک ساز/.test(t3), JSON.stringify(t3))
+}
+
+// ── ۱۰) برگزیدنِ وزنِ مشهور باید بی‌درنگ بپردازد ──────────────────
+{
+  // توقف، بعد یک کارتِ دیگر را بزن
+  if (/توقف/.test(playBtn()?.textContent || '')) { click(playBtn()); await wait(150) }
+  const sec = doc.querySelector('section[aria-labelledby="vy-meters"]')
+  const cards = [...(sec?.querySelectorAll('li > button') || [])]
+  const other = cards.find((b) => b.getAttribute('aria-pressed') !== 'true')
+  click(other)
+  // چند بار می‌سنجم: پخش باید در یکی از این لحظه‌ها در جریان باشد
+  let sawPlaying = false
+  for (let i = 0; i < 30; i++) {
+    await wait(200)
+    const txt = playBtn()?.textContent.trim() || ''
+    if (/توقف|کوک ساز/.test(txt)) { sawPlaying = true; break }
+  }
+  check('زدن روی وزنِ مشهور پخش را آغاز می‌کند', sawPlaying, JSON.stringify(playBtn()?.textContent.trim()))
+  // و همان کارت انتخاب شده بماند
+  const nowPressed = [...(doc.querySelector('section[aria-labelledby="vy-meters"]')?.querySelectorAll('li > button') || [])]
+    .filter((b) => b.getAttribute('aria-pressed') === 'true')
+  check('و همان کارت انتخاب می‌ماند', nowPressed.length === 1 && nowPressed[0] === other, `${nowPressed.length} انتخاب`)
+}
 
 console.log(report.join('\n'))
 const bad = report.filter((r) => r.startsWith('❌')).length

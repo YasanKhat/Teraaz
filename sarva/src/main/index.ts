@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, Menu, ipcMain, dialog } from 'electron'
 import { join } from 'node:path'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
+import { renderScore, type ScoreInput } from '../renderer/src/lib/vazn-yab/score'
 
 /**
  * فرایندِ اصلیِ سروا.
@@ -150,6 +151,13 @@ function registerIpc() {
   ipcMain.handle('sarva:ganjoor-meter', async (_e, poem1: string, poem2: string) =>
     ganjoorMeter(poem1, poem2)
   )
+
+  /* ساختِ پارتیتور در این فرآیند انجام می‌شود، نه در رندرر. دلیل: صفحه در
+     الکترون از `file://` بار می‌شود و کرومیوم ساختنِ Worker از این مبدأ را
+     نمی‌پذیرد؛ پس اگر پارتیتور در رندرر ساخته شود، نخِ رابط حدودِ نیم
+     ثانیه قفل می‌شود و پویانماییِ توپ می‌پرد. فرآیندِ اصلی یک فرآیندِ
+     جداست — همان کاری را می‌کند که Worker در سایت می‌کند. */
+  ipcMain.handle('sarva:render-score', (_e, input: ScoreInput) => renderScore(input))
 }
 
 /* ── بیتِ تصادفیِ گنجور ─────────────────────────────────────────────────
@@ -277,3 +285,30 @@ async function ganjoorMeter(poem1: string, poem2: string): Promise<GanjoorMeter 
     return null
   }
 }
+
+/* ── آغازِ برنامه ─────────────────────────────────────────────────────────
+ *
+ * سه تابعِ بالا (`createWindow`، `buildMenu`، `registerIpc`) پیش‌تر تنها
+ * تعریف شده بودند و هیچ‌جا صدا زده نمی‌شدند. برای همین رول‌آپ همه را در
+ * بوته‌ی لرزه می‌انداخت و بسته‌ی فرآیندِ اصلی ۱۴۴ بایت می‌شد: الکترون بالا
+ * می‌آمد و هیچ پنجره‌ای نمی‌ساخت. این بلوک نقطه‌ی آغازِ واقعی است.
+ */
+async function bootstrap() {
+  registerIpc()
+  await ensureStore()
+  const win = createWindow()
+  Menu.setApplicationMenu(buildMenu(win))
+}
+
+app.whenReady().then(bootstrap)
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    const win = createWindow()
+    Menu.setApplicationMenu(buildMenu(win))
+  }
+})

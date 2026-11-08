@@ -58,7 +58,10 @@ import { bareHemi } from "./prosody";
 
 /** روی هجاهای هر مصراع ملودی می‌سازد. خروجی: شمارهٔ MIDIِ هر هجا. */
 export function compose(hemis: boolean[][], mode: RhythmMode): number[][] {
-  const { notes, stable } = SCALES[mode]
+  /* گشاده‌تر گرفتنِ نوع: `as const` بالا `stable` را یک تاپلِ لفظی می‌کند و
+     آن وقت `stable.includes(یک عدد)` در پروژه‌ی Node (که این ماژول را از راهِ
+     فرآیندِ اصلی می‌بیند) نوع‌سنجی را خطا می‌دهد. */
+  const { notes, stable } = SCALES[mode] as { notes: readonly number[]; stable: readonly number[] }
 
   // بذر از خودِ الگوی هجاهاست؛ پس یک وزن همیشه همان ملودی را می‌دهد.
   let seed = hemis[0].reduce<number>(
@@ -547,41 +550,157 @@ export function scoreKey(input: ScoreInput): string {
   )
 }
 
+/* ── کارگر ────────────────────────────────────────────────────────────
+ * سایت پارتیتور را در یک Worker می‌سازد تا نخِ اصلی آزاد بماند و انیمیشنِ
+ * ترسیم و پرشِ توپ هنگامِ ساخت خشک نشود. اینجا هم همین است؛ اگر کارگر در
+ * دسترس نباشد (مثلاً در یک آزمونِ بدونِ مرورگر) روی نخِ اصلی ساخته می‌شود.
+ */
+
+/* شکلِ کمینه‌ی چیزی که از کارگر و نخِ نقاشی به کار می‌بریم. این ماژول را
+   فرآیندِ اصلیِ الکترون هم وارد می‌کند و آنجا `lib.dom` در دسترس نیست، پس به
+   جای تکیه بر نوع‌های سراسری (`Worker`، `requestAnimationFrame`) همین‌جا
+   تعریف می‌شوند؛ در مرورگر همان چیزند. */
+type ScoreWorker = {
+  postMessage: (msg: { id: number; input: ScoreInput }) => void
+  onmessage: ((e: { data: { id: number; score: Score | null } }) => void) | null
+  onerror: (() => void) | null
+  terminate: () => void
+}
+type ScoreWorkerCtor = new (url: URL, opts: { type: string }) => ScoreWorker
+
+let worker: ScoreWorker | null = null;
+let workerBroken = false;
+let seq = 0;
+const pending = new Map<number, (s: Score | null) => void>();
+
+function ensureWorker(): ScoreWorker | null {
+  const g = globalThis as unknown as { Worker?: ScoreWorkerCtor };
+  if (workerBroken || !g.Worker) return null;
+  if (worker) return worker;
+  try {
+    /* ⚠️ این خط باید همین شکلِ سره بماند. ویته با تحلیلِ ایستا دنبالِ
+       `new Worker(new URL(...))` می‌گردد تا بسته‌ی کارگر را بسازد؛ اگر
+       سازنده از یک متغیر بیاید (`new Ctor(...)`) ویته آن را نمی‌بیند،
+       پرونده‌ی کارگر در خروجی نمی‌آید و پارتیتور ناچار روی نخِ اصلی ساخته
+       می‌شود — همان لرزشِ انیمیشن که این کارگر برای رفعش آمده. */
+    worker = new Worker(new URL("./score.worker.ts", import.meta.url), {
+      type: "module",
+    }) as unknown as ScoreWorker;
+    worker.onmessage = (e) => {
+      const { id, score } = e.data;
+      const resolve = pending.get(id);
+      if (resolve) {
+        pending.delete(id);
+        resolve(score);
+      }
+    };
+    worker.onerror = () => {
+      // کارگر از کار افتاد: بقیه‌ی درخواست‌ها روی نخِ اصلی ساخته می‌شوند
+      workerBroken = true;
+      try {
+        worker?.terminate();
+      } catch {
+        /* بی‌خیال */
+      }
+      worker = null;
+      pending.clear();
+    };
+    return worker;
+  } catch {
+    workerBroken = true;
+    return null;
+  }
+}
+
+/**
+ * ساختِ پارتیتور بیرون از نخِ رابط.
+ *
+ * سه راه، به ترتیبِ اطمینان:
+ *
+ *   ۱. **فرآیندِ اصلیِ الکترون.** صفحه در الکترون از `file://` بار می‌شود و
+ *      کرومیوم ساختنِ Worker از این مبدأ را نمی‌پذیرد؛ اما فرآیندِ اصلی یک
+ *      فرآیندِ جداست، پس رندر آن‌جا نخِ رابط را نمی‌بندد. این راهِ اصلی است.
+ *   ۲. **Worker.** در پیش‌نمایشِ وب (روی http/https) کار می‌کند.
+ *   ۳. **همین نخ.** آخرین راه؛ دو دور انتظار برای نخستین نقاشی می‌گذارد تا
+ *      دست‌کم «کوک ساز…» پیش از قفل شدنِ صفحه دیده شود.
+ */
+async function renderOffThread(input: ScoreInput): Promise<Score | null> {
+  // ۱) فرآیندِ اصلیِ الکترون
+  const bridge = (globalThis as { sarva?: { renderScore?: (i: unknown) => Promise<Score | null> } }).sarva;
+  if (bridge?.renderScore) {
+    try {
+      const score = await bridge.renderScore(input);
+      if (score && score.left?.length) return score;
+    } catch {
+      /* می‌رویم سراغِ راهِ بعدی */
+    }
+  }
+
+  // ۲) Worker
+  const w = ensureWorker();
+  if (w) {
+    const id = ++seq;
+    try {
+      return await new Promise<Score | null>((resolve, reject) => {
+        pending.set(id, resolve);
+        w.postMessage({ id, input });
+        // اگر کارگر جواب ندهد (مثلاً مبدأ مسدود باشد)، نوبتِ نخِ اصلی است
+        setTimeout(() => {
+          if (pending.has(id)) {
+            pending.delete(id);
+            reject(new Error("worker-timeout"));
+          }
+        }, 8000);
+      });
+    } catch {
+      workerBroken = true;
+      /* می‌رویم سراغِ راهِ آخر */
+    }
+  }
+
+  // ۳) همین نخ
+  return new Promise((resolve) => {
+    const go = () => {
+      try {
+        resolve(renderScore(input));
+      } catch {
+        resolve(null);
+      }
+    };
+    const raf = (globalThis as unknown as { requestAnimationFrame?: (cb: () => void) => void })
+      .requestAnimationFrame;
+    if (typeof raf === "function") {
+      // یک نقاشیِ واقعی پیش از کارِ سنگین، وگرنه «کوک ساز…» دیده نمی‌شود
+      raf(() => raf(go));
+    } else {
+      setTimeout(go, 0);
+    }
+  });
+}
+
 /**
  * حافظه‌ی پارتیتورها.
  *
  * ⚠️ درست مانندِ سایت، **خودِ promise** کش می‌شود نه نتیجه‌اش: اگر کاربر دوباره
  *    روی همان ریتم بزند، همان promise برمی‌گردد و پخش بی‌درنگ شروع می‌شود و
  *    دیگر «کوک ساز…» دیده نمی‌شود. سایت همزمان روی اشاره‌گرِ ماوس هم از پیش
- *    می‌سازد (`setTimeout(…, 350)`)، برای همین معمولاً پیش از کلیک آماده است.
+ *    می‌سازد، برای همین معمولاً پیش از کلیک آماده است.
  *
  * سقفش شش پارتیتور است و کهنه‌ترین بیرون می‌رود.
  */
-const SCORE_CACHE = new Map<string, Promise<ReturnType<typeof renderScore> | null>>()
+const SCORE_CACHE = new Map<string, Promise<Score | null>>();
 
-/** پارتیتوری از کش؛ اگر نباشد، می‌سازد و در کش می‌گذارد. */
-export function renderCached(
-  input: ScoreInput
-): Promise<ReturnType<typeof renderScore> | null> {
-  const key = scoreKey(input)
-  let pending = SCORE_CACHE.get(key)
-  if (!pending) {
-    pending = new Promise((resolve) => {
-      // رندر سنگین است (~۰٫۳ ثانیه)؛ با یک دور تأخیر می‌افتد تا مرورگر اول
-      // حالتِ «کوک ساز…» را نشان بدهد و بعد رندر انجام شود.
-      setTimeout(() => {
-        try {
-          resolve(renderScore(input))
-        } catch {
-          resolve(null)
-        }
-      }, 0)
-    })
-    SCORE_CACHE.set(key, pending)
+/** پارتیتوری از کش؛ اگر نباشد، در کارگر می‌سازد و در کش می‌گذارد. */
+export function renderCached(input: ScoreInput): Promise<Score | null> {
+  const key = scoreKey(input);
+  let hit = SCORE_CACHE.get(key);
+  if (!hit) {
+    hit = renderOffThread(input);
+    SCORE_CACHE.set(key, hit);
     if (SCORE_CACHE.size > 6) {
-      const oldest = SCORE_CACHE.keys().next().value
-      if (oldest !== undefined) SCORE_CACHE.delete(oldest)
+      const oldest = SCORE_CACHE.keys().next().value;
+      if (oldest !== undefined) SCORE_CACHE.delete(oldest);
     }
   }
-  return pending
+  return hit;
 }

@@ -134,6 +134,8 @@ export default function VaznYabScene() {
   const [audioState, setAudioState] = useState<"idle" | "preparing" | "playing">("idle");
 
   const clock = useRef<Clock>(null);
+  /** کلیدِ پارتیتوری که هم‌اکنون در حالِ پخش (یا در راهِ پخش) است. */
+  const playingKey = useRef("");
   const ctxRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const tokenRef = useRef(0);
@@ -165,6 +167,7 @@ export default function VaznYabScene() {
   // ── صدا ────────────────────────────────────────────────────────────
   const stop = useCallback(() => {
     tokenRef.current += 1;
+    playingKey.current = "";
     try {
       sourceRef.current?.stop();
     } catch {
@@ -191,6 +194,8 @@ export default function VaznYabScene() {
       const ac = ctxRef.current;
       ac.resume().catch(() => {});
       setAudioState("preparing");
+      // پیش از انتظار ثبت می‌شود، تا توقفِ خودکارِ پایین‌دست این پخش را نکُشد
+      playingKey.current = scoreKey(input);
 
       const score = await renderCached(input);
       if (mine !== tokenRef.current) return;
@@ -227,8 +232,19 @@ export default function VaznYabScene() {
     await playScore(scoreInput);
   }, [playScore, scoreInput]);
 
-  // تغییرِ وزن یا تنظیمات یعنی پخشِ پیشین بی‌اعتبار است
+  /**
+   * تغییرِ وزن یا تنظیمات یعنی پخشِ پیشین بی‌اعتبار است — مگر اینکه همان چیزی
+   * باشد که هم‌اکنون پخش می‌شود.
+   *
+   * این شرط ظاهراً اضافی، در واقع ضروری است: زدن روی یک وزنِ مشهور همزمان
+   * وزنِ روی صحنه را عوض می‌کند (برای همین `scoreInput` نو می‌شود) و پخش را
+   * آغاز می‌کند. بی‌این شرط، اثر پس از رندر پخشی را که تازه شروع شده بود
+   * می‌کُشت و وزن انتخاب می‌شد ولی صدایی نمی‌آمد — آن هم به شکلِ نامنظم،
+   * چون بسته به اینکه promise زودتر حل شود یا اثر اجرا شود، نتیجه فرق می‌کرد.
+   */
   useEffect(() => {
+    const key = scoreKey(scoreInput);
+    if (playingKey.current && playingKey.current === key) return;
     stop();
   }, [scoreInput, stop]);
 

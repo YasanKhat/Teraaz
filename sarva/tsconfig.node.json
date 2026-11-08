@@ -5,7 +5,12 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "target": "ES2022",
-    "lib": ["ES2023"],
+    /* `DOM` از این رو اینجاست که فرآیندِ اصلی برای ساختِ پارتیتورِ وزن‌یاب
+       `renderer/src/lib/vazn-yab/score.ts` را وارد می‌کند (ببینید
+       `sarva:render-score` در `src/main/index.ts`)؛ آن ماژول `Worker` و
+       `requestAnimationFrame` را به کار می‌برد. این پروژه در زمانِ ترجمه به
+       رندرر وصل است، نه در زمانِ اجرا — خودِ فرآیندِ اصلی همچنان بی‌DOM است. */
+    "lib": ["ES2023", "DOM"],
     "types": ["node"],
     "strict": true,
     "noEmit": true,

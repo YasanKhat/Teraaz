@@ -83,6 +83,18 @@ function beytFromPoem(poem: any, poetName?: string): Beyt {
  * «شاعر، کتاب، شعر» را هم برمی‌گرداند، چون ماژولِ وزن‌یاب آن‌ها را زیرِ فرم نشان
  * می‌دهد (در سایت هم همین است).
  */
+/* این ماژول هم در رندرر (با کتابخانه‌ی DOM) و هم در فرآیندِ اصلیِ الکترون
+   (با نوع‌های Node) ترجمه می‌شود. `fetch` در هر دو هست، اما نوعِ
+   `RequestInit` در Node گزینه‌ی `cache` را ندارد و `json()` در آن `unknown`
+   برمی‌گرداند. این دو نوعِ محلی همان شکل را برای هر دو محیط تعریف می‌کنند
+   تا رفتار یکی بماند. */
+type JsonResponse = { ok: boolean; json(): Promise<unknown> }
+
+function fetchJson(url: string, init: Record<string, unknown>): Promise<JsonResponse> {
+  return fetch(url, init as RequestInit) as unknown as Promise<JsonResponse>
+}
+
+
 export async function fetchRandomBeyt(): Promise<Beyt> {
   const bridge = (globalThis as { sarva?: { randomBeyt?: () => Promise<unknown> } }).sarva;
 
@@ -107,9 +119,13 @@ export async function fetchRandomBeyt(): Promise<Beyt> {
 
   // ۳) مسیرِ سروری (اگر روزی پشتِ یک سرورِ واقعی اجرا شد)
   try {
-    const res = await fetch("/api/random-beyt", { cache: "no-store", signal: AbortSignal.timeout(12_000) });
+    const res = await fetchJson("/api/random-beyt", {
+      cache: "no-store",
+      signal: AbortSignal.timeout(12_000),
+    });
     const data = await res.json().catch(() => null);
-    if (!res.ok || !isBeyt(data)) throw new Error((data as { error?: string })?.error || GANJOOR_ERROR);
+    if (!res.ok || !isBeyt(data))
+      throw new Error(((data as { error?: string } | null)?.error as string) || GANJOOR_ERROR);
     return data;
   } catch (err) {
     const msg = err instanceof Error ? err.message : ""
@@ -164,7 +180,7 @@ export async function fetchGanjoorMeter(poem1: string, poem2: string): Promise<G
 
   // ۳) مسیرِ سروری
   try {
-    const res = await fetch("/api/vazn-yab", {
+    const res = await fetchJson("/api/vazn-yab", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ poem1, poem2 }),
@@ -172,7 +188,10 @@ export async function fetchGanjoorMeter(poem1: string, poem2: string): Promise<G
       cache: "no-store",
     });
     if (!res.ok) return null;
-    const data = await res.json().catch(() => null);
+    const data = (await res.json().catch(() => null)) as {
+      ok?: boolean
+      data?: { source?: string } & GanjoorMeter
+    } | null;
     return data?.ok && data?.data?.source === "ganjoor" ? (data.data as GanjoorMeter) : null;
   } catch {
     return null;
