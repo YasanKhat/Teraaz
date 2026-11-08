@@ -18,7 +18,7 @@ import {
   voicingOf,
   type Verdict,
 } from "@/lib/vazn-yab/prosody";
-import { buildHemis, renderScore } from "@/lib/vazn-yab/score";
+import { buildHemis, renderCached, scoreKey, type ScoreInput } from "@/lib/vazn-yab/score";
 import { RHYTHM_MODES, RHYTHM_SPEEDS, type RhythmMode, type SpeedId } from "@/lib/vazn-yab/rhythm";
 import { fetchGanjoorMeter, fetchRandomBeyt, GANJOOR_ERROR, type Beyt, type GanjoorMeter } from "@/lib/vazn-yab/ganjoor";
 import { copyText } from "@/lib/vazn-yab/clipboard";
@@ -130,6 +130,7 @@ export default function VaznYabScene() {
   const [randomBeyt, setRandomBeyt] = useState<Beyt | null>(null);
 
   const [copied, setCopied] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const [audioState, setAudioState] = useState<"idle" | "preparing" | "playing">("idle");
 
   const clock = useRef<Clock>(null);
@@ -150,6 +151,17 @@ export default function VaznYabScene() {
     [feet, speedFactor, modeOverride],
   );
 
+  /** توصیفِ پارتیتورِ جاری — همان چیزی که کلیدِ کش از آن ساخته می‌شود. */
+  const scoreInput = useMemo<ScoreInput>(
+    () => ({
+      hemis: buildHemis(feet),
+      unit: voicing.unit,
+      mode: voicing.mode,
+      character: voicing.character,
+    }),
+    [feet, voicing.unit, voicing.mode, voicing.character],
+  )
+
   // ── صدا ────────────────────────────────────────────────────────────
   const stop = useCallback(() => {
     tokenRef.current += 1;
@@ -163,16 +175,11 @@ export default function VaznYabScene() {
     setAudioState("idle");
   }, []);
 
-  /** یک پارتیتورِ آماده را می‌نوازد. */
+  /** یک پارتیتور را می‌نوازد؛ اگر از پیش ساخته شده باشد، بی‌درنگ. */
   const playScore = useCallback(
-    async (score: ReturnType<typeof renderScore>) => {
+    async (input: ScoreInput) => {
       stop();
       const mine = ++tokenRef.current;
-      setAudioState("preparing");
-      if (!score.left.length) {
-        setAudioState("idle");
-        return;
-      }
       if (!ctxRef.current) {
         try {
           ctxRef.current = new AudioContext();
@@ -182,8 +189,15 @@ export default function VaznYabScene() {
         }
       }
       const ac = ctxRef.current;
-      await ac.resume().catch(() => {});
+      ac.resume().catch(() => {});
+      setAudioState("preparing");
+
+      const score = await renderCached(input);
       if (mine !== tokenRef.current) return;
+      if (!score || !score.left.length) {
+        setAudioState("idle");
+        return;
+      }
 
       const buf = ac.createBuffer(2, score.left.length, score.sr);
       buf.copyToChannel(score.left, 0);
@@ -210,32 +224,34 @@ export default function VaznYabScene() {
   /** دکمه‌ی «پخش ریتم»: پارتیتور را برای وزن و تنظیماتِ جاری می‌سازد و می‌نوازد. */
   const play = useCallback(async () => {
     // یک بیت دو مصراعِ هم‌وزن دارد: الگو دو بار تکرار می‌شود.
-    const hemis = buildHemis(feet);
-    let score: ReturnType<typeof renderScore>;
-    try {
-      score = renderScore({
-        hemis,
-        unit: voicing.unit,
-        mode: voicing.mode,
-        character: voicing.character,
-      });
-    } catch {
-      setAudioState("idle");
-      return;
-    }
-    await playScore(score);
-  }, [feet, voicing, playScore]);
+    await playScore(scoreInput);
+  }, [playScore, scoreInput]);
 
   // تغییرِ وزن یا تنظیمات یعنی پخشِ پیشین بی‌اعتبار است
   useEffect(() => {
     stop();
-  }, [version, voicing.mode, voicing.unit, stop]);
+  }, [scoreInput, stop]);
 
   useEffect(() => () => stop(), [stop]);
 
   // ── جشن بعد از داوری ──────────────────────────────────────────────
   // همان افکتی که روی سایت هست: ۲۵۰ میلی‌ثانیه بعد از نشستنِ نتیجه، صدا،
   // لرزش (روی موبایل) و — فقط برای حدسِ درست — کاغذرنگ از تابلوی داوری.
+  /**
+   * پیش‌ساختِ پارتیتور وقتی اشاره‌گر واردِ ماژول می‌شود.
+   *
+   * این همان چیزی است که در سایت باعث می‌شود زدنِ «پخش ریتم» معمولاً بی‌درنگ
+   * باشد: پارتیتور ۳۵۰ میلی‌ثانیه پس از ورودِ ماوس از پیش ساخته می‌شود، پس تا
+   * کاربر دکمه را پیدا کند در کش است و دیگر «کوک ساز…» دیده نمی‌شود.
+   */
+  useEffect(() => {
+    if (!hovered) return;
+    const t = setTimeout(() => {
+      void renderCached(scoreInput);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [hovered, scoreInput]);
+
   const celebrated = useRef("");
   useEffect(() => {
     if (loading || !result?.verdict || celebrated.current === result.key) return;
@@ -382,7 +398,8 @@ export default function VaznYabScene() {
   };
 
   const playing = audioState === "playing";
-  const stageHemis = useMemo(() => buildHemis(feet), [feet]);
+  /** صحنه آرایه‌ی خامِ bareHemi را می‌گیرد (با شماره‌ی رکن)، نه longs/footStart. */
+  const stageHemis = useMemo(() => [bareHemi(feet), bareHemi(feet)], [feet]);
 
   // همان `H()`ِ سایت: بیت با خطِ جدید جدا می‌شود.
   /**
@@ -397,10 +414,12 @@ export default function VaznYabScene() {
       setNotFound(false);
       setModeOverride(null); // تنظیماتِ دستی برای این وزن بی‌معناست
       const v = voicingOf(m.feet, speedFactor);
-      const score = buildHemis(m.feet).length
-        ? renderScore({ hemis: buildHemis(m.feet), unit: v.unit, mode: v.mode, character: v.character })
-        : null;
-      if (score) void playScore(score);
+      void playScore({
+        hemis: buildHemis(m.feet),
+        unit: v.unit,
+        mode: v.mode,
+        character: v.character,
+      });
       const el = sectionRef.current;
       if (el && el.getBoundingClientRect().top < 0) {
         el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -418,10 +437,7 @@ export default function VaznYabScene() {
         <div aria-hidden className={sty.glow} />
         <section
           ref={sectionRef}
-          onPointerEnter={() => {
-            /* پیش‌گرم کردنِ رِندرِ صدا هنگامِ نزدیک‌شدنِ نشانگر */
-            if (audioState === "idle") void renderScore;
-          }}
+          onPointerEnter={() => setHovered(true)}
           className={` scroll-mt-24 overflow-hidden rounded-4xl ${sty.glass}`}
         >
           {/* ── عنوان / نتیجه ────────────────────────────────────── */}

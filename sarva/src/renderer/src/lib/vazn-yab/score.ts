@@ -529,3 +529,59 @@ export function buildHemis(feet: string): Hemi[] {
     footStart: h.map((x, i) => i === 0 || (x.foot >= 0 && x.foot !== h[i - 1].foot)),
   }))
 }
+
+/* ── کشِ پارتیتور ────────────────────────────────────────────────────── */
+
+export type ScoreInput = Parameters<typeof renderScore>[0]
+
+/**
+ * کلیدِ کش — همان رشته‌ای که سایت می‌سازد:
+ * `mode|unit|character|` و سپس برای هر مصراع `longs/footStart`.
+ */
+export function scoreKey(input: ScoreInput): string {
+  return (
+    `${input.mode}|${input.unit}|${input.character}|` +
+    input.hemis
+      .map((h) => h.longs.map(Number).join("") + "/" + h.footStart.map(Number).join(""))
+      .join("|")
+  )
+}
+
+/**
+ * حافظه‌ی پارتیتورها.
+ *
+ * ⚠️ درست مانندِ سایت، **خودِ promise** کش می‌شود نه نتیجه‌اش: اگر کاربر دوباره
+ *    روی همان ریتم بزند، همان promise برمی‌گردد و پخش بی‌درنگ شروع می‌شود و
+ *    دیگر «کوک ساز…» دیده نمی‌شود. سایت همزمان روی اشاره‌گرِ ماوس هم از پیش
+ *    می‌سازد (`setTimeout(…, 350)`)، برای همین معمولاً پیش از کلیک آماده است.
+ *
+ * سقفش شش پارتیتور است و کهنه‌ترین بیرون می‌رود.
+ */
+const SCORE_CACHE = new Map<string, Promise<ReturnType<typeof renderScore> | null>>()
+
+/** پارتیتوری از کش؛ اگر نباشد، می‌سازد و در کش می‌گذارد. */
+export function renderCached(
+  input: ScoreInput
+): Promise<ReturnType<typeof renderScore> | null> {
+  const key = scoreKey(input)
+  let pending = SCORE_CACHE.get(key)
+  if (!pending) {
+    pending = new Promise((resolve) => {
+      // رندر سنگین است (~۰٫۳ ثانیه)؛ با یک دور تأخیر می‌افتد تا مرورگر اول
+      // حالتِ «کوک ساز…» را نشان بدهد و بعد رندر انجام شود.
+      setTimeout(() => {
+        try {
+          resolve(renderScore(input))
+        } catch {
+          resolve(null)
+        }
+      }, 0)
+    })
+    SCORE_CACHE.set(key, pending)
+    if (SCORE_CACHE.size > 6) {
+      const oldest = SCORE_CACHE.keys().next().value
+      if (oldest !== undefined) SCORE_CACHE.delete(oldest)
+    }
+  }
+  return pending
+}

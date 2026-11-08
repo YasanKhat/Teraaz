@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTokenRgb } from "@/lib/theme/use-primary-rgb";
 
 /**
  * صحنه‌ی تقطیع — همان نموداری که روی سایت هست: هر مصراع یک ردیف، هر هجا یک
@@ -10,9 +11,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
  * ⚠️ پورتِ مستقیمِ کامپوننتِ `w` از بسته‌ی زنده‌ی سایت (۲۰۲۶-۱۱-۰۸): محاسبه‌ی
  *    چیدمان، زمان‌بندیِ ترسیم، لرزشِ هر هجا هنگامِ خوردنِ توپ، و پرشِ توپ
  *    میانِ دو هجا همگی همان است.
+ *
+ * نکته‌ی مهم: این کامپوننت `hemis` را به شکلِ **خروجیِ خامِ bareHemi** می‌گیرد
+ * (هر هجا `{long, foot}` با شماره‌ی رکن)، نه `{longs, footStart}`. پیش از این
+ * شکلِ دوم را می‌گرفت و شماره‌ی رکن را با حدس بازسازی می‌کرد، که باعث می‌شد
+ * ارکانِ زیرِ خط‌ها غلط چیده شوند.
  */
 
-type Hemi = { longs: boolean[]; footStart: boolean[] };
+/** یک هجایِ خام، همان‌طور که bareHemi می‌سازد. */
+type Syll = { long: boolean; foot: number };
 type Cell = { x1: number; x2: number; cx: number; y: number; long: boolean; row: number; foot: number };
 type FootLabel = { x: number; y: number; foot: number; row: number; hemi: number };
 type Layout = {
@@ -63,7 +70,7 @@ export default function VaznYabStage({
   version,
   cheer = "",
 }: {
-  hemis: Hemi[];
+  hemis: Syll[][];
   feet: string[];
   clock: React.MutableRefObject<Clock>;
   playing: boolean;
@@ -74,6 +81,8 @@ export default function VaznYabStage({
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(0);
+  const primary = useTokenRgb("--primary");
+  const foreground = useTokenRgb("--foreground", "40,40,40");
 
   useEffect(() => {
     const el = hostRef.current;
@@ -83,14 +92,19 @@ export default function VaznYabStage({
     return () => ro.disconnect();
   }, []);
 
+  // ── چیدمان ─────────────────────────────────────────────────────────
   const layout = useMemo<Layout | null>(() => {
-    if (!width) return null;
-    const pad = Math.max(8, 0.035 * width);
-    const units = (h: Hemi) => h.longs.reduce((s, l) => s + (l ? 2 : 1), 0);
-    const maxUnits = Math.max(...hemis.map(units));
-    if (!maxUnits) return null;
+    if (!width || !hemis.length) return null;
 
-    const MW = Math.min(64, (width - 2 * pad) / maxUnits);
+    const pad = Math.max(8, 0.035 * width);
+    const unitsOf = (h: Syll[], from = 0, to = h.length) =>
+      h.slice(from, to).reduce((s, x) => s + (x.long ? 2 : 1), 0);
+    const rows = hemis.map((_h, i) => ({ hemi: i, from: 0, to: hemis[i].length }));
+    const widest = Math.max(...hemis.map((h) => unitsOf(h)));
+    if (!widest) return null;
+
+    const MW = Math.min(64, (width - 2 * pad) / widest);
+    const SW = Math.max(1.8, 0.085 * MW);
     const CUP = 0.18 * MW;
     const CUP_D = 0.38 * MW;
     const BR = Math.max(3.5, 0.14 * MW);
@@ -101,173 +115,187 @@ export default function VaznYabStage({
     const cells: Cell[] = [];
     const labels: FootLabel[] = [];
 
-    hemis.forEach((h, row) => {
-      const y = top + row * rowH;
-      // چیدمان از راست به چپ
-      let edge = width / 2 + units(h) * (MW / 2);
+    // چیدمان از راست به چپ، همان‌طور که در سایت است
+    rows.forEach((row, ri) => {
+      const h = hemis[row.hemi];
+      const y = top + ri * rowH;
+      let edge = width / 2 + (unitsOf(h, row.from, row.to) * MW) / 2;
       let footRight = edge;
-      let curFoot = h.longs.length ? 0 : -1;
+      let curFoot = h[row.from]?.foot;
 
-      h.longs.forEach((long, i) => {
-        const u = (long ? 2 : 1) * MW;
-        const foot = h.footStart[i] ? i : curFoot;
-        const footId = h.footStart[i] ? h.footStart.slice(0, i + 1).filter(Boolean).length - 1 : curFoot;
-        if (footId !== curFoot) {
-          labels.push({ x: (footRight + edge) / 2, y: y + CUP_D + 20, foot: curFoot, row, hemi: row });
+      for (let i = row.from; i < row.to; i++) {
+        const syl = h[i];
+        const u = (syl.long ? 2 : 1) * MW;
+        if (syl.foot !== curFoot) {
+          labels.push({ x: (footRight + edge) / 2, y: y + CUP_D + 20, foot: curFoot, row: ri, hemi: row.hemi });
           footRight = edge;
-          curFoot = footId;
+          curFoot = syl.foot;
         }
-        cells.push({ x1: edge - gap, x2: edge - u + gap, cx: edge - u / 2, y, long, row, foot: curFoot });
+        cells.push({ x1: edge - gap, x2: edge - u + gap, cx: edge - u / 2, y, long: syl.long, row: ri, foot: syl.foot });
         edge -= u;
-      });
-      labels.push({ x: (footRight + edge) / 2, y: y + CUP_D + 20, foot: curFoot, row, hemi: row });
+      }
+      labels.push({ x: (footRight + edge) / 2, y: y + CUP_D + 20, foot: curFoot, row: ri, hemi: row.hemi });
     });
 
-    return {
-      w: width,
-      h: top + hemis.length * rowH - 30,
-      cells,
-      feetLabels: labels,
-      MW,
-      SW: Math.max(1.8, 0.085 * MW),
-      CUP,
-      CUP_D,
-      BR,
-    };
+    return { w: width, h: top + rows.length * rowH - 30, cells, feetLabels: labels, MW, SW, CUP, CUP_D, BR };
   }, [hemis, width]);
 
   const pathRefs = useRef<(SVGPathElement | null)[]>([]);
   const labelRefs = useRef<(SVGTextElement | null)[]>([]);
   const ballRef = useRef<SVGGElement | null>(null);
-  const state = useRef({ playing, loading, muted });
-  state.current = { playing, loading, muted };
 
-  const hits = useRef<number[]>([]);
-  /** بیدار کردنِ حلقه‌ی انیمیشن — سایت هم همین را دارد (`L.current`). */
+  const state = useRef({ playing, loading, muted });
+  const hits = useRef<number[]>([]); // زمانِ خوردنِ توپ روی هر هجا
   const kickRef = useRef<(() => void) | null>(null);
-  const lastIndex = useRef(-1);
+  const lastOnset = useRef(-1);
   const ballIdx = useRef(0);
-  const startedAt = useRef(0);
   const wasPlaying = useRef(false);
+  const startedAt = useRef(0);
   const versionRef = useRef("");
   const raf = useRef(0);
-  const [color, setColor] = useState("56, 152, 236");
 
-  useEffect(() => {
-    const v = getComputedStyle(document.documentElement).getPropertyValue("--primary").trim();
-    if (v) setColor(v.replace(/rgb\(|\)/g, ""));
-  }, []);
-
+  // با عوض شدنِ وزن، همه چیز از نو
   useEffect(() => {
     if (!layout || versionRef.current === version) return;
     versionRef.current = version;
     startedAt.current = performance.now() / 1e3;
     hits.current = [];
-    lastIndex.current = -1;
+    lastOnset.current = -1;
   }, [layout, version]);
 
+  // ── حلقه‌ی انیمیشن ─────────────────────────────────────────────────
   useEffect(() => {
     if (!layout || !layout.cells.length) return;
 
-    const fg = "40,40,40";
-    const rgba = (t: number, a = 1) => `rgba(${fg},${a})`;
-    const accent = (t: number, a = 1) => `rgba(${color},${a})`;
+    const to = primary.split(",").map(Number);
+    const from = foreground.split(",").map(Number);
+    /** درون‌یابی از رنگِ پیش‌زمینه به رنگِ تأکیدی. */
+    const mix = (t: number, a = 1) =>
+      `rgba(${to.map((p, i) => Math.round(from[i] + (p - from[i]) * t)).join(",")},${a})`;
+
+    const n = layout.cells.length;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const tick = () => {
-      raf.current = requestAnimationFrame(tick);
+      raf.current = 0;
       const L = layout;
       const now = performance.now() / 1e3;
       const { loading: isLoading, muted: isMuted } = state.current;
-      const c = clock.current;
+      const clk = clock.current;
       const elapsed = now - startedAt.current;
-      const n = L.cells.length;
-      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      let cont = false;
       let active = -1;
       let seek = 0;
 
-      if (c) {
-        seek = c.ctx.currentTime - c.start - (c.ctx.outputLatency || 0);
-        const onsets = c.score.onsets;
+      if (clk) {
+        seek = clk.ctx.currentTime - clk.start - (clk.ctx.outputLatency || 0);
+        const onsets = clk.score.onsets;
         for (let i = 0; i < onsets.length && onsets[i] <= seek; i++) active = i;
-        if (active !== lastIndex.current && active >= 0) {
-          for (let r = lastIndex.current + 1; r <= active; r++) hits.current[r % n] = now - (seek - onsets[r]);
-          lastIndex.current = active;
+        if (active !== lastOnset.current && active >= 0) {
+          for (let k = lastOnset.current + 1; k <= active; k++) hits.current[k % n] = now - (seek - onsets[k]);
+          lastOnset.current = active;
         }
+        cont = true;
       } else if (wasPlaying.current) {
-        ballIdx.current = lastIndex.current >= 0 ? lastIndex.current % n : ballIdx.current;
-        lastIndex.current = -1;
+        ballIdx.current = lastOnset.current >= 0 ? lastOnset.current % n : ballIdx.current;
+        lastOnset.current = -1;
       }
-      wasPlaying.current = !!c;
+      wasPlaying.current = !!clk;
 
-      // هنگامِ جست‌وجو، نخستین هجا را تکان می‌دهیم تا صحنه زنده بماند
-      if (isLoading && (elapsed % 0.46) / 0.46 < 0.05 && (hits.current[0] ?? -9) < now - 0.23) {
-        hits.current[0] = now;
+      // هنگامِ جست‌وجو، نخستین هجا تکان می‌خورد تا صحنه زنده بماند
+      if (isLoading) {
+        if ((now % 0.46) / 0.46 < 0.05 && (hits.current[0] ?? -9) < now - 0.23) hits.current[0] = now;
+        cont = true;
       }
 
       const bumps: number[] = [];
       for (let i = 0; i < n; i++) {
         const cell = L.cells[i];
         const drawn = reduced ? 1 : easeOutCubic((elapsed - 0.035 * i) / 0.32);
+        if (drawn < 1) cont = true;
         const since = now - (hits.current[i] ?? -9);
+        if (since < 0.9) cont = true;
         const bump = reduced ? 0 : L.MW * (cell.long ? 0.2 : 0.15) * wobble(since);
         bumps[i] = bump;
-        const lit = c && active % n === i ? 1 : decay(since, 0.45) * (since < 3 ? 1 : 0);
+        const lit = clk && active % n === i ? 1 : decay(since, 0.45) * (since < 3 ? 1 : 0);
         const el = pathRefs.current[i];
         if (el) {
           el.setAttribute("d", cellPath(cell, L, bump));
           el.style.strokeDashoffset = String(1 - drawn);
-          el.style.stroke = isMuted ? rgba(0, 0.22) : accent(lit, 0.92);
+          el.style.stroke = isMuted ? mix(0, 0.22) : mix(lit, 0.92);
         }
       }
 
+      // رکنی که توپ رویش است، پُررنگ می‌شود
       L.feetLabels.forEach((lb, i) => {
         const el = labelRefs.current[i];
         if (!el) return;
-        const cell = c && active >= 0 ? L.cells[active % n] : null;
-        const on = cell && cell.foot === lb.foot && cell.row === lb.row;
-        el.style.fill = on ? accent(1) : rgba(0, 0.45);
+        const on = clk && active >= 0 ? L.cells[active % n] : null;
+        const isActive = !!on && on.foot === lb.foot && on.row === lb.row;
+        el.style.fill = isActive ? mix(1) : mix(0, 0.45);
       });
 
+      // ── توپ ────────────────────────────────────────────────────────
       const g = ballRef.current;
       if (g) {
         const idx = Math.min(ballIdx.current, n - 1);
         let pos = ballAt(L.cells[idx], L, bumps[idx]);
-        let scale = 0;
-        if (c) {
-          const onsets = c.score.onsets;
+        let lift = 0;
+
+        if (clk) {
+          const onsets = clk.score.onsets;
           if (active < 0) {
+            // هنوز شروع نشده: از بالا می‌آید
             const p0 = ballAt(L.cells[0], L, bumps[0]);
-            const r = Math.min(1, Math.max(0, (seek - (onsets[0] - 0.5)) / 0.5));
-            pos = { x: p0.x, y: p0.y - (p0.y + 30) * (1 - r * r) };
+            const t = Math.min(1, Math.max(0, (seek - (onsets[0] - 0.5)) / 0.5));
+            pos = { x: p0.x, y: p0.y - (p0.y + 30) * (1 - t * t) };
           } else if (active === onsets.length - 1) {
             pos = ballAt(L.cells[active % n], L, bumps[active % n]);
-            scale = 0.9 * wobble(seek - onsets[active]);
+            lift = 0.9 * wobble(seek - onsets[active]);
           } else {
             const span = onsets[active + 1] - onsets[active];
             const t = Math.min(1, (seek - onsets[active]) / span);
             const a = ballAt(L.cells[active % n], L, bumps[active % n]);
             const b = ballAt(L.cells[(active + 1) % n], L, 0);
             const dist = Math.hypot(b.x - a.x, b.y - a.y);
-            const lift = L.MW * (0.16 + 0.8 * span * span) + 0.06 * dist + 0.4 * Math.max(0, a.y - b.y);
-            pos = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t - 4 * lift * t * (1 - t) };
-            scale = 0.9 * wobble(seek - onsets[active]);
+            const arc = L.MW * (0.16 + 0.8 * span * span) + 0.06 * dist + 0.4 * Math.max(0, a.y - b.y);
+            pos = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t - 4 * arc * t * (1 - t) };
+            lift = 0.9 * wobble(seek - onsets[active]);
+          }
+        } else if (isLoading) {
+          const t = (now % 0.46) / 0.46;
+          pos = { x: pos.x, y: pos.y - 0.9 * L.MW * 4 * t * (1 - t) };
+        } else {
+          const t = reduced ? 1 : Math.min(1, Math.max(0, (elapsed - 0.3 - 0.035 * n) / 0.45));
+          if (t < 1) {
+            pos = { x: pos.x, y: pos.y - (pos.y + 30) * (1 - t * t) };
+            cont = true;
+          } else if (t >= 1 && (hits.current[0] ?? -9) < startedAt.current) {
+            hits.current[0] = now;
           }
         }
-        g.setAttribute("transform", `translate(${pos.x} ${pos.y}) scale(${1 + scale})`);
+
+        const squash = Math.max(lift, wobble(now - (hits.current[idx] ?? -9)) * (clk ? 0 : 0.8));
+        const sx = 1 + 0.35 * Math.max(0, squash);
+        const sy = 1 - 0.3 * Math.max(0, squash);
+        g.setAttribute("transform", `translate(${pos.x} ${pos.y}) scale(${sx} ${sy})`);
+        g.style.opacity = isMuted ? "0" : "1";
       }
+
+      if (cont || clk) raf.current = requestAnimationFrame(tick);
     };
 
-    const kick = () => {
+    kickRef.current = () => {
       if (!raf.current) raf.current = requestAnimationFrame(tick);
     };
-    kickRef.current = kick;
-    if (raf.current) cancelAnimationFrame(raf.current);
+    cancelAnimationFrame(raf.current);
     raf.current = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(raf.current);
       raf.current = 0;
     };
-  }, [layout, clock, color]);
+  }, [layout, clock, primary, foreground]);
 
   /* ── جشن ────────────────────────────────────────────────────────────
    * وقتی حدس درست باشد، سایت یک موجِ لرزش روی همه‌ی هجاها می‌فرستد: هر
@@ -284,6 +312,11 @@ export default function VaznYabStage({
     kickRef.current?.();
   }, [cheer, layout]);
 
+  useEffect(() => {
+    state.current = { playing, loading, muted };
+    kickRef.current?.();
+  }, [playing, loading, muted]);
+
   return (
     <div className=" px-2 py-6 sm:px-6 sm:py-8">
       <div ref={hostRef} data-vy-stage className=" relative w-full" style={{ height: layout?.h ?? 220 }}>
@@ -296,7 +329,7 @@ export default function VaznYabStage({
             aria-hidden
           >
             {layout.cells.map((c, i) => (
-              <g key={i}>
+              <g key={`${version}-${i}`}>
                 <path
                   ref={(el) => {
                     pathRefs.current[i] = el;
@@ -313,7 +346,7 @@ export default function VaznYabStage({
             ))}
             {layout.feetLabels.map((lb, i) => (
               <text
-                key={`f${i}`}
+                key={`${version}-f${i}`}
                 ref={(el) => {
                   labelRefs.current[i] = el;
                 }}
@@ -327,7 +360,7 @@ export default function VaznYabStage({
               </text>
             ))}
             <g ref={ballRef}>
-              <circle r={layout.BR} fill={`rgb(${color})`} />
+              <circle r={layout.BR} fill={`rgb(${primary})`} />
             </g>
           </svg>
         )}
