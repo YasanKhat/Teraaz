@@ -27,6 +27,18 @@ globalThis.__SARVA_WEB__ = true
 for (const k of ['window','document','navigator','location','history','HTMLElement','Element','Node','Event','CustomEvent','MouseEvent','KeyboardEvent','HashChangeEvent','PopStateEvent','DOMParser','getComputedStyle','requestAnimationFrame','cancelAnimationFrame','matchMedia','IntersectionObserver','ResizeObserver','MutationObserver','localStorage','sessionStorage','crypto','Image','Audio','Headers','Request','Response','AbortController','Blob','File','FileReader','URL','URLSearchParams','TextDecoder','TextEncoder','SVGElement','SVGSVGElement','SVGPathElement','HTMLCanvasElement','HTMLInputElement','HTMLTextAreaElement','HTMLSelectElement','HTMLAudioElement','Range','NodeList','FormData','XMLHttpRequest','screen']) { if (window[k] !== undefined) { try { globalThis[k] = window[k] } catch {} } }
 globalThis.window = window; globalThis.document = window.document; globalThis.self = window
 
+// حافظه‌ی موقتِ ساختگی، تا بتوان محتوایِ «کپی تقطیع» را دید
+globalThis.__CLIP__ = null
+// Nodeِ ۲۲ خودش یک `navigator`ِ جهانیِ只خواندنی دارد، پس باید آن را هم عوض کرد؛
+// وگرنه برنامه `navigator.clipboard` را پیدا نمی‌کند (در مرورگر چنین نیست).
+const clipboard = { writeText: async (t) => { globalThis.__CLIP__ = t } }
+try {
+  Object.defineProperty(window.navigator, 'clipboard', { configurable: true, value: clipboard })
+} catch {}
+try {
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: window.navigator })
+} catch {}
+
 const server = await createServer({ configFile: path.join(root, 'vite.config.ts'), root, server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
 await server.ssrLoadModule('/src/renderer/src/main.tsx')
 await new Promise((r) => setTimeout(r, 2500))
@@ -57,6 +69,18 @@ const labels = svg ? [...svg.querySelectorAll('text')].map((t) => t.textContent.
 check('نامِ ارکان زیرِ خط‌ها نوشته شده', labels.length >= 8, labels.join(' '))
 const ball = svg?.querySelector('g > circle')
 check('توپ روی صحنه هست', !!ball)
+
+// ── ۱٫۵) وزنِ نمونه پیش از هر جست‌وجو انتخاب است (مانندِ سایت) ─────
+{
+  const sec0 = $('section[aria-labelledby="vy-meters"]')
+  const c0 = [...(sec0?.querySelectorAll('li > button') || [])]
+  const p0 = c0.filter((b) => b.getAttribute('aria-pressed') === 'true')
+  check('وزنِ نمونه (شاهنامه) پیش از جست‌وجو انتخاب است',
+    p0.length === 1 && /شاهنامه/.test(p0[0].textContent), `${p0.length} انتخاب`)
+  check('۲۰ کارتِ وزن هست', c0.length === 20, String(c0.length))
+  check('وزن‌های مشهور داخلِ قابِ ماژول است',
+    !!sec0 && sec0.parentElement?.className.includes('max-w-5xl'))
+}
 
 // ── ۲) حالتِ استادی ظاهر می‌شود ────────────────────────────────────
 click(byText('button', 'استادی'))
@@ -125,13 +149,67 @@ check('زیرعنوانِ ارکان با وزنِ تازه به‌روز شد',
 check('بیتِ دوم وزنِ دیگری یافت', !!h2b && !/وزنی پیدا نشد/.test(h2b), h2b)
 check('صحنه با وزنِ تازه باز کشیده شد', labels2.join(' ') !== labels.join(' '), labels2.join(' ') || '(خالی)')
 
+// ── ۵٫۵) کپی تقطیع ───────────────────────────────────────────────
+const copyBtn = $$('button[aria-label="کپی تقطیع"]')[0]
+check('دکمه‌ی کپی تقطیع روی صفحه هست', !!copyBtn)
+if (process.env.DBG && copyBtn) console.log('DBG copy btn html:', copyBtn.outerHTML.slice(0, 200))
+click(copyBtn)
+await wait(400)
+const clip = globalThis.__CLIP__
+check('کپی تقطیع متن را می‌نویسد', typeof clip === 'string' && clip.length > 0, JSON.stringify(clip))
+if (clip) {
+  const rows = clip.split('\n')
+  check('سطرِ نخست نامِ بحر است', /بحر|مثمن|مسدس|رباعی/.test(rows[0]), rows[0])
+  check('سطرِ دوم ارکان است', /فعولن|مفاعیلن/.test(rows[1] || ''), rows[1])
+  check('سطرِ سوم علامت‌های هجایی است (∪ و –)', /[∪–]/.test(rows[2] || ''), rows[2])
+}
+
 // ── ۶) بیتِ تصادفی ────────────────────────────────────────────────
+setVal($$('input[data-bare]')[0], '')
+setVal($$('input[data-bare]')[1], '')
+await wait(100)
 click(byText('button', 'بیت تصادفی'))
-await wait(2500)
+await wait(6000)
+for (const w of [2000, 4000, 8000]) {
+  await wait(w === 2000 ? 2000 : 2000)
+  const foot = [...doc.querySelectorAll('form p')].map(p => p.textContent.trim()).join(' || ')
+  if (process.env.DBG) console.log(`DBG t+${w}:`, JSON.stringify(foot), '| inputs:',
+    JSON.stringify($$('input[data-bare]').map(i => i.value)))
+}
 const err = byText('p', 'بیتی از گنجور به دست نیامد')
 const iv = $$('input[data-bare]')
 const got = iv[0]?.value && iv[1]?.value
 check('بیتِ تصادفی: یا بیت آمد یا پیغامِ خطایِ خودِ سایت', !!got || !!err, got ? 'بیت آمد' : err ? 'پیغامِ خطا مطابقِ سایت' : 'هیچ‌کدام')
+
+// ── ۷) نگاره‌هایِ علامت‌هایِ هجایی در راهنما ──────────────────────
+const guide = doc.querySelector('section[aria-labelledby="vy-guide"]')
+check('بخشِ راهنما هست', !!guide)
+const glyphs = guide ? [...guide.querySelectorAll('dl svg path')].map(p => p.getAttribute('d')) : []
+check('سه نگاره‌ی علامتِ هجایی در راهنما هست', glyphs.length === 3, glyphs.join(' | '))
+check('نگاره‌ی کوتاه کمان است', glyphs[0] === 'M14 9C14 23 2 23 2 9', glyphs[0])
+check('نگاره‌ی بلند خط است', glyphs[1] === 'M30 16H2', glyphs[1])
+check('نگاره‌ی کشیده خط و کمان است', glyphs[2] === 'M52 16H24M14 9C14 23 2 23 2 9', glyphs[2])
+const dts = guide ? [...guide.querySelectorAll('dl dt')].map(d => d.textContent.trim()) : []
+const ddNames = guide ? [...guide.querySelectorAll('dl dd:first-of-type span:first-child')].map(d => d.textContent.trim()) : []
+check('نامِ سه علامت در راهنما هست', ddNames.join(',') === 'هجای کوتاه,هجای بلند,هجای کشیده', ddNames.join(','))
+
+// ── ۸) وزن‌های مشهور ─────────────────────────────────────────────
+const metersSec = doc.querySelector('section[aria-labelledby="vy-meters"]')
+check('بخشِ وزن‌های مشهور هست', !!metersSec)
+const cards = metersSec ? [...metersSec.querySelectorAll('li > button')] : []
+const pressed = cards.filter(b => b.getAttribute('aria-pressed') === 'true')
+if (process.env.DBG) {
+  console.log('DBG cards feet:', cards.slice(-3).map(b => b.querySelector('span.mt-3')?.textContent).join(' | '))
+  console.log('DBG subtitle:', JSON.stringify(doc.querySelector('section p')?.textContent.trim()))
+  console.log('DBG pressed count:', pressed.length)
+}
+check('پس از جست‌وجو هیچ کارتی انتخاب نیست (مانندِ سایت)', pressed.length === 0, pressed.length + ' انتخاب')
+// زدن روی یک کارتِ دیگر باید آن را انتخاب کند
+const other = cards.find(b => !/شاهنامه/.test(b.textContent))
+click(other)
+await wait(600)
+const pressed2 = [...(doc.querySelector('section[aria-labelledby="vy-meters"]')?.querySelectorAll('li > button') || [])].filter(b => b.getAttribute('aria-pressed') === 'true')
+check('زدن روی کارت، آن را انتخاب می‌کند', pressed2.length === 1 && pressed2[0] === other, pressed2.length + ' انتخاب')
 
 console.log(report.join('\n'))
 const bad = report.filter((r) => r.startsWith('❌')).length

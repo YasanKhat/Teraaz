@@ -1,40 +1,40 @@
 "use client";
 
-import { motion } from "motion/react";
-
 /**
  * «راهنما» — بخشِ پایانیِ صفحه‌ی وزن‌یاب.
  *
- * ⚠️ این بخش در این پورت وجود نداشت و کلاس‌ها و متن‌هایش عیناً از DOMِ زنده‌ی
- *    /vazn-yab استخراج شده‌اند (۲۰۲۶-۱۱-۰۸). متنِ سه نکته توضیحِ رفتارِ واقعیِ
- *    برنامه است (تسکین و قلب، تفاوتِ گنجور با پیشنهادِ موتور، حالتِ استادی)؛
- *    همان‌طور که سایت آن‌ها را می‌گوید.
+ * ⚠️ این کلاس‌ها و نگاره‌ها عیناً از DOMِ زنده‌ی /vazn-yab استخراج شده‌اند
+ *    (۲۰۲۶-۱۱-۰۸، از روی یک snapshotِ MHTML). هیچ چیزی در آن از سلیقه‌ی شخصی
+ *    نیست: تگ‌ها، ترتیب و کلاس‌هایِ Tailwind همان‌هایی است که سایت می‌فرستد.
+ *
+ * نکته‌ی مهم: علامت‌های هجایی (کوتاه «U»، بلند «-») در سایت **متن نیستند** و
+ *    نگاره‌ی SVG اند — همان کمان و خطی که روی صحنه‌ی تقطیع هم دیده می‌شود.
+ *    پیش از این اینجا فقط متن بود و برای همین با نسخه‌ی اصلی فرق داشت.
  */
-
-const EASE = [0.16, 1, 0.3, 1] as const;
 
 const STEPS = [
   {
-    icon: "write",
+    icon: "write" as const,
     title: "بیت را بنویس",
     body: "هر مصراع در خانهٔ خودش، یا کل بیت را یک‌جا بچسبان. «بیت تصادفی» هم یک بیت از گنجور می‌آورد.",
   },
   {
-    icon: "scan",
+    icon: "scan" as const,
     title: "وزن و تقطیع را ببین",
     body: "نام بحر، ارکان و علامت‌های هجایی وزن. اگر بیت در گنجور باشد، وزنش از همان‌جا تأیید می‌شود.",
   },
   {
-    icon: "ball",
+    icon: "ball" as const,
     title: "ریتمش را بشنو",
     body: "توپ روی هجاها می‌پرد و ساز، وزن را می‌نوازد. دستگاه و سرعت را هم می‌شود عوض کرد.",
   },
 ];
 
+/** هر ردیف: نگاره (کمان برای کوتاه، خط برای بلند)، نام، توضیح و نمونه. */
 const MARKS = [
-  { name: "هجای کوتاه", desc: "صامت و مصوت کوتاه", example: "«بِ» در بِرو" },
-  { name: "هجای بلند", desc: "صامت و مصوت بلند، یا صامت و مصوت کوتاه و صامت", example: "«تا»، «دل»" },
-  { name: "هجای کشیده", desc: "یک بلند و یک کوتاه حساب می‌شود", example: "«دوست»، «کار»" },
+  { glyph: "M14 9C14 23 2 23 2 9", w: 24, name: "هجای کوتاه", desc: "صامت و مصوت کوتاه", example: "«بِ» در بِرو" },
+  { glyph: "M30 16H2", w: 40, name: "هجای بلند", desc: "صامت و مصوت بلند، یا صامت و مصوت کوتاه و صامت", example: "«تا»، «دل»" },
+  { glyph: "M52 16H24M14 9C14 23 2 23 2 9", w: 62, name: "هجای کشیده", desc: "یک بلند و یک کوتاه حساب می‌شود", example: "«دوست»، «کار»" },
 ];
 
 const NOTES = [
@@ -52,10 +52,7 @@ const NOTES = [
   },
 ];
 
-/**
- * آیکونِ هر گام — همان سه نگاره‌ی صفحه‌ی سایت، که خودشان نمودارِ تقطیع‌اند:
- * خط‌ها هجاها، کمان‌ها هجای بلند، و در سومی یک توپ که روی هجاها می‌پرد.
- */
+/** آیکونِ هر گام — همان سه نگاره‌ی صفحه‌ی سایت، که خودشان نمودارِ تقطیع‌اند. */
 function StepIcon({ kind }: { kind: "write" | "scan" | "ball" }) {
   if (kind === "write") {
     return (
@@ -70,7 +67,7 @@ function StepIcon({ kind }: { kind: "write" | "scan" | "ball" }) {
   }
   if (kind === "scan") {
     return (
-      <svg viewBox="-4 0 198 26" width="198" height="26" className=" overflow-visible text-foreground/80" aria-hidden>
+      <svg viewBox="-4 0 198 26" width={198} height={26} className=" overflow-visible  text-foreground/80" aria-hidden>
         <path
           d="M188 9C188 23 176 23 176 9M166 16H138M128 16H100M90 9C90 23 78 23 78 9M68 16H40M30 16H2"
           fill="none"
@@ -82,7 +79,7 @@ function StepIcon({ kind }: { kind: "write" | "scan" | "ball" }) {
     );
   }
   return (
-    <svg viewBox="-4 0 138 26" width="138" height="26" className=" overflow-visible text-foreground/80" aria-hidden>
+    <svg viewBox="-4 0 138 26" width={138} height={26} className=" overflow-visible  text-foreground/80" aria-hidden>
       <path
         d="M128 16H100M90 9C90 23 78 23 78 9M68 16H40M30 16H2"
         fill="none"
@@ -97,20 +94,18 @@ function StepIcon({ kind }: { kind: "write" | "scan" | "ball" }) {
 
 export default function VaznYabGuide() {
   return (
-    <motion.section
-      dir="rtl"
-      initial={{ opacity: 0, y: 18 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.15 }}
-      transition={{ duration: 0.6, ease: EASE }}
+    <section
+      aria-labelledby="vy-guide"
       className=" relative z-20 mx-auto mt-20 w-full max-w-5xl sm:mt-28"
     >
       <div className=" grid gap-10 lg:grid-cols-[17rem_1fr] lg:gap-16">
         <header className=" lg:sticky lg:top-28 lg:self-start">
-          <h2 className=" text-3xl font-black text-foreground sm:text-4xl">راهنما</h2>
+          <h2 id="vy-guide" className=" text-3xl font-black text-foreground sm:text-4xl">
+            راهنما
+          </h2>
           <p className=" mt-4 leading-8 text-muted-foreground">
-            وزن‌یاب وزن عروضی هر بیت فارسی را پیدا می‌کند، علامت‌های هجایی‌اش را نشان
-            می‌دهد و ریتمش را می‌نوازد.
+            وزن‌یاب وزن عروضی هر بیت فارسی را پیدا می‌کند، علامت‌های هجایی‌اش را نشان می‌دهد و ریتمش
+            را می‌نوازد.
           </p>
         </header>
 
@@ -133,10 +128,17 @@ export default function VaznYabGuide() {
             <h3 className=" text-xl font-black text-foreground sm:text-2xl">علامت‌های هجایی</h3>
             <dl className=" mt-5 divide-y divide-border overflow-hidden rounded-3xl border border-border bg-card">
               {MARKS.map((m) => (
-                <div key={m.name} className=" flex flex-wrap items-center gap-x-5 gap-y-2 px-6 py-5">
-                  <dt className=" w-28 shrink-0 font-semibold text-foreground">{m.name}</dt>
-                  <dd className=" min-w-0 flex-1 text-sm text-muted-foreground">{m.desc}</dd>
-                  <dd className=" w-full text-sm font-medium text-primary sm:w-auto">{m.example}</dd>
+                <div key={m.name} className=" flex items-center gap-5 px-6 py-5">
+                  <dt className=" flex w-16 shrink-0 justify-center text-primary">
+                    <svg viewBox={`-4 0 ${m.w} 26`} width={m.w} height={26} className=" overflow-visible " aria-hidden>
+                      <path d={m.glyph} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+                    </svg>
+                  </dt>
+                  <dd className=" min-w-0 flex-1">
+                    <span className=" font-bold text-foreground">{m.name}</span>
+                    <span className=" ms-2 text-sm text-muted-foreground">{m.desc}</span>
+                  </dd>
+                  <dd className=" hidden shrink-0 text-sm text-muted-foreground sm:block">{m.example}</dd>
                 </div>
               ))}
             </dl>
@@ -150,24 +152,18 @@ export default function VaznYabGuide() {
                 <details key={n.q} className=" group">
                   <summary className=" flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5 font-semibold text-foreground transition-colors hover:text-primary [&::-webkit-details-marker]:hidden">
                     {n.q}
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      className=" size-4 shrink-0 transition-transform group-open:rotate-180"
+                    <span
                       aria-hidden
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
-                    </svg>
+                      className=" relative size-4 shrink-0 before:absolute before:inset-x-0 before:top-1/2 before:h-0.5 before:-translate-y-1/2 before:rounded-full before:bg-current after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 after:-translate-x-1/2 after:rounded-full after:bg-current after:transition-transform group-open:after:scale-y-0"
+                    />
                   </summary>
-                  <p className=" px-6 pb-5 text-sm leading-7 text-muted-foreground">{n.a}</p>
+                  <p className=" px-6 pb-6 text-sm leading-8 text-muted-foreground">{n.a}</p>
                 </details>
               ))}
             </div>
           </div>
         </div>
       </div>
-    </motion.section>
+    </section>
   );
 }

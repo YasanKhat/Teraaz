@@ -206,32 +206,10 @@ async function getJson(url: string, ms = 12_000): Promise<any> {
  * اگر هر مرحله ناموفق بود، به بیتِ تصادفیِ بی‌نامِ کلِ گنجور برمی‌گردیم.
  */
 async function randomBeyt(): Promise<Beyt> {
-  const slug = GANJOOR_POETS[Math.floor(Math.random() * GANJOOR_POETS.length)]
-
-  let poet: any = null
-  try {
-    poet = await getJson(`https://api.ganjoor.net/api/ganjoor/poet?url=/${slug}`)
-  } catch {
-    poet = null
-  }
-
-  const endpoints = poet?.id
-    ? [
-        `https://api.ganjoor.net/api/ganjoor/poem/random?poetId=${poet.id}&fmt=json`,
-        `https://api.ganjoor.net/api/ganjoor/poem/random?fmt=json`
-      ]
-    : [`https://api.ganjoor.net/api/ganjoor/poem/random?fmt=json`]
-
-  let poem: any = null
-  for (const url of endpoints) {
-    try {
-      poem = await getJson(url)
-      if (poem) break
-    } catch {
-      /* تلاشِ بعدی */
-    }
-  }
-  if (!poem) throw new Error('unavailable')
+  // یک درخواستِ تنها: `fullTitle` خودش «شاعر » کتاب » شعر» است، پس نیازی به
+  // جست‌وجویِ جداگانه‌ی شاعر نیست — پیش از این دو درخواست پشتِ‌سرِ هم می‌رفت
+  // و تا نوزده ثانیه طول می‌کشید.
+  const poem = await getJson(`https://api.ganjoor.net/api/ganjoor/poem/random?fmt=json`, 11_000)
 
   const lines = String(poem.plainText || poem.text || '')
     .split(/\r?\n/)
@@ -239,47 +217,16 @@ async function randomBeyt(): Promise<Beyt> {
     .filter(Boolean)
   if (lines.length < 2) throw new Error('no-couplet')
 
-  const { poet: p, book, poem: t } = splitFullTitle(poem.fullTitle)
-
+  const { poet, book, poem: t } = splitFullTitle(poem.fullTitle)
   return {
     couplet: { first: lines[0], second: lines[1] },
-    poet: p || poet?.nickname || poet?.name,
+    poet,
     book,
     poem: t || poem.title,
     url: poem.fullUrl || poem.ganjoorUrl,
     meter: poem.rhythm || undefined
   }
 }
-
-app.whenReady().then(async () => {
-  if (process.platform === 'win32') app.setAppUserModelId('com.sarva.app')
-  await ensureStore()
-  registerIpc()
-
-  const win = createWindow()
-  Menu.setApplicationMenu(buildMenu(win))
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      Menu.setApplicationMenu(buildMenu(createWindow()))
-    }
-  })
-})
-
-app.on('web-contents-created', (_e, contents) => {
-  contents.on('will-navigate', (event, url) => {
-    // به‌جز dev server و فایل‌های محلی، هر مقصدی در مرورگر باز شود.
-    const local = url.startsWith('file://') || url.startsWith('http://localhost')
-    if (!local) {
-      event.preventDefault()
-      shell.openExternal(url)
-    }
-  })
-})
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
-})
 
 /* ── جست‌وجویِ وزن در گنجور ────────────────────────────────────────────
  *

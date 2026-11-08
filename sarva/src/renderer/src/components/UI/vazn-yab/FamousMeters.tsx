@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "motion/react";
 import { FAMOUS_METERS, type FamousMeter } from "@/data/seeds/meters";
 import { ARKAN } from "@/lib/aruz/meters";
 
@@ -15,8 +14,6 @@ import { ARKAN } from "@/lib/aruz/meters";
  * باشد — بیتی که همه این وزن را با آن به یاد می‌آورند. زدن روی کارت، آن وزن را
  * برای پخش برمی‌گزیند.
  */
-
-const EASE = [0.16, 1, 0.3, 1] as const;
 
 /** ارکان را به رشته‌ای از هجا می‌برد: «-» بلند، «U» کوتاه. */
 function patternOf(feet: string): string {
@@ -94,15 +91,7 @@ export default function FamousMeters({
   onPick: (m: FamousMeter) => void;
 }) {
   return (
-    <motion.section
-      dir="rtl"
-      aria-labelledby="vy-meters"
-      initial={{ opacity: 0, y: 18 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.15 }}
-      transition={{ duration: 0.6, ease: EASE }}
-      className=" relative z-20 mx-auto mt-16 w-full max-w-6xl sm:mt-24"
-    >
+    <section aria-labelledby="vy-meters" className=" mt-16 sm:mt-24">
       <h2 id="vy-meters" className=" text-3xl font-black text-foreground sm:text-4xl">
         وزن‌های مشهور
       </h2>
@@ -176,6 +165,6 @@ export default function FamousMeters({
           );
         })}
       </ol>
-    </motion.section>
+    </section>
   );
 }

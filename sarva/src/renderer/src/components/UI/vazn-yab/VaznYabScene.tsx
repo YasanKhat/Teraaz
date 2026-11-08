@@ -21,8 +21,10 @@ import {
 import { buildHemis, renderScore } from "@/lib/vazn-yab/score";
 import { RHYTHM_MODES, RHYTHM_SPEEDS, type RhythmMode, type SpeedId } from "@/lib/vazn-yab/rhythm";
 import { fetchGanjoorMeter, fetchRandomBeyt, GANJOOR_ERROR, type Beyt, type GanjoorMeter } from "@/lib/vazn-yab/ganjoor";
+import { copyText } from "@/lib/vazn-yab/clipboard";
 import { celebrate } from "@/components/exam/celebrate";
 import { FAMOUS_METERS, type FamousMeter } from "@/data/seeds/meters";
+import FamousMeters from "./FamousMeters";
 
 /**
  * ماژولِ اصلیِ وزن‌یاب — پورتِ کاملِ رفتارِ صفحه‌ی زنده (۲۰۲۶-۱۱-۰۸).
@@ -95,7 +97,7 @@ function Segmented<T extends string>({
               <motion.span
                 layoutId={layoutId}
                 transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                className=" absolute inset-0 rounded-full bg-card shadow-sm"
+                className=" absolute inset-0 rounded-full bg-card shadow-sm dark:bg-white/12"
               />
             )}
             <span className=" relative">{o.label}</span>
@@ -161,14 +163,54 @@ export default function VaznYabScene() {
     setAudioState("idle");
   }, []);
 
-  const play = useCallback(async () => {
-    stop();
-    const mine = ++tokenRef.current;
-    setAudioState("preparing");
+  /** یک پارتیتورِ آماده را می‌نوازد. */
+  const playScore = useCallback(
+    async (score: ReturnType<typeof renderScore>) => {
+      stop();
+      const mine = ++tokenRef.current;
+      setAudioState("preparing");
+      if (!score.left.length) {
+        setAudioState("idle");
+        return;
+      }
+      if (!ctxRef.current) {
+        try {
+          ctxRef.current = new AudioContext();
+        } catch {
+          setAudioState("idle");
+          return;
+        }
+      }
+      const ac = ctxRef.current;
+      await ac.resume().catch(() => {});
+      if (mine !== tokenRef.current) return;
 
+      const buf = ac.createBuffer(2, score.left.length, score.sr);
+      buf.copyToChannel(score.left, 0);
+      buf.copyToChannel(score.right, 1);
+      const src = ac.createBufferSource();
+      src.buffer = buf;
+      src.connect(ac.destination);
+      const startAt = ac.currentTime + 0.06;
+      src.onended = () => {
+        if (sourceRef.current === src) {
+          sourceRef.current = null;
+          clock.current = null;
+          setAudioState("idle");
+        }
+      };
+      sourceRef.current = src;
+      clock.current = { ctx: ac, start: startAt, score };
+      src.start(startAt);
+      setAudioState("playing");
+    },
+    [stop],
+  );
+
+  /** دکمه‌ی «پخش ریتم»: پارتیتور را برای وزن و تنظیماتِ جاری می‌سازد و می‌نوازد. */
+  const play = useCallback(async () => {
     // یک بیت دو مصراعِ هم‌وزن دارد: الگو دو بار تکرار می‌شود.
     const hemis = buildHemis(feet);
-
     let score: ReturnType<typeof renderScore>;
     try {
       score = renderScore({
@@ -181,42 +223,8 @@ export default function VaznYabScene() {
       setAudioState("idle");
       return;
     }
-    if (mine !== tokenRef.current) return;
-    if (!score.left.length) {
-      setAudioState("idle");
-      return;
-    }
-
-    if (!ctxRef.current) {
-      try {
-        ctxRef.current = new AudioContext();
-      } catch {
-        setAudioState("idle");
-        return;
-      }
-    }
-    const ac = ctxRef.current;
-    await ac.resume().catch(() => {});
-
-    const buf = ac.createBuffer(2, score.left.length, score.sr);
-    buf.copyToChannel(score.left, 0);
-    buf.copyToChannel(score.right, 1);
-    const src = ac.createBufferSource();
-    src.buffer = buf;
-    src.connect(ac.destination);
-    const startAt = ac.currentTime + 0.06;
-    src.onended = () => {
-      if (sourceRef.current === src) {
-        sourceRef.current = null;
-        clock.current = null;
-        setAudioState("idle");
-      }
-    };
-    sourceRef.current = src;
-    clock.current = { ctx: ac, start: startAt, score };
-    src.start(startAt);
-    setAudioState("playing");
-  }, [feet, voicing, stop]);
+    await playScore(score);
+  }, [feet, voicing, playScore]);
 
   // تغییرِ وزن یا تنظیمات یعنی پخشِ پیشین بی‌اعتبار است
   useEffect(() => {
@@ -323,17 +331,22 @@ export default function VaznYabScene() {
   // ── بیتِ تصادفی از گنجور ───────────────────────────────────────────
   const [fetching, setFetching] = useState(false);
   const onRandom = async () => {
+    if (fetching) return; // محافظِ تکرارِ کلیک، مانندِ سایت
     setFetching(true);
     setError(null);
     try {
       const data = await fetchRandomBeyt();
+      tokenRef.current += 1; // جست‌وجویِ در راه را بی‌اعتبار می‌کند
       setRandomBeyt(data);
       setPoem1(data.couplet.first);
       setPoem2(data.couplet.second);
       reset();
+      setGuess([]);
     } catch (err) {
+      // همان قاعده‌ی سایت: پیامِ خودش را نشان بده، مگر اینکه از جنسِ
+      // abort/timeout/fetch باشد که در آن صورت پیامِ خودمان را می‌گذاریم.
       const msg = err instanceof Error ? err.message : "";
-      setError(/abort|timeout|fetch|unavailable|no-couplet/i.test(msg) ? GANJOOR_ERROR : msg || GANJOOR_ERROR);
+      setError(msg && !/abort|timeout|fetch/i.test(msg) ? msg : GANJOOR_ERROR);
     } finally {
       setFetching(false);
     }
@@ -362,12 +375,9 @@ export default function VaznYabScene() {
         ?.map((f) => marksText(f.marks))
         .join("   "),
     ].filter(Boolean);
-    try {
-      await navigator.clipboard.writeText(rows.join("\n"));
+    if (await copyText(rows.join("\n"))) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
-    } catch {
-      /* دسترسی نبود */
     }
   };
 
@@ -375,6 +385,30 @@ export default function VaznYabScene() {
   const stageHemis = useMemo(() => buildHemis(feet), [feet]);
 
   // همان `H()`ِ سایت: بیت با خطِ جدید جدا می‌شود.
+  /**
+   * برگزیدنِ یک وزن از «وزن‌های مشهور» — عیناً مانندِ سایت: وزن روی صحنه
+   * می‌نشیند و **بی‌درنگ** با دستگاه و آهنگِ خودِ آن وزن نواخته می‌شود
+   * (نه با تنظیماتِ دستیِ کاربر)، و اگر صحنه از دید خارج شده باشد صفحه می‌غلتد.
+   */
+  const pickFamous = useCallback(
+    (m: FamousMeter) => {
+      setSample(m);
+      setResult(null);
+      setNotFound(false);
+      setModeOverride(null); // تنظیماتِ دستی برای این وزن بی‌معناست
+      const v = voicingOf(m.feet, speedFactor);
+      const score = buildHemis(m.feet).length
+        ? renderScore({ hemis: buildHemis(m.feet), unit: v.unit, mode: v.mode, character: v.character })
+        : null;
+      if (score) void playScore(score);
+      const el = sectionRef.current;
+      if (el && el.getBoundingClientRect().top < 0) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    },
+    [speedFactor, playScore],
+  );
+
   const isDirty = !!showing && showing.couplet === `${(poem1 ?? "").trim()}\n${(poem2 ?? "").trim()}`;
   const busy = loading || fetching;
 
@@ -609,7 +643,7 @@ export default function VaznYabScene() {
                       />
                       <span
                         aria-hidden
-                        className=" pointer-events-none absolute inset-x-0 -bottom-px h-0.5 origin-right scale-x-0 rounded-full bg-primary transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] peer-focus:scale-x-100"
+                        className=" pointer-events-none absolute inset-x-0 -bottom-px h-0.5 origin-right scale-x-0 rounded-full bg-primary transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] peer-focus:scale-x-100 peer-aria-invalid:bg-destructive"
                       />
                     </span>
                   </label>
@@ -701,6 +735,9 @@ export default function VaznYabScene() {
           </form>
         </section>
       </div>
+
+      {/* «وزن‌های مشهور» در سایت هم داخلِ همین قاب است، نه بیرونِ آن. */}
+      <FamousMeters current={showing ? null : feet} playing={playing} onPick={pickFamous} />
     </div>
   );
 }
