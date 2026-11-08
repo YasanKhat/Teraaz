@@ -10,6 +10,7 @@ import { SiteContentProvider } from '@/lib/site/use-site-content'
 import PanelShell from '@/components/UI/panel/shell/PanelShell'
 import * as db from '@/platform/db'
 import * as auth from '@/platform/auth'
+import { currentUserId } from '@/platform/auth'
 
 
 import HomePage from '@/components/home/HomePage'
@@ -30,6 +31,7 @@ import ShabEmtehan from '@/pages/ShabEmtehan'
 import Club from '@/pages/Club'
 import Plus from '@/pages/Plus'
 import Panel from '@/pages/Panel'
+import PanelRoute from '@/pages/PanelRoute'
 import Auth from '@/pages/Auth'
 import Admin from '@/pages/Admin'
 import { NotFound } from '@/pages/NotFound'
@@ -95,7 +97,8 @@ function render(path: string): JSX.Element {
       return seg.length === 1 ? <Exam /> : <ExamRun examKey={seg[1]} />
 
     case 'panel':
-      return <Panel />
+      // پنل شانزده زیرصفحه دارد؛ `/panel` همان خانه است.
+      return seg.length === 1 ? <Panel /> : <PanelRoute sub={seg[1] ?? ''} userId={currentUserId()} />
     case 'auth':
       return <Auth />
     case 'about':

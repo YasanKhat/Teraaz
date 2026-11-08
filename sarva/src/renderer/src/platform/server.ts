@@ -71,14 +71,31 @@ function match(method: string, path: string): { route: Route; params: Record<str
 
 get('/api/v1/config', () => ok({ turnstileSiteKey: null }))
 
-get('/api/v1/site-content', () => {
-  const stored = db.findOne<{ id: string; announcement: string; supporters: unknown[] }>(
-    'site_content',
-    () => true
-  )
+/**
+ * محتوای قابل‌ویرایشِ سایت.
+ *
+ * ⚠️ این مسیر یک بذر دارد و این با بقیهٔ مسیرها فرق دارد: تا پیش از این،
+ * نبودِ ردیف در پایگاه یعنی `announcement: null`، و `useSiteContent` حالتِ
+ * «نیامده» را از «نبود» جدا نمی‌کند — هر دو یعنی چیزی نشان نده. نتیجه این
+ * بود که نوارِ اعلانِ بالای صفحه هرگز رندر نمی‌شد، در حالی که روی سایت
+ * نخستین چیزی است که دیده می‌شود.
+ *
+ * پس اگر کاربر چیزی در پایگاه ننوشته باشد، همان متنِ واقعیِ سایت برمی‌گردد
+ * (از `data/seeds/site-content.ts`). کاربر می‌تواند در پایگاهِ محلی عوضش کند
+ * و آن تازه جای این را می‌گیرد.
+ */
+get('/api/v1/site-content', async () => {
+  const stored = db.findOne<Record<string, unknown>>('site_content', () => true)
+  if (stored?.announcement || stored?.supporters) {
+    return ok({
+      announcement: stored.announcement ?? null,
+      supporters: stored.supporters ?? []
+    })
+  }
+  const { SITE_CONTENT_SEED } = await import('@/data/seeds/site-content')
   return ok({
-    announcement: stored?.announcement ?? null,
-    supporters: stored?.supporters ?? []
+    announcement: SITE_CONTENT_SEED.announcement,
+    supporters: SITE_CONTENT_SEED.supporters
   })
 })
 
@@ -300,13 +317,33 @@ post('/api/v1/quiz/attempt', ({ body, userId }) => {
   }
 
   const attemptId = db.uid()
+  const at = db.nowIso()
   if (userId) {
     db.insert('quiz_attempts', {
       id: attemptId,
       userId,
       total: answers.length,
       correct,
-      createdAt: db.nowIso()
+      createdAt: at
+    })
+
+    /* ⚠️ ردیفِ هر پاسخ هم ذخیره می‌شود، و این فقط برای آمار نیست.
+       «مرورِ آزمون» در پنل (`/panel/aruz`) باید بتواند همان بیت را دوباره
+       نشان دهد و بگوید تو کدام گزینه را زدی و کدام درست بود — بدون این
+       ردیف‌ها کارنامه فقط یک نمره است و بس. */
+    answers.forEach((a, index) => {
+      const q = a.questionId ? bank.get(a.questionId) : null
+      if (!q) return
+      const option = a.selectedOptionId ? q.options.find((o) => o.id === a.selectedOptionId) : null
+      db.insert('quiz_attempt_answers', {
+        id: db.uid(),
+        attemptId,
+        questionId: q.id,
+        selectedOptionId: option?.id ?? null,
+        isCorrect: !!option?.isCorrect,
+        createdAt: at,
+        order: index
+      })
     })
   }
   return ok({ attemptId, total: answers.length, correct })
@@ -335,14 +372,44 @@ get('/api/v1/vocab/words', ({ query }) => {
   return ok({ words })
 })
 
+/**
+ * ⚠️ واژه با همهٔ مشخصاتش ذخیره می‌شود و نه فقط شناسه‌اش.
+ *
+ * پنلِ واژه (`/panel/vocab`) باید نشان دهد کدام واژه را چند بار زدی، چند
+ * بار درست بود و آخرین بار کی — با معنی و تصویرش. اگر فقط `wordId` ذخیره
+ * می‌شد، آن جدول برای پنلِ تک‌نفره بی‌معنا بود: شناسه به یک واژه در
+ * مانیفست اشاره می‌کند، ولی پنل باید *همان واژه* را بیاورد و کنارِ آمار
+ * بگذارد. پس هنگامِ پاسخ، مشخصات از مانیفست خوانده و در ردیف نوشته
+ * می‌شود — یک بار در زمانِ پاسخ، به‌جایِ جست‌وجو در هر بار باز شدنِ پنل.
+ */
 post('/api/v1/vocab/answer', ({ body, userId }) => {
-  const b = (body ?? {}) as { wordId?: string; correct?: boolean }
+  const b = (body ?? {}) as {
+    wordId?: string
+    correct?: boolean
+    word?: string
+    meaning?: string
+    image?: string
+  }
   if (!userId) return ok({ saved: false, reason: 'guest' })
+
+  /* مشخصاتِ واژه یا همراهِ درخواست می‌آید یا از مانیفست پیدا می‌شود؛
+     هر دو راه کار می‌کند تا اگر بازی روزی چیزی فرستاد که نشناختیم،
+     ردیف بی‌نام نماند. */
+  const id = String(b.wordId ?? '')
+  const fromManifest = vocabManifest().find((w) => `${w.grade}-${w.lesson}` === id.split('-').slice(0, 2).join('-'))
+  const grade = id.split('-')[0] ?? ''
+  const lesson = Number(id.split('-')[1] ?? '0') || null
+
   db.insert('vocab_answers', {
     id: db.uid(),
     userId,
-    wordId: String(b.wordId ?? ''),
-    correct: !!b.correct,
+    wordId: id,
+    grade,
+    lesson,
+    word: String(b.word ?? fromManifest?.word ?? ''),
+    meaning: String(b.meaning ?? fromManifest?.meaning ?? ''),
+    image: String(b.image ?? fromManifest?.path ?? ''),
+    isCorrect: !!b.correct,
     answeredAt: db.nowIso()
   })
   return ok({ saved: true })

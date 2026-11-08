@@ -1,11 +1,10 @@
-
-import { query, queryOne, placeholders } from "@/lib/db";
-import { quizQuestionWeight } from "@/lib/quiz/weight";
-import { getCurrentUser } from "@/lib/auth/current-user";
-import { tehranDayAvailable } from "@/lib/analytics/timezone";
-import type { DailyState } from "@/lib/analytics/daily";
+import { quizQuestionWeight } from '@/lib/quiz/weight'
+import { quizBank, type QuizQuestion } from '@/platform/quiz-bank'
+import { getCurrentUser } from '@/lib/auth/current-user'
+import * as db from '@/platform/db'
 import type {
   AruzAttempt,
+  AruzOption,
   AruzQuestionType,
   Bookmark,
   BookmarkArea,
@@ -14,768 +13,529 @@ import type {
   PanelUser,
   PracticeArea,
   RangAraAnswer,
-  VocabAnswer,
-} from "@/lib/panel/types";
+  VocabAnswer
+} from '@/lib/panel/types'
 
-// re-exported so server pages can keep importing everything from one place
-export * from "@/lib/panel/types";
-
-/** خواندنِ سمت‌سرورِ پنل کاربر.
+/**
+ * خواندنِ پنل کاربر — نسخهٔ دسکتاپ.
  *
- *  هر تابع اینجا با یک شرط صریح روی user_id محدود شده. تا دیروز آن شرط
- *  «اضافه ولی مفید» بود چون RLS هم پشتش ایستاده بود؛ حالا تنها چیزی است که
- *  داده‌های یک دانش‌آموز را از دیگری جدا می‌کند — پس هیچ‌کدام از این توابع
- *  نباید بدون آن فراخوانی شوند، و هیچ‌کدام userId را از ورودی کاربر
- *  نمی‌گیرند: صفحه‌ها آن را از getPanelUser() می‌گیرند که سشن را می‌خواند. */
+ * این همان `lib/panel/queries.ts`ِ سرواست با یک تفاوت: به‌جای ۲۱ کوئریِ SQL،
+ * ردیف‌ها از فروشگاهِ محلی خوانده می‌شوند. امضاها، نام‌ها و **معنا**ی هر تابع
+ * همان است، چون شانزده صفحهٔ پنل و چندین کامپوننت با همین نام‌ها صدایشان
+ * می‌زنند و تغییرِ شکل یعنی بازنویسیِ همهٔ آن‌ها.
+ *
+ * ⚠️ ستون‌های فروشگاهِ محلی camelCase است (`isCorrect`, `answeredAt`) و نه
+ * snake_caseِ دیتابیس (`is_correct`, `answered_at`)؛ پس هر جا نسخهٔ اصلی یک
+ * ردیفِ خام می‌خواند، اینجا نامِ محلی نوشته شده.
+ *
+ * ⚠️ آن گاردِ عجیبِ `tehranDayAvailable` اینجا نیست. روی سرور لازم بود چون
+ * `CONVERT_TZ` در MySQL اگر جدول‌های منطقهٔ زمانی بار نباشد **بی‌هیچ خطایی
+ * NULL** برمی‌گرداند و همهٔ ردیف‌ها در یک سطل می‌افتادند — یعنی نمودار عددی
+ * غلط نشان می‌داد. اینجا تاریخ با `Intl`ِ خودِ مرورگر و روی همین دستگاه
+ * حساب می‌شود، پس همیشه درست است و آن حالتِ «unavailable» هرگز پیش نمی‌آید.
+ */
+
+// re-exported so pages can keep importing everything from one place
+export * from '@/lib/panel/types'
+
+/** روز به وقتِ تهران — همان منطقه‌ای که کلاینتِ سایت حساب می‌کرد. */
+function tehranDay(iso: string): string | null {
+  const at = new Date(iso)
+  if (Number.isNaN(at.getTime())) return null
+  try {
+    // `en-CA` میلادیِ مرتب با خط‌تیره می‌دهد: 2026-11-08
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Tehran',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(at)
+  } catch {
+    return at.toISOString().slice(0, 10)
+  }
+}
 
 export async function getPanelUser(): Promise<PanelUser | null> {
-  const user = await getCurrentUser();
-  if (!user) return null;
+  const user = await getCurrentUser()
+  if (!user) return null
 
   return {
     id: user.id,
     email: user.email,
-    fullName: user.fullName || "دانش‌آموز",
-    createdAt: user.createdAt,
-  };
+    fullName: user.fullName || 'دانش‌آموز',
+    createdAt: user.createdAt
+  }
 }
 
-// ---------------------------------------------------------------- عروض ----
+/* ═════════════════════════════════════════════════════════════════ عروض ══ */
 
-/** تلاش‌های گذشتهٔ عروض، با هرچه مرور لازم دارد: صورت سؤال (بیت یا صوت)، همهٔ
- *  گزینه‌ها، اینکه دانش‌آموز کدام را زد و کدام درست بود. بدون گزینه‌ها چیزی
- *  برای گوش دادن دوباره نمی‌ماند — که کل هدف مرور یک آزمون سماعی است. */
+/**
+ * تلاش‌های گذشتهٔ عروض، با هرچه مرور لازم دارد: صورت سؤال (بیت یا صوت)،
+ * همهٔ گزینه‌ها، اینکه دانش‌آموز کدام را زد و کدام درست بود. بدون گزینه‌ها
+ * چیزی برای گوش دادن دوباره نمی‌ماند — که کل هدف مرور یک آزمون سماعی است.
+ */
 export async function getAruzAttempts(
   userId: string,
   offset = 0,
-  limit = 5,
+  limit = 5
 ): Promise<{ attempts: AruzAttempt[]; hasMore: boolean }> {
-  // یک ردیف بیشتر از صفحه خوانده می‌شود، فقط برای فهمیدن اینکه دکمهٔ «بارگیری
-  // بیشتر» لازم است یا نه — ارزان‌تر و مطمئن‌تر از یک کوئری شمارش دوم.
-  const attemptRows = await query<{
-    id: string;
-    total: number;
-    correct: number;
-    created_at: string;
-  }>(
-    `select id, total, correct, created_at
-       from quiz_attempts
-      where user_id = ?
-      order by created_at desc
-      limit ? offset ?`,
-    [userId, limit + 1, offset],
-  );
+  const all = db
+    .find<{ id: string; userId: string; total: number; correct: number; createdAt: string }>(
+      'quiz_attempts',
+      (r) => r.userId === userId
+    )
+    .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')))
 
-  const hasMore = attemptRows.length > limit;
-  const page = attemptRows.slice(0, limit);
-  if (page.length === 0) return { attempts: [], hasMore: false };
+  const hasMore = all.length > offset + limit
+  const page = all.slice(offset, offset + limit)
+  if (page.length === 0) return { attempts: [], hasMore: false }
 
-  const attemptIds = page.map((a) => a.id);
+  const attemptIds = new Set(page.map((a) => a.id))
+  const answerRows = db
+    .find<{
+      attemptId: string
+      id: string
+      isCorrect: boolean
+      selectedOptionId: string | null
+      questionId: string | null
+      createdAt: string
+      order: number
+    }>('quiz_attempt_answers', (r) => attemptIds.has(r.attemptId as string))
+    .sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0))
 
-  // پاسخ‌ها + سؤال + همهٔ گزینه‌های آن سؤال، در یک کوئری.
-  //
-  // گزینه‌ها با یک زیرکوئریِ json می‌آیند و نه با JOIN دیگر: با JOIN، هر پاسخ
-  // به تعداد گزینه‌هایش تکرار می‌شد و باید در کد دوباره یکتا می‌شد.
-  const answerRows = await query<{
-    attempt_id: string;
-    id: string;
-    is_correct: boolean;
-    selected_option_id: string | null;
-    question_id: string | null;
-    q_type: string | null;
-    q_poem: string[] | null;
-    q_audio_url: string | null;
-  }>(
-    `select ans.attempt_id, ans.id, ans.is_correct, ans.selected_option_id,
-            q.id as question_id, q.type as q_type, q.poem as q_poem, q.audio_url as q_audio_url
-       from quiz_attempt_answers ans
-       left join questions q on q.id = ans.question_id
-      where ans.attempt_id in (${placeholders(attemptIds.length)})
-      order by ans.created_at, ans.id`,
-    attemptIds,
-  );
+  // سؤال‌ها از بانک می‌آیند: همان ۱۱۳۹ پرسشی که در آزمون دیده شده‌اند.
+  const bank = bankById()
+  const byAttempt = new Map<string, AruzAttempt['answers']>()
 
-  // ⚠️ گزینه‌ها جدا خوانده می‌شوند و نه با تجمیعِ JSON داخلِ همان کوئری.
-  //
-  // نسخهٔ PostgreSQL از `json_agg(… order by o.x, o.id)` استفاده می‌کرد.
-  // معادلِ MySQL یعنی JSON_ARRAYAGG ترتیبش تضمین نشده است، و ترتیبِ
-  // گزینه‌ها همان چیزی است که کاربر در کارنامه‌اش می‌بیند.
-  const questionIds = [...new Set(answerRows.map((r) => r.question_id).filter((id): id is string => id !== null))];
-  const optionRows = questionIds.length
-    ? await query<{
-        question_id: string;
-        id: string;
-        label: string | null;
-        poem: string[] | null;
-        audio_url: string | null;
-        is_correct: boolean;
-      }>(
-        `select question_id, id, label, poem, audio_url, is_correct
-           from question_options
-          where question_id in (${placeholders(questionIds.length)})
-          order by x, id`,
-        questionIds,
-      )
-    : [];
-
-  const optionsByQuestion = new Map<string, typeof optionRows>();
-  for (const o of optionRows) {
-    const list = optionsByQuestion.get(o.question_id);
-    if (list) list.push(o);
-    else optionsByQuestion.set(o.question_id, [o]);
-  }
-
-  const byAttempt = new Map<string, AruzAttempt["answers"]>();
   for (const r of answerRows) {
-    const list = byAttempt.get(r.attempt_id) ?? [];
+    const q = r.questionId ? bank.get(r.questionId as string) : undefined
+    const options: AruzOption[] = (q?.options ?? []).map((o) => ({
+      id: o.id,
+      label: o.label ?? null,
+      poem: o.poem ?? null,
+      audioUrl: o.audioSrc ?? null,
+      isCorrect: o.isCorrect
+    }))
+
+    const list = byAttempt.get(r.attemptId as string) ?? []
     list.push({
       id: r.id,
-      isCorrect: r.is_correct,
-      selectedOptionId: r.selected_option_id,
-      questionId: r.question_id,
-      type: (r.q_type ?? null) as AruzQuestionType | null,
-      poem: r.q_poem,
-      audioUrl: r.q_audio_url,
-      options: (r.question_id ? (optionsByQuestion.get(r.question_id) ?? []) : []).map((o) => ({
-        id: o.id,
-        label: o.label,
-        poem: o.poem,
-        audioUrl: o.audio_url,
-        isCorrect: o.is_correct,
-      })),
-    });
-    byAttempt.set(r.attempt_id, list);
+      isCorrect: !!r.isCorrect,
+      selectedOptionId: r.selectedOptionId ?? null,
+      questionId: r.questionId ?? null,
+      type: (q?.type ?? null) as AruzQuestionType | null,
+      poem: q?.poem ?? null,
+      audioUrl: q?.audioSrc ?? null,
+      options
+    })
+    byAttempt.set(r.attemptId as string, list)
   }
 
   return {
     attempts: page.map((a) => ({
       id: a.id,
-      total: a.total,
-      correct: a.correct,
-      createdAt: a.created_at,
-      answers: byAttempt.get(a.id) ?? [],
+      total: Number(a.total ?? 0),
+      correct: Number(a.correct ?? 0),
+      createdAt: a.createdAt,
+      answers: byAttempt.get(a.id) ?? []
     })),
-    hasMore,
-  };
+    hasMore
+  }
 }
 
-/** نمرهٔ همهٔ تلاش‌ها، بدون پاسخ‌ها.
- *
- *  فهرست صفحه‌بندی می‌شود، ولی «بهترین عملکرد» و جمع‌ها کل تاریخچه را توصیف
- *  می‌کنند — پس کوئری خودشان را دارند. حالا کلِ جمع‌بندی هم در دیتابیس انجام
- *  می‌شود، به‌جای کشیدن همهٔ ردیف‌ها و reduce کردنشان در جاوااسکریپت. */
-export async function getAruzSummary(userId: string): Promise<{
-  attempts: number;
-  best: number;
-  questions: number;
-  correct: number;
-}> {
-  const row = await queryOne<{
-    attempts: number;
-    best: number | null;
-    questions: number;
-    correct: number;
-  }>(
-    `select count(*)                                   as attempts,
-            max(case when total > 0
-                     then round(correct * 100 / total)
-                     else 0 end)                       as best,
-            coalesce(sum(total), 0)                    as questions,
-            coalesce(sum(correct), 0)                  as correct
-       from quiz_attempts
-      where user_id = ?`,
-    [userId],
-  );
+/**
+ * سؤال‌ها در یک جدول نیستند: همان ۱۱۳۹ پرسشِ بذر هستند و `quizBank()` آن‌ها
+ * را یک بار می‌خواند. پس «سؤالِ این پاسخ کدام بود» با یک جست‌وجو در همان
+ * بانک جواب داده می‌شود، نه با هیچ کوئری.
+ */
+function bankById(): Map<string, QuizQuestion> {
+  return new Map(quizBank().map((q) => [q.id, q]))
+}
+
+/** نمرهٔ همهٔ تلاش‌ها، بدون پاسخ‌ها. */
+export async function getAruzSummary(
+  userId: string
+): Promise<{ attempts: number; best: number; questions: number; correct: number }> {
+  const rows = db.find<{ userId: string; total: number; correct: number }>(
+    'quiz_attempts',
+    (r) => r.userId === userId
+  )
+  const best = rows.reduce((max, r) => {
+    const total = Number(r.total ?? 0)
+    return total > 0 ? Math.max(max, Math.round((Number(r.correct ?? 0) * 100) / total)) : max
+  }, 0)
 
   return {
-    attempts: row?.attempts ?? 0,
-    best: row?.best ?? 0,
-    questions: row?.questions ?? 0,
-    correct: row?.correct ?? 0,
-  };
+    attempts: rows.length,
+    best,
+    questions: rows.reduce((n, r) => n + Number(r.total ?? 0), 0),
+    correct: rows.reduce((n, r) => n + Number(r.correct ?? 0), 0)
+  }
 }
 
 /** تاریخچهٔ خام هر پاسخ، برای نمودار فعالیت و streak. */
 export async function getAruzActivity(userId: string): Promise<{ at: string; ok: boolean }[]> {
-  const rows = await query<{ is_correct: boolean; answered_at: string }>(
-    `select is_correct, answered_at
-       from user_answers
-      where user_id = ?
-      order by answered_at desc
-      limit 2000`,
-    [userId],
-  );
-
-  return rows.map((r) => ({ at: r.answered_at, ok: r.is_correct }));
+  return db
+    .find<{ userId: string; isCorrect: boolean; answeredAt: string }>(
+      'quiz_answers',
+      (r) => r.userId === userId
+    )
+    .sort((a, b) => String(b.answeredAt ?? '').localeCompare(String(a.answeredAt ?? '')))
+    .slice(0, 2000)
+    .map((r) => ({ at: r.answeredAt, ok: !!r.isCorrect }))
 }
 
-/** دقت به تفکیک وزن عروضی.
- *
- *  وزنِ هر سؤال از `quizQuestionWeight` می‌آید — برای بیت→صوت و صوت→بیت از
- *  نامِ فایلِ صوتی، و فقط وقتی آن فایل یکی از ضبط‌های شناخته‌شدهٔ وزن باشد.
- *  سؤالی که وزنش قابلِ خواندن نیست در جمعِ کل هست ولی به هیچ وزنی نسبت داده
- *  نمی‌شود — وانمود کردن خلافش یعنی ساختنِ داده‌ای که وجود ندارد. */
-/** هر پاسخِ عروض با وزنِ درستش — ورودیِ `toSkillTiles` برای کاشی‌های وزن. */
 export async function getAruzWeightAnswers(
-  userId: string,
+  userId: string
 ): Promise<{ key: string; label: string; correct: boolean; at: string }[]> {
-  const rows = await query<{
-    is_correct: boolean;
-    answered_at: string;
-    type: string | null;
-    poem: unknown;
-    audio_url: string | null;
-    correct_label: string | null;
-    correct_audio: string | null;
-  }>(
-    `select ua.is_correct, ua.answered_at, q.type, q.poem, q.audio_url,
-            o.label as correct_label, o.audio_url as correct_audio
-       from user_answers ua
-       join questions q on q.id = ua.question_id
-       left join question_options o
-         on o.id = (select o2.id from question_options o2
-                     where o2.question_id = q.id and o2.is_correct limit 1)
-      where ua.user_id = ?
-      order by ua.answered_at desc
-      limit 3000`,
-    [userId],
-  );
+  const bank = bankById()
+  const rows = db
+    .find<{ userId: string; questionId: string; isCorrect: boolean; answeredAt: string }>(
+      'quiz_answers',
+      (r) => r.userId === userId
+    )
+    .sort((a, b) => String(b.answeredAt ?? '').localeCompare(String(a.answeredAt ?? '')))
+    .slice(0, 3000)
 
-  const out: { key: string; label: string; correct: boolean; at: string }[] = [];
+  const out: { key: string; label: string; correct: boolean; at: string }[] = []
   for (const row of rows) {
+    const q = bank.get(row.questionId as string)
+    const options = q?.options ?? []
+    const correctOption = options.find((o) => o.isCorrect) ?? null
     const weight = quizQuestionWeight({
-      type: row.type,
-      poem: row.poem,
-      audioUrl: row.audio_url,
-      correctLabel: row.correct_label,
-      correctAudioUrl: row.correct_audio,
-    });
-    if (weight) out.push({ key: weight, label: weight, correct: row.is_correct, at: row.answered_at });
+      type: q?.type ?? null,
+      poem: q?.poem ?? null,
+      audioUrl: q?.audioSrc ?? null,
+      correctLabel: correctOption?.label ?? null,
+      correctAudioUrl: correctOption?.audioSrc ?? null
+    })
+    if (weight) out.push({ key: weight, label: weight, correct: !!row.isCorrect, at: row.answeredAt })
   }
-  return out;
+  return out
 }
 
-// ------------------------------------------------------------ واژه‌یاب ----
+/* ═════════════════════════════════════════════════════════════════ واژه ══ */
 
-/** یک صفحه از پاسخ‌های واژه‌یاب، از تازه به قدیم. */
 export async function getVocabAnswers(
   userId: string,
   offset = 0,
-  limit = 150,
+  limit = 150
 ): Promise<{ answers: VocabAnswer[]; hasMore: boolean }> {
-  const rows = await query<{
-    id: string;
-    grade: string;
-    lesson: number | null;
-    word: string;
-    meaning: string;
-    image: string | null;
-    is_correct: boolean;
-    answered_at: string;
-  }>(
-    `select id, grade, lesson, word, meaning, image, is_correct, answered_at
-       from vocab_answers
-      where user_id = ?
-      order by answered_at desc
-      limit ? offset ?`,
-    [userId, limit + 1, offset],
-  );
+  const all = db
+    .find<Record<string, unknown>>('vocab_answers', (r) => r.userId === userId)
+    .sort((a, b) => String(b.answeredAt ?? '').localeCompare(String(a.answeredAt ?? '')))
 
+  const hasMore = all.length > offset + limit
   return {
-    answers: rows.slice(0, limit).map((r) => ({
-      id: r.id,
-      grade: r.grade ?? "",
-      lesson: r.lesson,
-      word: r.word ?? "",
-      meaning: r.meaning ?? "",
-      image: r.image ?? "",
-      isCorrect: r.is_correct,
-      answeredAt: r.answered_at,
-    })),
-    hasMore: rows.length > limit,
-  };
+    answers: all.slice(offset, offset + limit).map(toVocabAnswer),
+    hasMore
+  }
 }
 
-/**
- * واژه‌یاب به تفکیکِ پایه، درس و واژه — برای نقشهٔ درس‌های پنل.
- *
- * `last_ok` نتیجهٔ *آخرین* بارِ همان واژه است: «الان بلدی یا نه» را همان
- * می‌گوید، نه میانگینِ همهٔ تاریخ.
- */
+function toVocabAnswer(r: Record<string, unknown>): VocabAnswer {
+  // ⚠️ `isCorrect` نامِ ستونِ محلی است؛ `correct` نامی است که ردیف‌های قدیمی
+  // (و مسیرِ جاسوس) می‌نویسند. هر دو پذیرفته می‌شود تا پنل با ردیف‌های
+  // پیش از این اصلاح هم کار کند.
+  const ok = r.isCorrect ?? r.correct
+  return {
+    id: String(r.id ?? ''),
+    grade: String(r.grade ?? ''),
+    lesson: (r.lesson as number | null) ?? null,
+    word: String(r.word ?? ''),
+    meaning: String(r.meaning ?? ''),
+    image: String(r.image ?? ''),
+    isCorrect: !!ok,
+    answeredAt: String(r.answeredAt ?? '')
+  }
+}
+
 export async function getVocabLessonWords(userId: string): Promise<
   { grade: string; lesson: number; word: string; total: number; correct: number; lastOk: boolean; lastAt: string }[]
 > {
-  const rows = await query<{
-    grade: string;
-    lesson: number;
-    word: string;
-    total: number;
-    correct: number;
-    last_ok: string;
-    last_at: string;
-  }>(
-    `select grade, lesson, word, count(*) as total, sum(is_correct) as correct,
-            substring_index(group_concat(is_correct order by answered_at desc), ',', 1) as last_ok,
-            max(answered_at) as last_at
-       from vocab_answers
-      where user_id = ?
-      group by grade, lesson, word
-      limit 5000`,
-    [userId],
-  );
-  return rows.map((r) => ({
-    grade: r.grade,
-    lesson: Number(r.lesson),
-    word: r.word,
-    total: Number(r.total),
-    correct: Number(r.correct),
-    lastOk: String(r.last_ok) === "1",
-    lastAt: r.last_at,
-  }));
+  const rows = db
+    .find<Record<string, unknown>>('vocab_answers', (r) => r.userId === userId)
+    .sort((a, b) => String(b.answeredAt ?? '').localeCompare(String(a.answeredAt ?? '')))
+
+  const byWord = new Map<string, ReturnType<typeof toVocabAnswer>[]>()
+  for (const r of rows) {
+    const a = toVocabAnswer(r)
+    if (!a.word) continue
+    const key = `${a.grade}|${a.lesson ?? 0}|${a.word}`
+    const list = byWord.get(key)
+    if (list) list.push(a)
+    else byWord.set(key, [a])
+  }
+
+  return [...byWord.values()].slice(0, 5000).map((list) => {
+    const head = list[0]
+    return {
+      grade: head.grade,
+      lesson: Number(head.lesson ?? 0),
+      word: head.word,
+      total: list.length,
+      correct: list.filter((a) => a.isCorrect).length,
+      lastOk: head.isCorrect,
+      lastAt: head.answeredAt
+    }
+  })
 }
 
-/** تعدادِ واژه‌های هر درس در بانک — مخرجِ «چند واژه از این درس را دیده‌ای». */
-export async function getVocabLessonTotals(): Promise<{ grade: string; lesson: number; words: number }[]> {
-  const rows = await query<{ grade: string; lesson: number; words: number }>(
-    `select grade, lesson, count(*) as words from vocab_words group by grade, lesson`,
-  );
-  return rows.map((r) => ({ grade: r.grade, lesson: Number(r.lesson), words: Number(r.words) }));
+export async function getVocabLessonTotals(): Promise<
+  { grade: string; lesson: number; words: number }[]
+> {
+  const seen = new Map<string, number>()
+  for (const w of vocabWords()) {
+    const key = `${w.grade}|${w.lesson}`
+    seen.set(key, (seen.get(key) ?? 0) + 1)
+  }
+  return [...seen.entries()].map(([key, words]) => {
+    const [grade, lesson] = key.split('|')
+    return { grade, lesson: Number(lesson), words }
+  })
 }
 
-/** هر پاسخ واژه‌یاب، سه ستون عرض — برای دقت، streak، روند روزانه و تفکیک
- *  کتاب کافی است، بدون کشیدن واژه و معنی و آدرس تصویر برای رسیدن به یک عدد. */
+let wordsCache: { grade: string; lesson: number }[] | null = null
+function vocabWords(): { grade: string; lesson: number }[] {
+  if (!wordsCache) {
+    wordsCache = db.find<{ grade: string; lesson: number }>('vocab_words', () => true)
+  }
+  return wordsCache
+}
+
 export async function getVocabSummary(
-  userId: string,
+  userId: string
 ): Promise<{ grade: string; ok: boolean; at: string }[]> {
-  const rows = await query<{ grade: string; is_correct: boolean; answered_at: string }>(
-    `select grade, is_correct, answered_at
-       from vocab_answers
-      where user_id = ?
-      order by answered_at desc
-      limit 5000`,
-    [userId],
-  );
-
-  return rows.map((r) => ({ grade: r.grade ?? "", ok: r.is_correct, at: r.answered_at }));
+  return db
+    .find<Record<string, unknown>>('vocab_answers', (r) => r.userId === userId)
+    .sort((a, b) => String(b.answeredAt ?? '').localeCompare(String(a.answeredAt ?? '')))
+    .slice(0, 5000)
+    .map((r) => ({
+      grade: String(r.grade ?? ''),
+      ok: !!(r.isCorrect ?? r.correct),
+      at: String(r.answeredAt ?? '')
+    }))
 }
 
-// ------------------------------------------------------------- رنگ‌آرا ----
+/* ══════════════════════════════════════════════════════════════ رنگ‌آرا ══ */
 
 export async function getRangAraAnswers(userId: string): Promise<RangAraAnswer[]> {
-  const rows = await query<{
-    play_id: string;
-    verse_key: string;
-    grade: string | null;
-    lesson: number | null;
-    verse: string;
-    step_index: number;
-    concept: string;
-    mistakes: number;
-    is_correct: boolean;
-    answered_at: string;
-  }>(
-    `select play_id, verse_key, grade, lesson, verse, step_index, concept, mistakes, is_correct, answered_at
-       from rang_ara_answers
-      where user_id = ?
-      order by answered_at desc, step_index
-      limit 3000`,
-    [userId],
-  );
-  return rows.map((r) => ({
-    playId: r.play_id,
-    verseKey: r.verse_key,
-    grade: r.grade,
-    lesson: r.lesson,
-    verse: r.verse,
-    step: Number(r.step_index),
-    concept: r.concept,
-    mistakes: Number(r.mistakes),
-    isCorrect: r.is_correct,
-    answeredAt: r.answered_at,
-  }));
+  return db
+    .find<Record<string, unknown>>('rang_ara_answers', (r) => r.userId === userId)
+    .sort((a, b) => String(b.answeredAt ?? '').localeCompare(String(a.answeredAt ?? '')))
+    .slice(0, 3000)
+    .map((r) => ({
+      playId: String(r.playId ?? r.id ?? ''),
+      verseKey: String(r.verseKey ?? r.levelId ?? ''),
+      grade: (r.grade as string | null) ?? null,
+      lesson: (r.lesson as number | null) ?? null,
+      verse: String(r.verse ?? ''),
+      step: Number(r.step ?? r.stepIndex ?? 0),
+      concept: String(r.concept ?? ''),
+      mistakes: Number(r.mistakes ?? 0),
+      isCorrect: !!(r.isCorrect ?? r.correct),
+      answeredAt: String(r.answeredAt ?? '')
+    }))
 }
 
-/** چند بیتِ منتشرشده در هر درس — مخرجِ «چند بیت از این درس را رفته‌ای». */
-export async function getRangAraLessonTotals(): Promise<{ grade: string; lesson: number; verses: number }[]> {
-  const rows = await query<{ grade: string; lesson: number; verses: number }>(
-    `select grade, lesson, count(*) as verses
-       from rang_ara_verses
-      where is_published = 1 and grade is not null
-      group by grade, lesson`,
-  );
-  return rows.map((r) => ({ grade: r.grade, lesson: Number(r.lesson), verses: Number(r.verses) }));
+export async function getRangAraLessonTotals(): Promise<
+  { grade: string; lesson: number; verses: number }[]
+> {
+  const seen = new Map<string, number>()
+  for (const v of db.find<Record<string, unknown>>('rang_ara_verses', () => true)) {
+    if (!v.grade) continue
+    const key = `${v.grade}|${v.lesson ?? 0}`
+    seen.set(key, (seen.get(key) ?? 0) + 1)
+  }
+  return [...seen.entries()].map(([key, verses]) => {
+    const [grade, lesson] = key.split('|')
+    return { grade, lesson: Number(lesson), verses }
+  })
 }
 
-// ------------------------------------------------------- امتحان نهایی ----
+/* ═══════════════════════════════════════════════════════════════ امتحان ══ */
 
-/** کارنامه‌های امتحان نهایی.
- *
- *  نسخهٔ قبلی اینجا مجبور بود کلاینت service-role بسازد، چون exam_attempts
- *  هیچ policy ای برای کاربر عادی نداشت و خواندنش با کلید anon
- *  «permission denied» می‌داد. حالا فقط یک کوئری معمولی است — آنچه دسترسی را
- *  محدود می‌کند شرط user_id است و اینکه فراخوان آن را از سشن گرفته. */
-/**
- * فقط شمارنده‌های کارنامهٔ امتحان — بدونِ آوردنِ حتی یک ردیف.
- *
- * ⚠️ چرا: صفحهٔ اولِ پنل سه عدد می‌خواهد (تعداد، بهترین، میانگین) و برای
- * همان `getExamAttempts` را صدا می‌زد، که *هر* کارنامه را با
- * `question_results` و `answers` می‌آورد — یعنی جزئیاتِ تک‌تکِ سؤال‌ها.
- * روی کاربری با ۶۰ کارنامهٔ چهل‌سؤالی، ۴۸ کیلوبایت jsonb خوانده می‌شد تا سه
- * عدد ساخته شود. حالا هیچ ردیفی منتقل نمی‌شود.
- */
 export async function getExamStats(
-  userId: string,
+  userId: string
 ): Promise<{ attempts: number; best: number; average: number }> {
-  const row = await queryOne<{ attempts: number; best: number | null; score: number; max: number }>(
-    `select count(*)                                    as attempts,
-            max(case when max_score > 0
-                     then round(total_score * 100 / max_score)
-                     else 0 end)                             as best,
-            coalesce(sum(total_score), 0)                    as score,
-            coalesce(sum(max_score), 0)                      as max
-       from exam_attempts
-      where user_id = ?`,
-    [userId],
-  );
-  const max = Number(row?.max ?? 0);
+  const rows = db.find<Record<string, unknown>>('exam_attempts', (r) => r.userId === userId)
+  const best = rows.reduce((max, r) => {
+    const maxScore = Number(r.maxScore ?? 0)
+    return maxScore > 0
+      ? Math.max(max, Math.round((Number(r.totalScore ?? 0) * 100) / maxScore))
+      : max
+  }, 0)
+  const totalMax = rows.reduce((n, r) => n + Number(r.maxScore ?? 0), 0)
+  const totalScore = rows.reduce((n, r) => n + Number(r.totalScore ?? 0), 0)
+
   return {
-    attempts: row?.attempts ?? 0,
-    best: Number(row?.best ?? 0),
-    average: max ? Math.round((Number(row?.score ?? 0) * 100) / max) : 0,
-  };
+    attempts: rows.length,
+    best,
+    average: totalMax ? Math.round((totalScore * 100) / totalMax) : 0
+  }
 }
 
-/**
- * جزئیاتِ یک کارنامه — فقط وقتی کاربر بازش می‌کند.
- *
- * ⚠️ شرطِ user_id اینجا امنیتی است، نه فیلترِ راحتی: بدونِ آن هر کسی با
- * داشتنِ یک شناسه می‌توانست کارنامهٔ نفرِ دیگری را بخواند. RLS نداریم و
- * تنها چیزی که جلویش را می‌گیرد همین شرط است.
- */
 export async function getExamAttemptDetail(
   userId: string,
-  attemptId: string,
+  attemptId: string
 ): Promise<{ questionResults: Record<string, unknown>; answers: Record<string, unknown> } | null> {
-  const row = await queryOne<{
-    question_results: Record<string, unknown> | null;
-    answers: Record<string, unknown> | null;
-  }>(
-    `select question_results, answers
-       from exam_attempts
-      where id = ? and user_id = ?`,
-    [attemptId, userId],
-  );
-  if (!row) return null;
-  return { questionResults: row.question_results ?? {}, answers: row.answers ?? {} };
+  const row = db.findOne<Record<string, unknown>>(
+    'exam_attempts',
+    (r) => r.id === attemptId && r.userId === userId
+  )
+  if (!row) return null
+  return {
+    questionResults: (row.questionResults as Record<string, unknown>) ?? {},
+    answers: (row.answers as Record<string, unknown>) ?? {}
+  }
 }
 
-export async function getExamAttempts(
-  userId: string,
-  /** ⚠️ محافظ، نه صفحه‌بندی.
-   *
-   *  پیش از این هیچ limitی نبود و فهرست بی‌مرز رشد می‌کرد. ولی صفحهٔ
-   *  کارنامه‌ها دکمهٔ «بیشتر» ندارد، پس سقفِ کوچک یعنی پنهان شدنِ بی‌صدای
-   *  کارنامه‌های قدیمی — که خودش یک باگ است. عدد آن‌قدر بزرگ است که کاربر
-   *  واقعی به آن نخورد و فقط جلوی حالتِ فاجعه‌بار را بگیرد.
-   *
-   *  اگر روزی کسی واقعاً از این رد شد، راهِ درست صفحه‌بندیِ واقعی با UI
-   *  است، نه پایین آوردنِ این عدد. */
-  limit = 500,
-): Promise<ExamAttempt[]> {
-  const rows = await query<{
-    id: string;
-    total_score: number;
-    max_score: number;
-    created_at: string;
-    question_results: Record<string, { score?: number; max?: number }> | null;
-    answers: Record<string, unknown> | null;
-    exam_title: string | null;
-    exam_session: string | null;
-  }>(
-    `select a.id, a.total_score, a.max_score, a.created_at,
-            a.question_results, a.answers,
-            e.title as exam_title, e.exam_session
-       from exam_attempts a
-       left join exams e on e.id = a.exam_id
-      where a.user_id = ?
-      order by a.created_at desc, a.id
-      limit ?`,
-    [userId, limit],
-  );
-
-  return rows.map((r) => ({
-    id: r.id,
-    examTitle: r.exam_title ?? "آزمون",
-    examKey: r.exam_session,
-    answers: r.answers,
-    totalScore: r.total_score,
-    maxScore: r.max_score,
-    createdAt: r.created_at,
-    results: r.question_results ?? {},
-  }));
+export async function getExamAttempts(userId: string, limit = 500): Promise<ExamAttempt[]> {
+  return db
+    .find<Record<string, unknown>>('exam_attempts', (r) => r.userId === userId)
+    .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')))
+    .slice(0, limit)
+    .map((r) => ({
+      id: String(r.id ?? ''),
+      examTitle: String(r.examTitle ?? 'آزمون'),
+      examKey: (r.examKey as string | null) ?? null,
+      answers: (r.answers as Record<string, unknown> | null) ?? null,
+      totalScore: Number(r.totalScore ?? 0),
+      maxScore: Number(r.maxScore ?? 0),
+      createdAt: String(r.createdAt ?? ''),
+      results: (r.questionResults as ExamAttempt['results']) ?? {}
+    }))
 }
 
-// ----------------------------------------------------- خلاصهٔ همهٔ بخش‌ها ----
+/* ════════════════════════════════════════════════════════════════ نمای کلی ══ */
 
-type ActivityRow = { area: PracticeArea; day: string | null; total: number; correct: number };
+/** شش حوزهٔ فعالیت — همان UNION ALLِ شش جدول در نسخهٔ اصلی. */
+const ACTIVITY: { area: PracticeArea; table: string }[] = [
+  { area: 'aruz', table: 'quiz_answers' },
+  { area: 'vocab', table: 'vocab_answers' },
+  { area: 'jasoos', table: 'jasoos_answers' },
+  { area: 'jasoos', table: 'grammar_circuit_answers' },
+  { area: 'jasoos', table: 'role_hunt_answers' },
+  { area: 'rangAra', table: 'rang_ara_answers' }
+]
 
-/* ⚠️ دو رشتهٔ **کاملِ** جدا، با بدنهٔ تکراری — عمداً.
-
-   دو تلاشِ قبلی هر دو از دیدِ `npm run db:check-sql` نامرئی بودند:
-   یک `${…}`ِ شرطی وسطِ SQL، و بعد دو ثابت با درون‌ریزیِ رشته. هر دو کار
-   می‌کردند و هیچ‌کدام بررسی نمی‌شدند. آزموده شد: یک توکنِ عمداً خراب در
-   کوئری گذاشته شد و بررسیگر **پیدایش نکرد**.
-
-   بررسیگر فقط رشتهٔ ثابتِ کامل را می‌فهمد. همان درسی که `AUTH_USER_COLUMNS`
-   داد: کدی که بررسیگر نمی‌تواند بخواند، عملاً بررسی‌نشده است — و «ولی
-   واضح است که درست است» دقیقاً همان جمله‌ای است که پیش از هر باگِ
-   production گفته می‌شود.
-
-   گروه‌بندی روزِ تهران، سه تفاوت با نسخهٔ PostgreSQL:
-
-     ۱) `at time zone 'Asia/Tehran'` → CONVERT_TZ(x, '+00:00', 'Asia/Tehran').
-        مبدأ صریحاً '+00:00' است و نه 'UTC': اولی همیشه کار می‌کند، دومی
-        خودش به جدول‌های منطقهٔ زمانی نیاز دارد.
-
-     ⚠️⚠️ مقصد ولی *باید* نامِ منطقه باشد و نه یک offset ثابت — ایران تا
-        ۲۰۲۲ ساعتِ تابستانی داشت، پس `+03:30` برای تاریخ‌های قدیمی‌تر یک
-        ساعت جابه‌جا می‌شود و پاسخ‌های نزدیکِ نیمه‌شب به روزِ اشتباه
-        می‌افتند. (آزموده شد: ۲۰۲۰-۰۶-۰۱ در تهران +۰۴:۳۰ است.)
-
-     ۲) `to_char(…, 'YYYY-MM-DD')` → DATE_FORMAT(…, '%Y-%m-%d').
-     ۳) `count(*) filter (where ok)` → count(case when ok then 1 end). */
-const OVERVIEW_BY_DAY = `select area,
-              date_format(convert_tz(at, '+00:00', 'Asia/Tehran'), '%Y-%m-%d') as day,
-              count(*)                             as total,
-              count(case when ok then 1 end)       as correct
-         from (
-           select 'aruz' as area, is_correct as ok, answered_at as at
-             from user_answers where user_id = ?
-           union all
-           select 'vocab', is_correct, answered_at
-             from vocab_answers where user_id = ?
-           union all
-           select 'jasoos', is_correct, answered_at
-             from jasoos_answers where user_id = ?
-           union all
-           select 'jasoos', is_correct, answered_at
-             from grammar_circuit_answers where user_id = ?
-           union all
-           select 'jasoos', is_correct, answered_at
-             from role_hunt_answers where user_id = ?
-           union all
-           select 'rangAra', is_correct, answered_at
-             from rang_ara_answers where user_id = ?
-         ) t
-        where at is not null
-        group by area, 2
-        order by 2`;
-
-/* ⚠️ همان کوئری بدونِ بُعدِ روز — برای سروری که جدول‌های منطقهٔ زمانی
-   ندارد. شمارنده‌ها **دقیقاً** همان‌اند؛ فقط نمودارِ روزانه از دست می‌رود،
-   و آن هم با یک وضعیتِ صریح و نه یک آرایهٔ خالیِ گمراه‌کننده. */
-const OVERVIEW_BY_AREA = `select area,
-              null                                 as day,
-              count(*)                             as total,
-              count(case when ok then 1 end)       as correct
-         from (
-           select 'aruz' as area, is_correct as ok, answered_at as at
-             from user_answers where user_id = ?
-           union all
-           select 'vocab', is_correct, answered_at
-             from vocab_answers where user_id = ?
-           union all
-           select 'jasoos', is_correct, answered_at
-             from jasoos_answers where user_id = ?
-           union all
-           select 'jasoos', is_correct, answered_at
-             from grammar_circuit_answers where user_id = ?
-           union all
-           select 'jasoos', is_correct, answered_at
-             from role_hunt_answers where user_id = ?
-           union all
-           select 'rangAra', is_correct, answered_at
-             from rang_ara_answers where user_id = ?
-         ) t
-        where at is not null
-        group by area`;
-
-/** یک خواندن برای صفحهٔ اول پنل.
- *
- *  شش جدولِ فعالیت با UNION ALL در یک کوئری جمع می‌شوند، به‌جای شش رفت‌وبرگشت
- *  جدا. ستون area در خودِ SQL ساخته می‌شود، پس کد فقط ردیف‌ها را می‌شمارد و
- *  دیگر لازم نیست بداند هر نتیجه از کدام کوئری آمده. */
 export async function getPanelOverview(userId: string): Promise<PanelOverview> {
-  /* ⚠️⚠️ گروه‌بندیِ روز پیش از هر کاری سنجیده می‌شود.
-  
-     `CONVERT_TZ` با نامِ منطقه به جدول‌های `mysql.time_zone` نیاز دارد و اگر
-     بارگذاری نشده باشند **بی‌هیچ خطایی `NULL`** برمی‌گرداند. آن‌وقت همهٔ
-     ردیف‌ها در یک سطلِ `NULL` می‌افتند و هر چیزی که از `dayCounts` ساخته
-     می‌شود — «روزهای فعال»، «رشتهٔ روزها»، نوارِ هفته — یک عددِ **غلط**
-     می‌دهد و نه یک نمودارِ خالی. روی MariaDB 10.11 آزموده شد: یک پاسخ در
-     یک روز → `day = NULL` و `total = 1`.
-  
-     پس وقتی در دسترس نیست، ستونِ روز اصلاً در کوئری نمی‌آید: شمارنده‌ها
-     دقیق می‌مانند (هیچ‌کدام منطقهٔ زمانی نمی‌خواهند) و بخشِ روزمحور یک
-     وضعیتِ صریح می‌گیرد. */
-  const dayReady = await tehranDayAvailable();
-  const dayState: DailyState = dayReady ? "ready" : "unavailable";
-
-  const [activityRows, bookmarkRow, exams] = await Promise.all([
-    // ⚠️ تجمیع در دیتابیس، نه در کد.
-    //
-    // نسخهٔ قبلی ردیف‌های *خام* را می‌آورد با سقفِ ۳۰۰۰ + ۵۰۰۰ + ۳۰۰۰ —
-    // یعنی تا یازده هزار ردیف، برای صفحه‌ای که فقط چند شمارنده و یک نمودارِ
-    // سی‌روزه نشان می‌دهد. کد هم بعد همان یازده هزار ردیف را یکی‌یکی
-    // می‌شمرد و برای هرکدام یک `Intl.DateTimeFormat` می‌ساخت.
-    //
-    // حالا هر بخش به تفکیکِ روزِ تهران شمرده می‌شود: حداکثر چند صد ردیف،
-    // و شمارنده‌ها از جمعِ همان‌ها درمی‌آیند.
-    //
-    // ⚠️ سقف‌های قبلی هم برداشته شدند و این یک اصلاحِ درستی است، نه فقط
-    // سرعت: کاربرِ پرکار با بیش از سه هزار پاسخ، شمارنده‌اش بریده می‌شد و
-    // «رشتهٔ روزهای پیاپی» غلط درمی‌آمد.
-    /* ⚠️ دو فراخوانِ جدا و نه `query(shart ? A : B, …)`.
-    
-       بررسیگرِ SQL آرگومانِ شرطی را نمی‌تواند بازسازی کند و آن شکل هر دو
-       کوئری را از پوشش بیرون می‌انداخت — آزموده شد. (چراییِ کاملش بالای
-       خودِ ثابت‌ها.)
-    
-       تجمیع هم در دیتابیس انجام می‌شود و نه در کد: نسخهٔ قدیمی تا یازده
-       هزار ردیفِ خام می‌آورد تا چند شمارنده و یک نمودارِ سی‌روزه ساخته
-       شود، و سقف‌هایش شمارندهٔ کاربرِ پرکار را بی‌صدا می‌برید. */
-    dayReady
-      ? query<ActivityRow>(OVERVIEW_BY_DAY, Array(6).fill(userId))
-      : query<ActivityRow>(OVERVIEW_BY_AREA, Array(6).fill(userId)),
-    queryOne<{ n: number }>(`select count(*) as n from user_bookmarks where user_id = ?`, [userId]),
-    // ⚠️ شمارنده‌ها، نه فهرستِ کارنامه‌ها. پیش از این هر کارنامه با
-    // جزئیاتِ تک‌تکِ سؤال‌هایش خوانده می‌شد تا سه عدد ساخته شود.
-    getExamStats(userId),
-  ]);
-
-  const dayCounts: PanelOverview["dayCounts"] = [];
-  const counts: PanelOverview["counts"] = {
+  const dayCounts: PanelOverview['dayCounts'] = []
+  const counts: PanelOverview['counts'] = {
     aruz: { total: 0, correct: 0 },
     vocab: { total: 0, correct: 0 },
     jasoos: { total: 0, correct: 0 },
     rangAra: { total: 0, correct: 0 },
-    exam: { total: 0, correct: 0 },
-  };
-
-  for (const row of activityRows) {
-    /* ⚠️ وقتی گروه‌بندیِ روز ممکن نبوده، `day` عمداً `null` است و ردیف
-       **وارد `dayCounts` نمی‌شود** — وگرنه همان سطلِ `NULL` که کلِ این
-       گارد برایش نوشته شد، از در پشتی برمی‌گشت. شمارنده‌ها ولی درست‌اند و
-       جمع می‌شوند. */
-    if (dayReady && row.day !== null) {
-      dayCounts.push({ day: row.day, total: row.total, correct: row.correct, area: row.area });
-    }
-    counts[row.area].total += row.total;
-    counts[row.area].correct += row.correct;
+    exam: { total: 0, correct: 0 }
   }
 
+  /* ⚠️ تجمیعِ روز اینجا در حافظه انجام می‌شود، نه در SQL. روی سرور این کار
+     را پایگاه می‌کرد تا یازده هزار ردیف به مرورگر نیاید؛ در یک برنامهٔ
+     تک‌نفره کلِ داده همین‌جاست و رفت‌وبرگشتی در کار نیست. حاصل همان است:
+     یک سطل به‌ازای هر روزِ تهران، و شمارنده‌ها از جمعِ همان‌ها. */
+  const byDay = new Map<string, { area: PracticeArea; day: string; total: number; correct: number }>()
 
+  for (const { area, table } of ACTIVITY) {
+    const rows = db.find<Record<string, unknown>>(table, (r) => r.userId === userId)
+    for (const r of rows) {
+      const at = String(r.answeredAt ?? r.createdAt ?? '')
+      if (!at) continue
+      const ok = !!(r.isCorrect ?? r.correct)
+      counts[area].total += 1
+      if (ok) counts[area].correct += 1
+
+      const day = tehranDay(at)
+      if (!day) continue
+      const key = `${day}|${area}`
+      const bucket = byDay.get(key)
+      if (bucket) {
+        bucket.total += 1
+        if (ok) bucket.correct += 1
+      } else {
+        byDay.set(key, { area, day, total: 1, correct: ok ? 1 : 0 })
+      }
+    }
+  }
+
+  dayCounts.push(
+    ...[...byDay.values()].sort((a, b) => a.day.localeCompare(b.day) || a.area.localeCompare(b.area))
+  )
+
+  const exams = await getExamStats(userId)
+  counts.exam.total = exams.attempts
+  counts.exam.correct = exams.best
 
   return {
     dayCounts,
-    dayState: dayReady && dayCounts.length === 0 ? "no_data" : dayState,
+    /* روی سرور سه حالت داشت (آماده / ناموجود / بی‌داده) چون گروه‌بندیِ روز
+       می‌توانست بی‌سروصدا غلط از آب دربیاید. اینجا همیشه درست است. */
+    dayState: dayCounts.length === 0 ? 'no_data' : 'ready',
     counts,
-    bookmarks: bookmarkRow?.n ?? 0,
-    exams,
-  };
+    bookmarks: db.find('user_bookmarks', (r) => r.userId === userId).length,
+    exams
+  }
 }
 
-// --------------------------------------------------------- نشان‌شده‌ها ----
+/* ═════════════════════════════════════════════════════════════ نشان‌شده‌ها ══ */
 
 export async function getBookmarks(
   userId: string,
   area?: BookmarkArea,
-  /** ⚠️ همان استدلالِ کارنامه‌ها — محافظ، نه صفحه‌بندی. */
-  limit = 500,
+  /** ⚠️ محافظ است، نه صفحه‌بندی: یک کاربرِ واقعی پانصد نشانه نمی‌گذارد. */
+  limit = 500
 ): Promise<Bookmark[]> {
-  const rows = await query<{
-    id: string;
-    area: BookmarkArea;
-    ref_id: string;
-    title: string;
-    subtitle: string | null;
-    payload: Record<string, unknown> | null;
-    note: string | null;
-    created_at: string;
-  }>(
-    // $2 دو بار می‌آمد و یک مقدار می‌گرفت؛ در MySQL هر ? یک جاست.
-    `select id, area, ref_id, title, subtitle, payload, note, created_at
-       from user_bookmarks
-      where user_id = ?
-        and (? is null or area = ?)
-      order by created_at desc, id
-      limit ?`,
-    [userId, area ?? null, area ?? null, limit],
-  );
-
-  return rows.map((r) => ({
-    id: r.id,
-    area: r.area,
-    refId: r.ref_id,
-    title: r.title ?? "",
-    subtitle: r.subtitle,
-    payload: r.payload ?? {},
-    note: r.note,
-    createdAt: r.created_at,
-  }));
+  return db
+    .find<Record<string, unknown>>(
+      'user_bookmarks',
+      (r) => r.userId === userId && (!area || r.area === area)
+    )
+    .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')))
+    .slice(0, limit)
+    .map((r) => ({
+      id: String(r.id ?? ''),
+      area: r.area as BookmarkArea,
+      refId: String(r.refId ?? ''),
+      title: String(r.title ?? ''),
+      subtitle: (r.subtitle as string | null) ?? null,
+      payload: (r.payload as Record<string, unknown>) ?? {},
+      note: (r.note as string | null) ?? null,
+      createdAt: String(r.createdAt ?? '')
+    }))
 }
 
 /**
- * فعالیتِ روزانه، تجمیع‌شده در دیتابیس.
+ * فعالیتِ روزانهٔ عروض، تجمیع‌شده.
  *
- * ⚠️ چرا جای getAruzActivity: آن تابع تا ۲۰۰۰ ردیفِ *خام* می‌آورد تا کلاینت
- * خودش روزها را بشمارد. دو هزینه داشت:
- *
- *   • انتقال و تجزیهٔ دو هزار ردیف برای نموداری که سی عدد لازم دارد.
- *   • `dailyBuckets` برای هر روز کلِ فهرست را فیلتر می‌کند و برای هر ردیف یک
- *     `Intl.DateTimeFormat` می‌سازد — سی روز در دو هزار ردیف یعنی شصت هزار
- *     قالب‌بندیِ تاریخ در هر بار باز شدنِ پنل، روی نخِ اصلیِ مرورگر.
- *
- * و یک درستیِ اضافه: سقفِ دو هزار ردیف یعنی کاربرِ پرکار روزهای قدیمی‌ترش
- * بریده می‌شد و «رشتهٔ روزهای پیاپی» غلط درمی‌آمد. تجمیع در SQL این سقف را
- * لازم ندارد.
- *
- * تاریخ‌ها به وقتِ تهران گروه می‌شوند — همان منطقه‌ای که کلاینت هم با آن
- * حساب می‌کرد، پس نتیجه عوض نمی‌شود.
+ * ⚠️ چرا جای `getAruzActivity`: آن تابع ردیف‌های *خام* می‌آورد تا کلاینت
+ * خودش روزها را بشمارد. اینجا روزها پیشاپیش شمرده می‌شوند و همان سی عدد
+ * برمی‌گردد.
  */
 export async function getAruzDayCounts(
   userId: string,
-  days = 400,
+  days = 400
 ): Promise<{ day: string; total: number; correct: number }[]> {
-  /* ⚠️ همان گاردی که `getPanelOverview` دارد، به همان دلیل: بدونِ
-     جدول‌های `mysql.time_zone`، `CONVERT_TZ` بی‌هیچ خطایی `NULL` می‌دهد و
-     نمودار پر می‌شود از سطل‌های `NULL`. آرایهٔ خالی دستِ‌کم دروغ نمی‌گوید.
-     (وضعیتِ صریحش را صفحه از `getPanelOverview().dayState` می‌گیرد.) */
-  if (!(await tehranDayAvailable())) return [];
+  const since = Date.now() - days * 24 * 60 * 60 * 1000
+  const byDay = new Map<string, { day: string; total: number; correct: number }>()
 
-  const rows = await query<{ day: string; total: number; correct: number }>(
-    // `($2 || ' days')::interval` یعنی ساختنِ بازه از یک عدد. در MySQL
-    // بازه نحوِ خودش را دارد و پارامتر هم می‌پذیرد: `interval ? day`.
-    // (اینجا `||` هم بود که در MySQL یعنی OR — بی‌صدا یک عبارتِ بولی
-    //  می‌ساخت به‌جای رشته.)
-    `select date_format(convert_tz(answered_at, '+00:00', 'Asia/Tehran'), '%Y-%m-%d') as day,
-            count(*)                                  as total,
-            count(case when is_correct then 1 end)    as correct
-       from user_answers
-      where user_id = ?
-        and answered_at >= now(6) - interval ? day
-      group by 1
-      order by 1`,
-    [userId, days],
-  );
-  return rows;
+  for (const r of db.find<Record<string, unknown>>('quiz_answers', (x) => x.userId === userId)) {
+    const at = String(r.answeredAt ?? '')
+    if (!at || new Date(at).getTime() < since) continue
+    const day = tehranDay(at)
+    if (!day) continue
+    const bucket = byDay.get(day) ?? { day, total: 0, correct: 0 }
+    bucket.total += 1
+    if (r.isCorrect ?? r.correct) bucket.correct += 1
+    byDay.set(day, bucket)
+  }
+
+  return [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day))
 }
 
 /** آخرین پاسخ — یک مقدار، نه یک فهرست. */
 export async function getAruzLastAnsweredAt(userId: string): Promise<string | null> {
-  const row = await queryOne<{ at: string | null }>(
-    `select max(answered_at) as at from user_answers where user_id = ?`,
-    [userId],
-  );
-  return row?.at ?? null;
+  const rows = db
+    .find<{ userId: string; answeredAt: string }>('quiz_answers', (r) => r.userId === userId)
+    .map((r) => r.answeredAt)
+    .filter(Boolean)
+    .sort()
+  return rows.length ? rows[rows.length - 1] : null
 }
