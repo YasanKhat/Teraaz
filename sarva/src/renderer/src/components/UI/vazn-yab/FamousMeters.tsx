@@ -106,10 +106,6 @@ export default function FamousMeters({
       <h2 id="vy-meters" className=" text-3xl font-black text-foreground sm:text-4xl">
         وزن‌های مشهور
       </h2>
-      <p className=" mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-        بیست وزنی که بیشتر شعرِ فارسی در آن‌هاست. هر کارت را بزن تا وزنش را بشنوی.
-      </p>
-
       <ol className=" mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {FAMOUS_METERS.map((m) => {
           const isCurrent = current === m.feet;

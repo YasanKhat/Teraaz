@@ -1,12 +1,11 @@
-// پخشِ ریتمِ وزن — نوشته‌شده از روی رفتارِ توصیف‌شده در خودِ سایت:
-// «هجاهای بلند کشیده‌تر و بم‌تر نواخته می‌شوند.»
+// پخشِ ریتم — لایه‌ای نازک روی موتورِ واقعی (‎score.ts‎).
 //
-// ⚠️ پیش از این در این پورت اصلاً پخشی وجود نداشت؛ متنِ راهنما می‌گفت «دکمهٔ
-//    پخش را بزن» ولی هیچ صدایی پشتش نبود. سه دستگاه (شور، چهارگاه، ماهور) و
-//    سه سرعت (آرام، عادی، تند) همان‌هایی است که صفحهٔ زنده نشان می‌دهد.
+// اینجا فقط «پخش» است: ساختنِ بافر، نگه‌داشتنِ زمینه‌ی صوتی، و قطع‌کردن.
+// خودِ صدا در score.ts ساخته می‌شود و آن پورتِ مستقیمِ موتورِ سایت است.
 
-/** دستگاه‌هایی که سایت برای صدای ریتم پیش می‌گذارد. */
-export type RhythmMode = "shur" | "chahargah" | "mahur";
+import { renderScore, SCALES, type Hemi, type RhythmMode } from "./score";
+
+export type { RhythmMode, Hemi } from "./score";
 
 export const RHYTHM_MODES: { id: RhythmMode; label: string }[] = [
   { id: "shur", label: "شور" },
@@ -14,7 +13,6 @@ export const RHYTHM_MODES: { id: RhythmMode; label: string }[] = [
   { id: "mahur", label: "ماهور" },
 ];
 
-/** سرعت‌ها؛ factor روی زمانِ هر واحد ضرب می‌شود. */
 export type SpeedId = "slow" | "normal" | "fast";
 
 export const RHYTHM_SPEEDS: { id: SpeedId; label: string; factor: number }[] = [
@@ -23,96 +21,67 @@ export const RHYTHM_SPEEDS: { id: SpeedId; label: string; factor: number }[] = [
   { id: "fast", label: "تند", factor: 0.78 },
 ];
 
-/**
- * فاصله‌های هر دستگاه بر حسبِ نیم‌پرده از نتِ پایه.
- *
- * این‌ها گام‌های شناخته‌شدهٔ موسیقیِ دستگاهیِ ایران است: ماهور شبیهِ بزرگِ
- * اروپایی، شور با درجهٔ دومِ نیم‌پرده‌ای، و چهارگاه با جهشِ چهارمِ افزوده که
- * رنگِ ویژهٔ خودش را دارد.
- */
-const SCALES: Record<RhythmMode, number[]> = {
-  mahur: [0, 2, 4, 5, 7, 9, 11],
-  shur: [0, 1, 4, 5, 7, 8, 11],
-  chahargah: [0, 1, 5, 6, 8, 11],
-};
-
-/** نتِ پایهٔ هر دستگاه (هرتز) — بم‌تر از آنچه برای آواز به کار می‌رود. */
-const ROOT_HZ: Record<RhythmMode, number> = {
-  mahur: 174.6,
-  shur: 164.8,
-  chahargah: 155.6,
-};
-
-/** زمانِ یک واحدِ کوتاه، به ثانیه. */
+/** زمانِ یک هجای کوتاه، به ثانیه. */
 const BASE_UNIT = 0.27;
 
-export type RenderOptions = {
-  mode: RhythmMode;
-  speed: SpeedId;
-};
-
-function unitSeconds(speed: SpeedId): number {
+function unitFor(speed: SpeedId): number {
   return BASE_UNIT * (RHYTHM_SPEEDS.find((s) => s.id === speed)?.factor ?? 1);
 }
 
 /**
- * ریتمِ یک رشتهٔ تقطیع را به یک بافرِ صوتی تبدیل می‌کند.
+ * الگوی تقطیع را به ورودیِ موتور می‌برد.
  *
- * هر هجا یک ضرب است: هجای بلند (``-``) دو واحد می‌کشد و یک نت پایین‌تر نواخته
- * می‌شود؛ هجای کوتاه یک واحد و بالاتر. بینِ ضرب‌ها مکثِ کوتاهی هست تا مرزِ
- * هجاها شنیده شود.
+ * «-» بلند است و «U» کوتاه. `footStart` نشان می‌دهد کجا رکنِ تازه‌ای شروع
+ * می‌شود — موتور روی آن‌ها تأکید می‌زند.
  */
-export async function renderRhythm(
-  pattern: string,
-  { mode, speed }: RenderOptions,
-): Promise<AudioBuffer | null> {
+export function hemisFromPattern(pattern: string, perHemistich?: number): Hemi[] {
   const cells = [...pattern].filter((c) => c === "-" || c === "U");
-  if (!cells.length) return null;
+  if (!cells.length) return [];
 
-  const unit = unitSeconds(speed);
-  const gap = unit * 0.18;
-  const tail = unit * 1.2;
-
-  const total = cells.reduce((sum, c) => sum + (c === "-" ? 2 : 1) * unit + gap, 0) + tail;
-  const sampleRate = 44100;
-  const OfflineCtor =
-    window.OfflineAudioContext ??
-    (window as unknown as { webkitOfflineAudioContext?: typeof OfflineAudioContext })
-      .webkitOfflineAudioContext;
-  if (!OfflineCtor) return null;
-
-  const ctx = new OfflineCtor(1, Math.ceil(total * sampleRate), sampleRate);
-  const scale = SCALES[mode];
-  const root = ROOT_HZ[mode];
-
-  let at = 0.02;
-  for (const c of cells) {
-    const long = c === "-";
-    const dur = (long ? 2 : 1) * unit;
-    // هجای بلند: کشیده‌تر و بم‌تر. هجای کوتاه: کوتاه‌تر و زیرتر.
-    const degree = scale[long ? 0 : Math.min(2, scale.length - 1)];
-    const hz = root * Math.pow(2, degree / 12);
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = long ? "sine" : "triangle";
-    osc.frequency.value = hz;
-
-    // یک حملهٔ تند و یک فرودِ نرم — مثلِ ضربه‌ای که روی پوست می‌نشیند.
-    const peak = long ? 0.42 : 0.3;
-    gain.gain.setValueAtTime(0.0001, at);
-    gain.gain.exponentialRampToValueAtTime(peak, at + 0.012);
-    gain.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(at);
-    osc.stop(at + dur + 0.02);
-
-    at += dur + gap;
+  // الگویِ یک مصراع است یا کلِ بیت؟ اگر تعداد فرد باشد، دو نیمه می‌سازیم.
+  const halves: boolean[][] = [];
+  if (perHemistich) {
+    for (let i = 0; i < cells.length; i += perHemistich) {
+      halves.push(cells.slice(i, i + perHemistich).map((c) => c === "-"));
+    }
+  } else if (cells.length % 2 === 0) {
+    const mid = cells.length / 2;
+    halves.push(cells.slice(0, mid).map((c) => c === "-"));
+    halves.push(cells.slice(mid).map((c) => c === "-"));
+  } else {
+    halves.push(cells.map((c) => c === "-"));
   }
 
-  return await ctx.startRendering();
+  // دو مصراعِ نابرابر را به دو می‌بریم
+  if (halves.length === 1 && halves[0].length > 1) {
+    const mid = Math.ceil(halves[0].length / 2);
+    halves.push(halves[0].slice(mid));
+    halves[0] = halves[0].slice(0, mid);
+  }
+
+  return halves.map((longs) => ({
+    longs,
+    // هر هجا آغازِ یک رکن است، مگر آنکه در یک رکنِ چندهجایی پشتِ هم آمده باشد.
+    footStart: longs.map((_, i) => i % 2 === 0),
+  }));
 }
+
+export type RenderOptions = { mode: RhythmMode; speed: SpeedId };
+
+export function renderRhythm(
+  pattern: string,
+  { mode, speed }: RenderOptions,
+): Score & { duration: number } {
+  const score = renderScore({
+    hemis: hemisFromPattern(pattern),
+    unit: unitFor(speed),
+    mode,
+    character: "lyric",
+  });
+  return score;
+}
+
+type Score = ReturnType<typeof renderScore>;
 
 let ctx: AudioContext | null = null;
 let source: AudioBufferSourceNode | null = null;
@@ -131,22 +100,33 @@ function audioContext(): AudioContext | null {
 export async function playRhythm(
   pattern: string,
   opts: RenderOptions,
-): Promise<boolean> {
+): Promise<{ ok: boolean; duration: number }> {
   stopRhythm();
-  const buffer = await renderRhythm(pattern, opts);
-  if (!buffer) return false;
+  let score: Score;
+  try {
+    score = renderRhythm(pattern, opts);
+  } catch {
+    return { ok: false, duration: 0 };
+  }
+  if (!score.left.length) return { ok: false, duration: 0 };
+
   const ac = audioContext();
-  if (!ac) return false;
+  if (!ac) return { ok: false, duration: 0 };
   await ac.resume().catch(() => {});
+
+  const buf = ac.createBuffer(2, score.left.length, score.sr);
+  buf.copyToChannel(score.left, 0);
+  buf.copyToChannel(score.right, 1);
+
   const src = ac.createBufferSource();
-  src.buffer = buffer;
+  src.buffer = buf;
   src.connect(ac.destination);
   src.onended = () => {
     if (source === src) source = null;
   };
   source = src;
   src.start();
-  return true;
+  return { ok: true, duration: score.duration };
 }
 
 export function stopRhythm(): void {
@@ -154,8 +134,10 @@ export function stopRhythm(): void {
     try {
       source.stop();
     } catch {
-      /* already stopped */
+      /* پیش‌تر ایستاده بود */
     }
     source = null;
   }
 }
+
+export { SCALES };

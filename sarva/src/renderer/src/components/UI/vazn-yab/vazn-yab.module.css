@@ -1,0 +1,84 @@
+/*
+ * ظاهرِ ماژولِ وزن‌یاب — پورتِ مستقیمِ قواعدِ CSS از بسته‌های زنده‌ی سایت
+ * (استخراج‌شده ۲۰۲۶-۱۱-۰۸).
+ *
+ * ⚠️ این مقادیر را «بهبود» ندهید. هر درصد و هر رنگ در اینجا همانی است که روی
+ *    سایت دیده می‌شود. نبودنِ همین‌ها بود که باعث می‌شد بخشِ وزن‌یابِ این
+ *    پورت شبیهِ نسخه‌ی اصلی به نظر نرسد.
+ */
+
+.scene {
+  isolation: isolate;
+  position: relative;
+}
+
+/* هاله‌ی رنگیِ پشتِ ماژول — دو درخششِ ملایم که با ماسک محو می‌شوند. */
+.glow {
+  z-index: -1;
+  pointer-events: none;
+  position: absolute;
+  inset: -80px -16px -60px;
+  background:
+    radial-gradient(
+      40% 45% at 78% 22%,
+      color-mix(in srgb, var(--primary) 30%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      36% 40% at 18% 82%,
+      color-mix(in srgb, var(--gold) 20%, transparent),
+      transparent
+    );
+  -webkit-mask-image: radial-gradient(closest-side, #000 55%, #0000);
+  mask-image: radial-gradient(closest-side, #000 55%, #0000);
+}
+
+@media (min-width: 640px) {
+  .glow {
+    inset: -120px -110px -80px;
+  }
+}
+
+/* شیشه‌ی اصلیِ ماژول. */
+.glass {
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--card) 66%, transparent),
+    color-mix(in oklab, var(--card) 46%, transparent)
+  );
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: blur(22px) saturate(150%);
+  border: 1px solid color-mix(in oklab, var(--foreground) 9%, transparent);
+  box-shadow:
+    inset 0 1px #ffffffb3,
+    0 1px 2px #0000000f,
+    0 40px 90px -50px #00000073;
+}
+
+.dark .glass {
+  background: linear-gradient(#ffffff12, #ffffff08);
+  border-color: #ffffff1c;
+  box-shadow:
+    inset 0 1px #ffffff24,
+    0 50px 110px -50px #000000d9;
+}
+
+/* خط‌های جداکننده‌ی داخلِ ماژول. */
+.rule {
+  border-color: color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+
+.dark .rule {
+  border-color: #ffffff14;
+}
+
+/* دکمه‌های کشویی و دکمه‌های کوچکِ کناری. */
+.chip {
+  background: color-mix(in oklab, var(--foreground) 5%, transparent);
+  border: 1px solid color-mix(in oklab, var(--foreground) 9%, transparent);
+}
+
+.dark .chip {
+  background: #ffffff0f;
+  border-color: #ffffff1a;
+}
