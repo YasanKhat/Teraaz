@@ -9,20 +9,23 @@ import { FOOTER_SECTIONS } from "@/lib/site-nav";
  *  instead of reading eight unsorted links. The sections live in lib/site-nav
  *  so a page added there shows up here without touching this file. */
 
+/* رونوشت از فوترِ زنده (sarvaedu.ir، ۱۴۰۴/۰۸/۱۷). نشانی‌ها نشانیِ شخصی
+   نویسنده نیست؛ همان‌هایی است که روی سایت هست. */
 const SOCIALS = [
   {
-    href: "https://t.me/jafarimatin",
-    label: "تلگرام",
+    href: "https://t.me/sarva_edu",
+    label: "کانال تلگرام سروا",
     path: "M22 3 2 11l6 2 2 6 4-4 5 4z",
   },
   {
-    href: "https://www.instagram.com/jafarimatin13?igsh=NjhsMjlqNWN3NDAw",
+    href: "https://www.instagram.com/matinjafaridev",
     label: "اینستاگرام",
     path: "M3 7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4zm9 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6m5-2h.01",
   },
 ];
 
-const EMAIL = "matinjafaridev@gmail.com";
+/* رایانامه‌یِ روی سایت، نه رایانامه‌ی شخصی. */
+const EMAIL = "info@sarvaedu.ir";
 
 function Footer() {
   return (

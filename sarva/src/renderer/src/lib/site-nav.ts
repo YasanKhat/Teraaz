@@ -13,6 +13,11 @@ export const MORE_NAV_LINKS: NavLink[] = [
   { href: "/about", label: "درباره" },
 ];
 
+/* گروه‌ها و پیوندها رونوشتِ فوترِ زنده‌اند (sarvaedu.ir، ۱۴۰۴/۰۸/۱۷، از
+   sarvaedu.ir.har-3.txt). آنچه درست شد: «کنکور» و «شب امتحان» در ستونِ
+   «ابزارها» کم بودند. توجه: «عروض سماعی» در ستونِ «یادگیری» است و «شب امتحان»
+   در هر دو ستون می‌آید — سایت هم همین را می‌نویسد. */
+
 /** The footer, grouped by what a page is *for* rather than as one flat list.
  *
  *  A reader looking for the lesson notes and a reader looking for the meter
@@ -36,6 +41,8 @@ export const FOOTER_SECTIONS: { title: string; links: NavLink[] }[] = [
     links: [
       { href: "/vazn-yab", label: "وزن‌یاب" },
       { href: "/exam", label: "امتحانات نهایی" },
+      { href: "/konkur", label: "کنکور" },
+      { href: "/shab-emtehan", label: "شب امتحان" },
       { href: "/game", label: "بازی" },
     ],
   },
