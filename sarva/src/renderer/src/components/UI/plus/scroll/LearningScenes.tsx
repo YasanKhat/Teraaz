@@ -1,16 +1,26 @@
 import { useId, type CSSProperties } from "react";
 import styles from "./learning-scenes.module.css";
 
-// Deliberately concentrated in one scene, with many independent depth layers.
-// Positions are deterministic for SSR; small screens retain twenty capsules.
-const CAPSULES = Array.from({ length: 40 }, (_, i) => ({
-  x: (i * 61 + 13) % 97,
-  y: (i * 43 + 7) % 101,
-  width: [12, 20, 32, 15, 26, 9, 36, 17][i % 8],
-  height: [44, 116, 212, 72, 165, 30, 250, 95][i % 8],
-  depth: [.4, .72, 1, .55, .86][i % 5],
-  speed: [.55, 1.6, .8, 1.35, .65, 1.85][i % 6],
-}));
+/* ⚠️ این چهارده کپسول عیناً از اچ‌تی‌ام‌الِ صفحه‌یِ `/plus` سایت کپی شده‌اند:
+   همان جا، اندازه، ژرفا، سرعت، و همان تصمیم که کدام در تلفن بماند و
+   کدام طلایی باشد. پیش از این چهل کپسول با عددهایِ ساخته‌یِ خودمان
+   اینجا بود و چیدمان و لغزش با سایت یکی نبود. */
+const CAPSULES = [
+  { x: 4, y: 8, width: 14, height: 150, depth: 0.9, speed: 0.7, mobile: true, gold: false },
+  { x: 11, y: 30, width: 9, height: 70, depth: 0.55, speed: 1.5, mobile: false, gold: false },
+  { x: 6, y: 55, width: 20, height: 200, depth: 1, speed: 0.85, mobile: true, gold: false },
+  { x: 15, y: 82, width: 10, height: 90, depth: 0.6, speed: 1.35, mobile: true, gold: true },
+  { x: 24, y: 6, width: 8, height: 54, depth: 0.4, speed: 1.6, mobile: false, gold: false },
+  { x: 30, y: 86, width: 12, height: 110, depth: 0.4, speed: 0.75, mobile: false, gold: false },
+  { x: 46, y: 2, width: 9, height: 80, depth: 0.28, speed: 1.4, mobile: false, gold: false },
+  { x: 57, y: 88, width: 10, height: 70, depth: 0.28, speed: 1.25, mobile: false, gold: false },
+  { x: 70, y: 4, width: 12, height: 120, depth: 0.4, speed: 0.8, mobile: false, gold: true },
+  { x: 78, y: 84, width: 8, height: 60, depth: 0.4, speed: 1.55, mobile: false, gold: false },
+  { x: 88, y: 12, width: 18, height: 190, depth: 1, speed: 0.8, mobile: true, gold: false },
+  { x: 94, y: 40, width: 10, height: 96, depth: 0.6, speed: 1.45, mobile: false, gold: true },
+  { x: 85, y: 62, width: 13, height: 140, depth: 0.8, speed: 0.7, mobile: true, gold: false },
+  { x: 93, y: 84, width: 9, height: 80, depth: 0.5, speed: 1.3, mobile: true, gold: false },
+];
 
 export function LearningParallax() {
   const id = useId();
@@ -18,9 +28,9 @@ export function LearningParallax() {
     <section id="learning-rhythm" className={styles.parallax} data-learning-parallax aria-labelledby={`${id}-title`}>
       <div className={styles.capsules} aria-hidden>
         {CAPSULES.map((capsule, i) => (
-          <span key={i} className={styles.capsuleTrack} data-learning-capsule data-speed={capsule.speed} data-mobile={i % 4 < 2}
-            style={{ "--x": `${capsule.x}%`, "--y": `${capsule.y}%`, "--w": `${capsule.width}px`, "--h": `${capsule.height}px`, "--depth": capsule.depth * (capsule.x > 25 && capsule.x < 75 ? .45 : 1) } as CSSProperties}>
-            <i className={styles.capsule} data-gold={i % 4 === 0} />
+          <span key={i} className={styles.capsuleTrack} data-learning-capsule data-speed={capsule.speed} data-mobile={capsule.mobile}
+            style={{ "--x": `${capsule.x}%`, "--y": `${capsule.y}%`, "--w": `${capsule.width}px`, "--h": `${capsule.height}px`, "--depth": capsule.depth } as CSSProperties}>
+            <i className={styles.capsule} data-gold={capsule.gold} />
           </span>
         ))}
       </div>

@@ -116,6 +116,26 @@ export default function Plus() {
       <div className="mt-10 flex flex-col items-center gap-3">
         <p className="text-sm text-muted-foreground">{PLUS_SUPPORT.question}</p>
         <SupportButton>{PLUS_SUPPORT.action}</SupportButton>
+        {/* ⚠️ نشانِ اینماد در سایت پس از دکمهٔ پشتیبانی می‌آید (`mt-4`، ۷۲×۷۲)
+            و صفحه بی‌آن حدود ۱۰۰ پیکسل کوتاه‌تر است. همان شناسه و کدی که سایت
+            (و صفحهٔ «درباره‌ی» خودِ برنامه) به کار می‌برند. */}
+        <a
+          href="https://trustseal.enamad.ir/?id=7819726&Code=5bmAaIT1LDb6VNbUNjhcqagEYEAYtIK7"
+          target="_blank"
+          rel="noopener"
+          referrerPolicy="origin"
+          aria-label="نماد اعتماد الکترونیکی"
+          className="inline-block shrink-0 mt-4"
+        >
+          <img
+            src="https://trustseal.enamad.ir/logo.aspx?id=7819726&Code=5bmAaIT1LDb6VNbUNjhcqagEYEAYtIK7"
+            alt=""
+            referrerPolicy="origin"
+            width={72}
+            height={72}
+            style={{ width: 72, height: 'auto', cursor: 'pointer' }}
+          />
+        </a>
       </div>
     </div>
   )

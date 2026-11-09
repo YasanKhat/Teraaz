@@ -1,0 +1,71 @@
+/* سی‌اس‌اسِ این دکمه مستقیماً از بسته‌یِ سی‌اس‌اسِ خودِ سایتِ زندهٔ
+   sarvaedu.ir استخراج شده است. پیش از این تنها شکلِ «مجیک‌یوآی» بود و
+   لایه‌یِ `label`، `ring` و پرتو (`beam`) را نداشت؛ برای همین درخششِ لبه
+   اصلاً پدیدار نمی‌شد. */
+
+@property --shine-x {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
+
+.label {
+  -webkit-mask-image: linear-gradient(-75deg, #000 calc(var(--shine-x) + 20%), transparent calc(var(--shine-x) + 30%), #000 calc(var(--shine-x) + 100%));
+  mask-image: linear-gradient(-75deg, #000 calc(var(--shine-x) + 20%), transparent calc(var(--shine-x) + 30%), #000 calc(var(--shine-x) + 100%));
+  animation: 3.6s infinite paused label;
+}
+
+.ring {
+  background: color-mix(in oklab, var(--primary) 10%, transparent);
+  overflow: hidden;
+}
+
+.beam {
+  background: linear-gradient(-75deg, transparent 40%, color-mix(in oklab, var(--primary) 45%, transparent) 41.7%, transparent 66.7%);
+  animation: 3.6s infinite paused beam;
+  position: absolute;
+  inset: 0 -100%;
+  transform: translate(-33.4%);
+}
+
+/* درخشش تنها وقتی دکمه در دید است می‌چرخد (`data-shine` را خودِ مؤلفه
+   هنگامِ ورود به دید می‌گذارد) و هنگامِ پیمایش می‌ایستد. */
+[data-shine] .label,
+[data-shine] .beam {
+  animation-play-state: running;
+}
+
+:is(html[data-scrolling] .label, html[data-scrolling] .beam) {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .label,
+  .beam {
+    animation: none;
+  }
+}
+
+@keyframes label {
+  0% {
+    --shine-x: 100%;
+    animation-timing-function: cubic-bezier(.3, .7, .3, 1);
+  }
+
+  72%,
+  to {
+    --shine-x: -100%;
+  }
+}
+
+@keyframes beam {
+  0% {
+    animation-timing-function: cubic-bezier(.3, .7, .3, 1);
+    transform: translate(-33.4%);
+  }
+
+  72%,
+  to {
+    transform: translate(33.4%);
+  }
+}

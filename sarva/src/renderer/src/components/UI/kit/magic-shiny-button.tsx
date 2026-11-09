@@ -13,25 +13,20 @@ import React from "react"
 import { motion, type MotionProps } from "motion/react"
 
 import { cn } from "@/lib/cn"
+import styles from "./magic-shiny-button.module.css"
 
+/* ⚠️ این تنظیم‌ها عیناً از بسته‌یِ خودِ سایت گرفته شده‌اند. نسخه‌یِ پیشین
+   یک حلقه‌یِ بی‌پایانِ `--x` بود که با پیمایش هم نمی‌ایستاد؛ سایت تنها
+   مقیاس را انیمیت می‌کند و درخشش را با `data-shine` روشن و خاموش می‌کند. */
 const animationProps: MotionProps = {
-  initial: { "--x": "100%", scale: 0.8 },
-  animate: { "--x": "-100%", scale: 1 },
-  whileTap: { scale: 0.95 },
+  initial: { scale: .8 },
+  whileInView: { scale: 1 },
+  viewport: { amount: .1 },
+  whileTap: { scale: .95 },
+  onViewportEnter: (entry) => (entry?.target as HTMLElement | undefined)?.setAttribute("data-shine", ""),
+  onViewportLeave: (entry) => (entry?.target as HTMLElement | undefined)?.removeAttribute("data-shine"),
   transition: {
-    repeat: Infinity,
-    repeatType: "loop",
-    repeatDelay: 1,
-    type: "spring",
-    stiffness: 20,
-    damping: 15,
-    mass: 2,
-    scale: {
-      type: "spring",
-      stiffness: 200,
-      damping: 5,
-      mass: 0.5,
-    },
+    scale: { type: "spring", stiffness: 200, damping: 5, mass: .5 },
   },
 }
 
@@ -63,11 +58,10 @@ export const ShinyButton = React.forwardRef<
       {...props}
     >
       <span
-        className="relative block size-full text-sm tracking-wide text-[rgb(0,0,0,65%)] uppercase dark:font-light dark:text-[rgb(255,255,255,90%)]"
-        style={{
-          maskImage:
-            "linear-gradient(-75deg,var(--primary) calc(var(--x) + 20%),transparent calc(var(--x) + 30%),var(--primary) calc(var(--x) + 100%))",
-        }}
+        className={cn(
+          "relative block size-full text-sm tracking-wide text-[rgb(0,0,0,65%)] uppercase dark:font-light dark:text-[rgb(255,255,255,90%)]",
+          styles.label,
+        )}
       >
         {children}
       </span>
@@ -76,11 +70,11 @@ export const ShinyButton = React.forwardRef<
           mask: "linear-gradient(rgb(0,0,0), rgb(0,0,0)) content-box exclude,linear-gradient(rgb(0,0,0), rgb(0,0,0))",
           WebkitMask:
             "linear-gradient(rgb(0,0,0), rgb(0,0,0)) content-box exclude,linear-gradient(rgb(0,0,0), rgb(0,0,0))",
-          backgroundImage:
-            "linear-gradient(-75deg,color-mix(in oklab,var(--primary) 10%,transparent) calc(var(--x) + 20%),color-mix(in oklab,var(--primary) 50%,transparent) calc(var(--x) + 25%),color-mix(in oklab,var(--primary) 10%,transparent) calc(var(--x) + 100%))",
         }}
-        className="absolute inset-0 z-10 block rounded-[inherit] p-px"
-      />
+        className={cn("absolute inset-0 z-10 block rounded-[inherit] p-px", styles.ring)}
+      >
+        <i className={styles.beam} />
+      </span>
     </motion.button>
   )
 })

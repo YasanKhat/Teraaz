@@ -87,8 +87,19 @@ const h1 = window.document.querySelector('h1')
 ok('یک h1 با عنوانِ «سروا پلاس»', !!h1 && h1.textContent.trim() === 'سروا پلاس', h1?.textContent)
 const ol = window.document.querySelector('ol')
 ok('مراحل در یک <ol>اند (۴ تا)', !!ol && ol.querySelectorAll('li').length === 4, ol ? ol.querySelectorAll('li').length + ' تا' : 'نیست')
+/* ⚠️ این عدد از درختِ زنده‌یِ `/plus.html` سایت آمده، نه از شمارشِ برنامه:
+   قهرمان یک `<header>` است، بعد چرخ و ریتم و مقایسه و قیمت‌ها چهار
+   `<section>`، و «قوانینِ خرید» پنجمی است. تخته‌یِ مقایسه «بخش» نیست — یک
+   `<div>` درونِ بخشِ مقایسه است. پیش از این آزمون می‌گفت «۶ یا بیشتر» و
+   همان اشتباهِ برنامه (تخته بیرونِ مقایسه) را درست می‌پنداشت. */
 const sections = window.document.querySelectorAll('section').length
-ok('بخش‌هایِ صفحه بیش ازِ ۵ تاست (صفحهٔ کامل)', sections >= 6, sections + ' بخش')
+ok('پنج بخش، درست مانندِ سایت', sections === 5, sections + ' بخش')
+
+const compare = [...window.document.querySelectorAll('section')]
+  .find((s) => s.querySelector('[class*="story"], [class*="board"]'))
+const boardInCompare = !!compare && [...compare.children]
+  .some((c) => /board/i.test(typeof c.className === 'string' ? c.className : ''))
+ok('تخته‌یِ مقایسه درونِ بخشِ مقایسه است (مانندِ سایت)', boardInCompare)
 
 console.log(`\n${pass} از ${pass + fail}`)
 process.exit(0)

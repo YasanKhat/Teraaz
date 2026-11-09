@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type RefObject, type ReactNode } from "react";
+import { AnimatePresence, animate, motion, useInView, useMotionValue, useTransform } from "framer-motion";
 import { ArrowDown, BookOpen } from "lucide-react";
 import MainLogo from "@/components/svgs/mainLogo";
 import { GeometricPattern } from "@/components/persian-patterns";
@@ -23,24 +24,17 @@ import styles from "./plus-scroll.module.css";
 
 export type CycleStep = { title: string; body: string };
 
-// Fixed positions avoid hydration differences. Mobile keeps only six small motes.
+/* ⚠️ این شش ذره عیناً از اچ‌تی‌ام‌الِ صفحه‌یِ `/plus` سایت کپی شده‌اند:
+   همان جا (`--mote-x/y`)، همان اندازه، همان سرعت و همان لحن. پیش از این
+   شانزده ذره با عددهایِ ساخته‌یِ خودمان اینجا بود و چون سرعت‌ها فرق
+   می‌کرد، دامنه‌یِ لغزشِ ذرات با سایت یکی نبود (مثل ‎-۳۲۱ در برابر ‎۱۴۶). */
 const PARALLAX_MOTES = [
-  { x: 7, y: 5, w: 15, h: 126, speed: .8, tone: "teal", mobile: true },
-  { x: 90, y: 9, w: 22, h: 180, speed: 1.35, tone: "gold" },
-  { x: 21, y: 17, w: 9, h: 58, speed: 1.55, tone: "gold" },
-  { x: 96, y: 22, w: 12, h: 110, speed: .7, tone: "teal", mobile: true },
-  { x: 5, y: 28, w: 24, h: 168, speed: 1.3, tone: "teal" },
-  { x: 80, y: 33, w: 10, h: 75, speed: .85, tone: "gold", mobile: true },
-  { x: 38, y: 39, w: 12, h: 96, speed: 1.45, tone: "teal" },
-  { x: 94, y: 43, w: 21, h: 145, speed: .75, tone: "gold" },
-  { x: 11, y: 49, w: 14, h: 125, speed: 1.5, tone: "teal", mobile: true },
-  { x: 87, y: 56, w: 16, h: 135, speed: 1.25, tone: "teal" },
-  { x: 25, y: 62, w: 9, h: 66, speed: .8, tone: "gold" },
-  { x: 96, y: 67, w: 12, h: 98, speed: 1.4, tone: "teal", mobile: true },
-  { x: 6, y: 73, w: 21, h: 156, speed: .7, tone: "gold" },
-  { x: 75, y: 78, w: 10, h: 82, speed: 1.45, tone: "teal" },
-  { x: 17, y: 84, w: 14, h: 105, speed: .85, tone: "teal", mobile: true },
-  { x: 91, y: 89, w: 17, h: 118, speed: 1.25, tone: "gold" },
+  { x: 6, y: 4, w: 12, h: 110, speed: .8, tone: "teal", mobile: true },
+  { x: 93, y: 9, w: 16, h: 150, speed: 1.3, tone: "gold", mobile: false },
+  { x: 95, y: 19, w: 10, h: 90, speed: .75, tone: "teal", mobile: true },
+  { x: 4, y: 24, w: 18, h: 140, speed: 1.25, tone: "teal", mobile: false },
+  { x: 90, y: 33, w: 12, h: 100, speed: .85, tone: "gold", mobile: false },
+  { x: 8, y: 41, w: 10, h: 80, speed: 1.4, tone: "gold", mobile: true },
 ];
 
 function Jewel({ className }: { className?: string }) {
@@ -71,12 +65,92 @@ function Jewel({ className }: { className?: string }) {
  */
 const STATE_WORD = { yes: "دارد", part: "تا حدی", no: "ندارد" } as const;
 
+/** قالبِ عددِ سایت برایِ رقم‌ها (`new Intl.NumberFormat("fa-IR")`). */
+const NUM = new Intl.NumberFormat("fa-IR");
+/** همان تابعِ easing که سایت در همه‌یِ انیمیشن‌هایِ تخته به کار می‌برد. */
+const EASE: [number, number, number, number] = [.16, 1, .3, 1];
+
+/**
+ * اودومترِ تخته — رقم با جابه‌جا شدن می‌چرخد، نه اینکه ناگهان عوض شود.
+ * این همان رفتارِ سایت است: `AnimatePresence` با `mode="popLayout"`، رقمِ
+ * تازه از پایین می‌آید و رقمِ کهنه به بالا می‌رود؛ جهتش به بزرگ‌تر یا
+ * کوچک‌تر شدنِ عدد بستگی دارد.
+ */
+function Odometer({ value }: { value: number }) {
+  const [shown, setShown] = useState(value);
+  const [direction, setDirection] = useState(1);
+  if (shown !== value) { setDirection(value > shown ? 1 : -1); setShown(value); }
+  return (
+    <span className={styles.boardOdometer} aria-hidden="true">
+      <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+        <motion.span
+          key={value}
+          custom={direction}
+          variants={{
+            enter: (d: number) => ({ y: `${70 * d}%`, opacity: 0 }),
+            center: { y: "0%", opacity: 1 },
+            exit: (d: number) => ({ y: `${-70 * d}%`, opacity: 0 }),
+          }}
+          initial="enter" animate="center" exit="exit"
+          transition={{ type: "spring", stiffness: 420, damping: 32 }}
+        >{NUM.format(value)}</motion.span>
+      </AnimatePresence>
+    </span>
+  );
+}
+
+/**
+ * مبلغِ کتاب — از صفر تا مقدار می‌شمارد، آن هم تنها وقتی که بلوک به چشم
+ * آمده باشد. اگر بلوک هنوز زیرِ صفحه است، عدد صفر می‌ماند تا وقتی برسد.
+ */
+function CostCounter({ value, run }: { value: number; run: boolean }) {
+  const counter = useMotionValue(value);
+  const text = useTransform(counter, (v) => NUM.format(1000 * Math.round(v / 1000)));
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el && el.getBoundingClientRect().top > window.innerHeight) counter.set(0);
+  }, [counter]);
+  useEffect(() => {
+    if (!run || counter.get() === value) return;
+    const controls = animate(counter, value, { duration: 1.5, ease: EASE });
+    return () => controls.stop();
+  }, [run, counter, value]);
+  return <motion.b ref={ref}>{text}</motion.b>;
+}
+
+/**
+ * آگاهی از ردیف‌ها — سایت امتیازِ تخته را از رویِ ردیف‌هایی حساب می‌کند که
+ * از خطِ ۶۵٪ِ بلندایِ پنجره گذشته باشند (`data-on`). برای همین امتیاز هنگام
+ * پیمایش بالا می‌رود، نه اینکه از اول «۵» و «۱۷» باشد. مقدارِ آغازین در سایت
+ * «همه روشن» است و دیده‌بان بلافاصله آن را اصلاح می‌کند.
+ */
+function useRowAwareness(ref: RefObject<HTMLElement | null>, count: number) {
+  const [on, setOn] = useState<boolean[]>(() => Array(Math.max(count, 0)).fill(true));
+  useEffect(() => {
+    const root = ref.current;
+    if (!root || typeof IntersectionObserver === "undefined") return;
+    const rows = Array.from(root.querySelectorAll<HTMLElement>("[data-row]"));
+    const observer = new IntersectionObserver(() => {
+      const line = .65 * window.innerHeight;
+      const next = rows.map((row) => row.getBoundingClientRect().top < line);
+      setOn((prev) => (prev.length === next.length && prev.every((v, i) => v === next[i]) ? prev : next));
+    }, { rootMargin: "0px 0px -35% 0px" });
+    rows.forEach((row) => observer.observe(row));
+    return () => { observer.disconnect(); setOn(Array(Math.max(count, 0)).fill(true)); };
+  }, [ref, count]);
+  return on;
+}
+
 function Mark({ mark, plus = false }: { mark: CompareMark; plus?: boolean }) {
   const word = STATE_WORD[mark.state];
   return (
     <span className={styles.boardMark} data-mark={mark.state} data-plus={plus || undefined}>
       {mark.state === "yes" && <span className={styles.boardBadge} aria-hidden />}
-      {mark.state === "no" && !plus && <span className={styles.boardDash} aria-hidden />}
+      {/* ⚠️ در سایت خطِ تیره تنها وقتی است که خانه هیچ یادداشتی ندارد؛
+          هر جا یادداشت هست (مثل «تا چاپ بعد») همان یادداشت جایِ خط را
+          می‌گیرد و خطِ تیره نمی‌آید. */}
+      {mark.state === "no" && !plus && !mark.note && <span className={styles.boardDash} aria-hidden />}
       {plus ? (
         mark.note ? <small>{mark.note}</small> : <span className="sr-only">{word}</span>
       ) : (
@@ -93,7 +167,7 @@ function Mark({ mark, plus = false }: { mark: CompareMark; plus?: boolean }) {
  * بخشِ «کتاب کمک‌درسی یا سروا پلاس؟» — شش توضیحِ بلند، بعد یک دسته کارتِ
  * برگردان با همان شش ابزار، و شش دکمه برای رفتن به هر کارت.
  */
-function StoryCompare({ items }: { items: StoryItem[] }) {
+function StoryCompare({ items, children }: { items: StoryItem[]; children?: ReactNode }) {
   const [open, setOpen] = useState<number | null>(null);
 
   return (
@@ -128,41 +202,49 @@ function StoryCompare({ items }: { items: StoryItem[] }) {
             })}
           </div>
 
-          <div className={styles.storyDeck}>
+          {/* ⚠️ این درخت عیناً از اچ‌تی‌ام‌الِ صفحه‌یِ `/plus` سایت برداشته شده:
+              هر کارت `flip` دارد که دو رویِ `front` و `back` را در بر می‌گیرد،
+              رویِ جلو `frontLogo` + `frontTop` (با `brand` و `goldChip`) +
+              `frontBottom` + یک `glare`، و رویِ پشت `backIndex` + `emblem` +
+              `backText` + یک `glare` دیگر. پیش از این نشانِ `goldChip` نبود،
+              `glare` رویِ جلو نبود، و `--accent` رویِ کارت بود نه `backInner`
+              (در سایت هر کارت رنگِ خود را رویِ `backInner` می‌گیرد). */}
+          <div className={styles.storyDeck} aria-hidden="true">
             {items.map((item, index) => {
-              const style = { "--i": index, "--accent": item.accent } as CSSProperties;
               const Icon = item.icon;
               return (
-                <div key={item.id} className={styles.storyCard} style={style}>
-                  <div className={styles.storyFlip} data-flipped={index === open || undefined}>
+                <div key={item.id} className={styles.storyCard} style={{ "--i": index } as CSSProperties}>
+                  <div className={styles.storyFlip}>
                     <div className={styles.storyFront}>
                       <div className={styles.storyFrontInner}>
-                        <span className={styles.storyFrontLogo}><MainLogo /></span>
+                        <span className={styles.storyFrontLogo} aria-hidden="true"><MainLogo /></span>
                         <div className={styles.storyFrontTop}>
                           <span className={styles.storyBrand}>
-                            <span className={styles.storyBrandMark}><SarvaStar size={20} /></span>
+                            <span className={styles.storyBrandMark} aria-hidden="true"><SarvaStar size={20} /></span>
                             سروا <b>پلاس</b>
                           </span>
+                          <span className={styles.storyGoldChip} aria-hidden="true" />
                         </div>
                         <div className={styles.storyFrontBottom}>
                           <small>{item.principle}</small>
                           <strong>{item.card}</strong>
                         </div>
+                        <i className={styles.storyGlare} data-glare="true" aria-hidden="true" />
                       </div>
                     </div>
                     <div className={styles.storyBack}>
-                      <div className={styles.storyBackInner}>
+                      <div className={styles.storyBackInner} style={{ "--accent": item.accent } as CSSProperties}>
                         <span className={styles.storyBackIndex}>
                           {fa(index + 1)} / {fa(items.length)}
                         </span>
-                        <span className={styles.storyEmblem}>
+                        <span className={styles.storyEmblem} data-emblem="true">
                           <span className={styles.storyEmblemTile}><Icon size={24} aria-hidden /></span>
                         </span>
                         <span className={styles.storyBackText}>
                           <strong>{item.card}</strong>
                           <small>{item.caption}</small>
                         </span>
-                        <i className={styles.storyGlare} aria-hidden />
+                        <i className={styles.storyGlare} data-glare="true" aria-hidden="true" />
                       </div>
                     </div>
                   </div>
@@ -172,7 +254,7 @@ function StoryCompare({ items }: { items: StoryItem[] }) {
           </div>
         </div>
 
-        <nav className={styles.storyChips} aria-label="انتخابِ کارت">
+        <nav className={styles.storyChips} aria-label="بخش‌های مقایسه">
           {items.map((item, index) => (
             <button
               key={item.id}
@@ -185,15 +267,28 @@ function StoryCompare({ items }: { items: StoryItem[] }) {
           ))}
         </nav>
       </div>
+      {children}
     </section>
   );
 }
 
 function CompareBoard({ groups }: { groups: CompareGroup[] }) {
   const total = groups.reduce((n, g) => n + g.rows.length, 0);
-  return <section className={styles.board} aria-labelledby="plus-compare-heading">
+  const flat = groups.flatMap((g) => g.rows);
+  /* سایت به هر ردیف شماره‌یِ پیوسته‌یِ خود را می‌دهد (`data-row="0"` …)؛
+     این شماره در کلِ تخته یکتاست، نه در هر گروه. */
+  let rowIndex = -1;
+  const tableRef = useRef<HTMLDivElement>(null);
+  const on = useRowAwareness(tableRef, flat.length);
+  /* امتیاز همان شمارشِ ردیف‌هایی است که از خط گذشته‌اند و نشان‌شان «دارد»
+     است — برایِ ستونِ کتاب و ستونِ سروا پلاس جداگانه. */
+  const scoreBook = flat.filter((row, i) => on[i] && row.book.state === "yes").length;
+  const scorePlus = flat.filter((row, i) => on[i] && row.plus.state === "yes").length;
+  const costRef = useRef<HTMLDivElement>(null);
+  const costInView = useInView(costRef, { once: true, margin: "0px 0px -20% 0px" });
+  return <div className={styles.board} aria-labelledby="plus-compare-heading">
     <h3 id="plus-compare-heading" className={styles.boardHeading}>همهٔ تفاوت‌ها</h3>
-    <div className={styles.boardTable} role="table" aria-label="مقایسهٔ کتاب کمک‌درسی و سروا پلاس">
+    <div className={styles.boardTable} role="table" aria-label="مقایسهٔ کتاب کمک‌درسی و سروا پلاس" ref={tableRef}>
       <div className={styles.boardScore} role="rowgroup">
         <div className={styles.boardScoreRow} role="row">
           <span className={styles.boardScoreLead} role="columnheader"><b>{fa(total)} مورد</b></span>
@@ -202,13 +297,13 @@ function CompareBoard({ groups }: { groups: CompareGroup[] }) {
               <BookOpen size={15} aria-hidden />
               <span className={styles.boardBookWord}>کتاب </span>کمک‌درسی
             </span>
-            <span className={styles.boardOdometer}><span>{fa(5)}</span></span>
+            <Odometer value={scoreBook} />
           </span>
           <span className={styles.boardScorePlus} role="columnheader">
             <span className={styles.boardScoreName}>
               <SarvaStar size={15} />سروا پلاس
             </span>
-            <span className={styles.boardOdometer}><span>{fa(total)}</span></span>
+            <Odometer value={scorePlus} />
           </span>
         </div>
       </div>
@@ -216,7 +311,7 @@ function CompareBoard({ groups }: { groups: CompareGroup[] }) {
         <div key={group.title} className={styles.boardGroup} role="rowgroup">
           <div className={styles.boardGroupTitle} role="row"><span role="rowheader">{group.title}</span></div>
           {group.rows.map(row => (
-            <div key={row.label} className={styles.boardRow} role="row" data-on="true">
+            <div key={row.label} className={styles.boardRow} role="row" data-row={(rowIndex += 1)} data-on="true">
               <span className={styles.boardLabel} role="rowheader">{row.label}</span>
               <span className={styles.boardBookCell} role="cell"><Mark mark={row.book} /></span>
               <span className={styles.boardPlusCell} role="cell"><i className={styles.boardWash} aria-hidden="true" /><Mark mark={row.plus} plus /></span>
@@ -224,22 +319,33 @@ function CompareBoard({ groups }: { groups: CompareGroup[] }) {
           ))}
         </div>
       ))}
-      <div className={styles.boardCost}>
-        <div className={styles.boardCostBook}>
-          <span className={styles.boardCostBookMark}><BookOpen size={18} aria-hidden /></span>
+      {/* سایت این بلوک را با یک ورودِ نرم (بالا آمدنِ ۲۸ پیکسلی) نشان می‌دهد
+          و مبلغ را از صفر تا مقدار می‌شمارد؛ پیش از این برنامه هر دو را
+          نداشت و عدد همان لحظه‌یِ اول نوشته می‌شد. */}
+      <div className={styles.boardCost} ref={costRef}>
+        <motion.div
+          className={styles.boardCostBook}
+          initial={{ opacity: 0, y: 28 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "0px 0px -15% 0px" }}
+          transition={{ duration: .8, ease: EASE }}
+        >
+          <span className={styles.boardCostBookMark}><BookOpen size={26} aria-hidden /></span>
           <span className={styles.boardCostText}>
             <span className={styles.boardCostName}>{PLUS_COST.name}</span>
             <span className={styles.boardCostValue}>
-              <small>{PLUS_COST.prefix}</small> <b>{PLUS_COST.value}</b> <small>{PLUS_COST.unit}</small>
+              <small>{PLUS_COST.prefix}</small>{" "}
+              <CostCounter value={PLUS_COST.amount} run={costInView} />{" "}
+              <small>{PLUS_COST.unit}</small>
             </span>
           </span>
-        </div>
+        </motion.div>
         <div className={styles.boardThread} aria-hidden>
           <span data-journey-emerge="true"><Jewel /></span>
         </div>
       </div>
     </div>
-  </section>;
+  </div>;
 }
 
 export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compare, header, footer, markers = false, showPath = false }: {
@@ -269,15 +375,22 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
       /* نگینِ درونِ «رشته»‌ی تخته‌ی هزینه — نقطه‌ی آغازِ ستاره‌ی دوم. با
          انتخابگر گرفته می‌شود چون آن نگین در مؤلفه‌ی جداگانه‌ی CompareBoard
          است و ref از آنجا به اینجا نمی‌رسد. */
-      const emerge = root.querySelector<HTMLElement>("[data-journey-emerge]");
+      /* اگر تخته‌ی هزینه نباشد، نقطه‌ی آغاز به نگینِ قهرمان برمی‌گردد؛ پیش‌تر
+         نبودِ همین یک عنصر کلِ راه‌اندازی را بیرون می‌انداخت و هیچ انیمیشنی
+         اجرا نمی‌شد. حالا نبودش تنها مسیرِ ستاره‌ی دوم را کوتاه می‌کند. */
+      const emerge = root.querySelector<HTMLElement>("[data-journey-emerge]") ?? seed;
       const orb2 = orb2Ref.current;
       const inner2 = orb2InnerRef.current;
       if (!root || !orb || !inner || !seed || !dock || !emerge || !orb2 || !inner2) return;
       gsap.registerPlugin(ScrollTrigger);
       const mm = gsap.matchMedia();
-      mm.add({ motion: "(prefers-reduced-motion: no-preference)", compact: "(max-width: 699px)" }, (context) => {
+      /* ⚠️ شرطِ سوم (`oneColumn`) از نسخه‌یِ زنده آمده و در برنامه نبود:
+         کارت‌هایِ پلان تنها وقتی «بادبزن» می‌شوند که ستون‌ها بیش از یکی
+         باشند (`max-width: 639px` یعنی یک ستون). */
+      mm.add({ motion: "(prefers-reduced-motion: no-preference)", compact: "(max-width: 699px)", oneColumn: "(max-width: 639px)" }, (context) => {
         if (!context.conditions?.motion) return;
         const compact = Boolean(context.conditions.compact);
+        const oneColumn = Boolean(context.conditions.oneColumn);
         const cards = Array.from(root.querySelectorAll<HTMLElement>("[data-reason-card]"));
         const glow = root.querySelectorAll("[data-dock-glow]");
         let journey: ReturnType<typeof gsap.timeline> | undefined;
@@ -558,6 +671,39 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           deck.to({}, { duration: .4 });
         }
 
+        /* ── کارت‌هایِ پلان ───────────────────────────────────────────────
+           سه کارت از جایِ خودشان به سویِ میانِ شبکه می‌آیند: هر کارت از
+           فاصله‌اش تا میانِ شبکه شروع می‌کند، به اندازه‌یِ `(i-mid)*6`
+           درجه چرخیده است و کوچک‌تر است؛ با `stagger` پشتِ سرِ هم می‌رسند.
+           در یک ستون (تلفنِ باریک) این بادبزن بی‌معناست و سایت به جایش هر
+           کارت را جداگانه از پایین می‌آورد. زاویه، مقیاس، زمان‌بندی و
+           توقف‌ها عیناً از بسته‌یِ خودِ سایت گرفته شده‌اند. */
+        const planCards = gsap.utils.toArray<HTMLElement>("[data-plan-card]", root);
+        const planGrid = planCards[0]?.parentElement as HTMLElement | undefined;
+        if (planGrid && planCards.length > 1 && !oneColumn) {
+          const middle = (element: HTMLElement) => ({ x: element.offsetLeft + element.offsetWidth / 2, y: element.offsetTop + element.offsetHeight / 2 });
+          const mid = (planCards.length - 1) / 2;
+          planCards.forEach((card, i) => gsap.set(card, { zIndex: planCards.length - i }));
+          gsap.from(planCards, {
+            x: (_index: number, target: HTMLElement) => middle(planGrid).x - middle(target).x,
+            y: (_index: number, target: HTMLElement) => middle(planCards[0]).y - middle(target).y + 50,
+            rotation: (index: number) => (index - mid) * 6,
+            /* ⚠️ در سایت تا پیش از رسیدن به تریگر هیچ ترادیسی رویِ کارت‌ها
+               نیست (فقط `z-index` می‌نشیند)؛ بی‌این، نخستین کارت همان لحظه‌یِ
+               ساخت ۳۰۴ پیکسل کنار می‌رود و در آن ۳۰۰ پیکسلِ پیش از آغاز،
+               لرزش دیده می‌شود. */
+            scale: .84, ease: "power3.out", stagger: .08, immediateRender: false,
+            scrollTrigger: { trigger: planGrid, start: "top 88%", end: "top 30%", scrub: .9, invalidateOnRefresh: true },
+          });
+        } else {
+          planCards.forEach((card) => {
+            gsap.from(card, {
+              y: 70, rotationX: 24, scale: .94, opacity: 0, transformPerspective: 900, transformOrigin: "50% 0%",
+              ease: "power2.out", scrollTrigger: { trigger: card, start: "top 96%", end: "top 62%", scrub: .6 },
+            });
+          });
+        }
+
         root.dataset.motion = "ready";
         return () => {
           ScrollTrigger.removeEventListener("refreshInit", buildJourney);
@@ -575,16 +721,41 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
       if (document.fonts.status !== "loaded") void document.fonts.ready.then(() => { if (!disposed) scheduleRefresh(); });
       // Ignore the observer's initial delivery. ScrollTrigger already handles window
       // resizes; only late content/height changes need an additional refresh here.
+      /* ⚠️ پاییدنِ بلندایِ خودِ «ریشه» کافی نیست. سربرگِ برنامه بیرونِ این
+         صفحه است و ممکن است پس از ساخته شدنِ تریگرها بلندتر شود؛ آن وقت
+         همه‌یِ جایگاه‌ها به همان اندازه جابه‌جا می‌مانند (اینجا دیده شد:
+         ۱۰۲ پیکسل) بی‌آن‌که بلندایِ ریشه تکان بخورد. برای همین «پوسته»‌ای را
+         هم می‌پاییم که ریشه در آن نشسته است — نه `<html>` و `<body>` را، که
+         اندازه‌شان همان اندازه‌یِ پنجره است و تغییرِ سند را نشان نمی‌دهند. */
+      let shell: HTMLElement = root;
+      while (shell.parentElement && shell.parentElement !== document.body) shell = shell.parentElement as HTMLElement;
       let width = root.clientWidth;
       let height = root.clientHeight;
-      const observer = new ResizeObserver(([entry]) => {
-        const nextWidth = Math.round(entry.contentRect.width);
-        const nextHeight = Math.round(entry.contentRect.height);
-        if (nextWidth === width && nextHeight !== height) scheduleRefresh();
-        width = nextWidth; height = nextHeight;
+      let shellHeight = shell.clientHeight;
+      const observer = new ResizeObserver((entries) => {
+        let changed = false;
+        for (const entry of entries) {
+          const nextHeight = Math.round(entry.contentRect.height);
+          if (entry.target === root) {
+            const nextWidth = Math.round(entry.contentRect.width);
+            /* تغییرِ عرض را خودِ ScrollTrigger می‌گیرد؛ اینجا تنها تغییرِ
+               بلندا مهم است. */
+            if (nextWidth === width && nextHeight !== height) changed = true;
+            width = nextWidth; height = nextHeight;
+          } else if (nextHeight !== shellHeight) {
+            changed = true;
+          }
+          if (entry.target === shell) shellHeight = nextHeight;
+        }
+        if (changed) scheduleRefresh();
       });
       observer.observe(root);
-      teardown = () => { cancelAnimationFrame(frame); observer.disconnect(); mm.revert(); };
+      if (shell !== root) observer.observe(shell);
+      window.addEventListener("load", scheduleRefresh);
+      teardown = () => {
+        cancelAnimationFrame(frame); observer.disconnect();
+        window.removeEventListener("load", scheduleRefresh); mm.revert();
+      };
     }
     // No animation-library download or observers until motion is actually wanted.
     const preference = window.matchMedia("(prefers-reduced-motion: no-preference)");
@@ -646,16 +817,18 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           </div>
           <div className={styles.wheelArt} aria-hidden>
             <div className={styles.wheelRing}><i /><i /><i /></div>
-            <div className={styles.wheelCore}><SarvaStar size={68} /></div>
+            {/* سایت ستاره را درونِ یک لایه‌یِ `coreSlot` می‌گذارد؛ این لایه
+               جایِ نشستنِ ستاره است (`orbHolder` به سمتِ آن می‌رود). */}
+            <div className={styles.wheelCore}><div className={styles.coreSlot}><SarvaStar size={68} /></div></div>
             {PLUS_ORBIT_LABELS.map(label => <span key={label} className={styles.orbitLabel}>{label}</span>)}
           </div>
         </section>
 
         <LearningParallax />
 
-        <StoryCompare items={story} />
-
-        {compare && <CompareBoard groups={compare} />}
+        <StoryCompare items={story}>
+          {compare && <CompareBoard groups={compare} />}
+        </StoryCompare>
 
         <section className={styles.plans} id="plans">
           <div className={styles.dockScene} aria-hidden>
