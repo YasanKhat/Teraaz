@@ -1173,3 +1173,109 @@ the decorative layers stay small. */
   .boardLabel { padding: 10px 14px; font-size: 13px; }
   .boardScoreLead { padding: 12px 14px; font-size: 13px; }
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+   صحنه‌یِ چسبانِ «کتابِ داستانِ مقایسه»
+
+   در سایت این بخش یک شبکه‌یِ ایستا نیست: اندازه‌اش یک صفحه به‌علاوه‌یِ
+   `var(--len)` درصدِ صفحه است (`--len: 640`) و صحنه درونش *می‌چسبد*
+   (`position: sticky`). کارت‌ها روی هم دسته شده‌اند و با پیمایش یکی‌یکی
+   برمی‌گردند — برای همین اینجا همه‌چیز مطلق است تا بتواند رویِ هم
+   بنشیند. بی‌`[data-motion]` (یعنی اگر جاوااسکریپت نیامد یا کاربر کاهشِ
+   حرکت خواسته باشد) همان چیدمانِ شبکه‌ایِ خوانا سرِ جایش می‌ماند.
+   ────────────────────────────────────────────────────────────────────── */
+
+.story { --len: 640; }
+.story[data-motion] { height: calc(100svh + var(--len) * 1svh); }
+
+.story[data-motion] .storyStage {
+  --cw: min(400px, 28vw, calc((100svh - 160px) / 1.28));
+  max-width: none;
+  height: 100svh;
+  margin: 0;
+  padding: 0;
+  display: block;
+  position: sticky;
+  top: 0;
+  overflow: hidden;
+}
+
+.story[data-motion] .storyIntro {
+  top: 9svh;
+  z-index: 3;
+  position: absolute;
+  inset-inline: 20px;
+  grid-column: auto;
+  text-align: right;
+  left: auto;
+  right: max(24px, 7vw);
+  width: min(40vw, 470px);
+  translate: 0 -50%;
+}
+
+.story[data-motion] .storyCaptions {
+  z-index: 3;
+  width: min(34vw, 470px);
+  display: block;
+  position: absolute;
+  top: 50%;
+  right: max(24px, 7vw);
+}
+
+.story[data-motion] .storyCaption {
+  width: 100%;
+  position: absolute;
+  top: 0;
+  right: 0;
+  translate: 0 -50%;
+}
+
+.story[data-motion] .storyDeck {
+  pointer-events: none;
+  display: block;
+  position: absolute;
+  inset: 0;
+}
+
+.story[data-motion] .storyCard {
+  width: var(--cw);
+  aspect-ratio: 1 / 1.28;
+  margin-top: calc(var(--cw) * -0.64);
+  margin-left: calc(var(--cw) / -2);
+  will-change: transform;
+  position: absolute;
+  top: 55%;
+  left: 50%;
+  grid-column: auto;
+  grid-row: auto;
+}
+
+.story[data-motion] .storyFlip {
+  transform-style: preserve-3d;
+  position: absolute;
+  inset: 0;
+  transition: none;
+}
+
+.story[data-motion] .storyFront,
+.story[data-motion] .storyBack {
+  aspect-ratio: auto;
+  backface-visibility: hidden;
+  display: block;
+  position: absolute;
+  inset: 0;
+  transform: rotateY(0);
+}
+
+.story[data-motion] .storyBack { transform: rotateY(180deg); }
+
+.story[data-motion] .storyChips {
+  z-index: 5;
+  display: flex;
+  position: absolute;
+  bottom: max(16px, 3svh);
+  left: 50%;
+  translate: -50%;
+  margin: 0;
+  box-shadow: 0 12px 30px -18px #00000080;
+}

@@ -447,6 +447,93 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           gsap.from(step, { x: 12, opacity: .4, duration: .5, ease: "power2.out", scrollTrigger: { trigger: step, start: "top 88%", once: true } });
         });
         gsap.to(root.querySelector(`.${styles.wheelRing}`), { rotation: 70, ease: "none", scrollTrigger: { trigger: root.querySelector(`.${styles.wheel}`), start: "top bottom", end: "bottom top", scrub: .6 } });
+        /* ── کارت‌هایِ سه‌بعدیِ مقایسه ───────────────────────────────────
+           شش کارت رویِ هم دسته‌اند. با پیمایش، هربار کارتِ رویی بالا
+           می‌آید و در دو مرحله می‌چرخد (`rotationX` کوتاه، سپس
+           `rotationY: ۱۸۰`) و کارتِ پیشین به کنار می‌رود؛ در پایان همه
+           بادبزن می‌شوند. زاویه‌ها، جابه‌جایی‌ها و زمان‌بندی عیناً از
+           نسخه‌یِ زنده گرفته شده‌اند. */
+        const storySection = root.querySelector<HTMLElement>(`.${styles.story}`);
+        const stage = storySection?.querySelector<HTMLElement>(`.${styles.storyStage}`);
+        const intro = storySection?.querySelector<HTMLElement>(`.${styles.storyIntro}`);
+        if (storySection && stage && intro) {
+          storySection.style.setProperty("--len", "640");
+          const captions = Array.from(storySection.querySelectorAll<HTMLElement>(`.${styles.storyCaption}`));
+          const cards = Array.from(storySection.querySelectorAll<HTMLElement>(`.${styles.storyCard}`));
+          const chips = storySection.querySelector<HTMLElement>(`.${styles.storyChips}`);
+          const glares = cards.map((c) => Array.from(c.querySelectorAll<HTMLElement>(`.${styles.storyGlare}`)));
+          const emblems = cards.map((c) => c.querySelector<HTMLElement>(`[data-emblem]`));
+          const fronts = cards.map((c) => c.querySelector<HTMLElement>(`.${styles.storyFront}`));
+          const backs = cards.map((c) => c.querySelector<HTMLElement>(`.${styles.storyBack}`));
+          const flips = cards.map((c) => c.querySelector<HTMLElement>(`.${styles.storyFlip}`));
+          const total = cards.length;
+          // جایِ آرامشِ هر کارت در دسته — از نسخه‌یِ زنده
+          const REST = [
+            { yPercent: 0, scale: 1, rotation: 0 },
+            { yPercent: 3.2, scale: .965, rotation: -2.6 },
+            { yPercent: 6.2, scale: .93, rotation: 2.2 },
+            { yPercent: 9, scale: .895, rotation: -1.8 },
+            { yPercent: 11.6, scale: .86, rotation: 2.8 },
+            { yPercent: 14, scale: .83, rotation: -1.4 },
+          ];
+          const rest = (i: number) => REST[i] ?? { yPercent: 14 + i * 2.4, scale: .83, rotation: 0 };
+
+          storySection.dataset.motion = "on";
+          gsap.set([...captions, ...backs, ...(chips ? [chips] : [])], { autoAlpha: 0 });
+          gsap.set(glares.flat(), { autoAlpha: 0 });
+          cards.forEach((card, i) => gsap.set(card, { xPercent: compact ? 0 : -58, zIndex: total - i, ...rest(i) }));
+
+          const deck = gsap.timeline({
+            defaults: { ease: "power2.inOut", duration: .6 },
+            scrollTrigger: { trigger: storySection, start: "top top", end: "bottom bottom", scrub: compact ? .5 : .8 },
+          });
+          deck.from(cards, { yPercent: "+=24", autoAlpha: 0, duration: .8, stagger: .05, ease: "power3.out" }, 0)
+            .to(intro, { autoAlpha: 0, y: -30, duration: .5 }, .85);
+          if (chips) deck.to(chips, { autoAlpha: 1, duration: .4 }, 1);
+
+          cards.forEach((card, i) => {
+            const at = 1.2 + 2.4 * i;
+            const [glareIn, glareOut] = glares[i];
+            if (i > 0) {
+              const previous = cards[i - 1];
+              deck.set(previous, { zIndex: 20 + i }, at)
+                .to(previous, compact
+                  ? { xPercent: -150, yPercent: 4, rotation: -16, autoAlpha: 0, duration: .6 }
+                  : { xPercent: -182 + (i - 1) * 6, yPercent: 6 + (i - 1) * 1.2, rotation: -12 + (i - 1) * 2.4, scale: .78, duration: .7 }, at)
+                .to(captions[i - 1], { autoAlpha: 0, y: -20, duration: .35 }, at);
+              for (let j = i + 1; j < total; j++) deck.to(cards[j], { ...rest(j - i), duration: .55 }, at + .1);
+            }
+            deck.fromTo(captions[i], { autoAlpha: 0, y: 26 }, { autoAlpha: 1, y: 0, duration: .45, immediateRender: false }, at + .45)
+              .to(card, { yPercent: compact ? 0 : -9, scale: compact ? 1.04 : 1.08, rotation: 0, duration: .4, ease: "power2.out" }, at + .25);
+            if (flips[i]) {
+              deck.to(flips[i], { rotationX: compact ? 10 : 14, rotation: compact ? -4 : -7, duration: .3, ease: "power1.out" }, at + .3)
+                .to(flips[i], { rotationY: 180, duration: .8, ease: "power3.inOut" }, at + .5)
+                .to(flips[i], { rotationX: 0, rotation: 0, duration: .6 }, at + .75);
+            }
+            if (glareIn) deck.fromTo(glareIn, { xPercent: -70, autoAlpha: 0 }, { xPercent: 0, autoAlpha: .9, duration: .4, ease: "sine.in", immediateRender: false }, at + .5);
+            if (fronts[i]) deck.set(fronts[i], { autoAlpha: 0 }, at + .9);
+            if (backs[i]) deck.set(backs[i], { autoAlpha: 1 }, at + .9);
+            if (glareOut) deck.fromTo(glareOut, { xPercent: 0, autoAlpha: .9 }, { xPercent: 70, autoAlpha: 0, duration: .45, ease: "sine.out", immediateRender: false }, at + .9);
+            if (emblems[i]) deck.fromTo(emblems[i], { scale: .82 }, { scale: 1, duration: .7, ease: "back.out(2)", immediateRender: false }, at + .9);
+            deck.to(card, { yPercent: 0, scale: 1, duration: .55, ease: "back.out(1.7)" }, at + 1.25);
+          });
+
+          const finale = 1.2 + 2.4 * total;
+          deck.to(captions[total - 1], { autoAlpha: 0, y: -20, duration: .35 }, finale);
+          if (chips) deck.to(chips, { autoAlpha: 0, duration: .3 }, finale);
+          cards.forEach((card, i) => {
+            const offset = (total - 1) / 2 - i;
+            deck.set(card, { zIndex: 40 + i }, finale)
+              .to(card, {
+                xPercent: offset * (compact ? 21 : 32),
+                yPercent: Math.abs(offset) * (compact ? 4.5 : 3.5) - (compact ? 8 : 4),
+                rotation: offset * (compact ? 6.5 : 5.5),
+                scale: compact ? .44 : .58, autoAlpha: 1, duration: 1, ease: "power3.inOut",
+              }, finale + .1 + (total - 1 - i) * .04);
+          });
+          deck.to({}, { duration: .4 });
+        }
+
         root.dataset.motion = "ready";
         return () => {
           ScrollTrigger.removeEventListener("refreshInit", buildJourney);
