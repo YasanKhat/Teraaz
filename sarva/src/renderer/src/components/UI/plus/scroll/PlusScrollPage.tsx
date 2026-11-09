@@ -251,6 +251,8 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
   const seedRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
   const pathRef = useRef<SVGPathElement>(null);
+  const orb2Ref = useRef<HTMLDivElement>(null);
+  const orb2InnerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let disposed = false;
@@ -264,7 +266,13 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
       const inner = orbInnerRef.current;
       const seed = seedRef.current;
       const dock = dockRef.current;
-      if (!root || !orb || !inner || !seed || !dock) return;
+      /* نگینِ درونِ «رشته»‌ی تخته‌ی هزینه — نقطه‌ی آغازِ ستاره‌ی دوم. با
+         انتخابگر گرفته می‌شود چون آن نگین در مؤلفه‌ی جداگانه‌ی CompareBoard
+         است و ref از آنجا به اینجا نمی‌رسد. */
+      const emerge = root.querySelector<HTMLElement>("[data-journey-emerge]");
+      const orb2 = orb2Ref.current;
+      const inner2 = orb2InnerRef.current;
+      if (!root || !orb || !inner || !seed || !dock || !emerge || !orb2 || !inner2) return;
       gsap.registerPlugin(ScrollTrigger);
       const mm = gsap.matchMedia();
       mm.add({ motion: "(prefers-reduced-motion: no-preference)", compact: "(max-width: 699px)" }, (context) => {
@@ -324,8 +332,12 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
             journey.to(position, { x: point.x + bounds.left, duration: point.y - previous.y, ease: "sine.inOut" }, previous.y - from.y);
           }
 
-          journey.to(inner, { scale: (compact ? 31.2 : 45.6) / 156, duration: 260, ease: "sine.out" }, 0);
-          journey.to(inner, { scale: dockWidth / 360, rotationX: 48, rotation: 0, duration: 300, ease: "sine.inOut" }, distance - 300);
+          /* ستاره‌ی نخست: درشت از تخمه بیرون می‌آید، در میانه ریز می‌شود تا
+             راه برود، و سرِ جایش در محوطه باز به اندازه‌ی همان هدف برمی‌گردد.
+             برخلافِ ستاره‌ی دوم کج‌شدنِ سه‌بعدی ندارد. */
+          const shrink = Math.min(260, .35 * distance);
+          journey.to(inner, { scale: (compact ? 22 : 45.6) / 156, duration: shrink, ease: "sine.out" }, 0);
+          journey.to(inner, { scale: dockBounds.width / 156, rotation: 0, duration: shrink, ease: "sine.inOut" }, distance - shrink);
           journey.to(glow, { opacity: 1, duration: 45, ease: "sine.in" }, distance - 45);
           journey.fromTo(root.querySelector(`.${styles.dockAura}`), { scale: .88 }, { scale: 1, duration: 140, ease: "sine.out" }, distance - 140);
           startScroll = Math.max(0, fromDocumentY - window.innerHeight * .77);
@@ -348,13 +360,63 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           animation: scrub, start: () => startScroll, end: () => endScroll,
           scrub: compact ? 1 : 1.25, invalidateOnRefresh: true, markers, id: "plus-journey",
         });
+        /* ── ستاره‌ی دوم ─────────────────────────────────────────────────
+           دو ستاره کاملاً از هم مستقل‌اند: یکی از تخمه‌ی بالای صفحه می‌آید و
+           دیگری از نگینِ «رشته»‌ی تخته‌ی هزینه — با مقیاسِ خودش و یک کج‌شدنِ
+           سه‌بعدی هنگامِ فرود (rotationX ۴۸). پیش‌تر این دو یکی شده بودند و
+           یک ستاره سراسرِ صفحه را می‌پیمود. */
+        const playhead2 = { progress: 0 };
+        const pos2 = { x: 0 };
+        let journey2: ReturnType<typeof gsap.timeline> | undefined;
+        let start2 = 0, end2 = 1, from2Doc = 0, to2Doc = 1, measured2 = false;
+        const renderStar2 = () => {
+          const y = journeyViewportY({ progress: playhead2.progress, scroll: latestScroll,
+            start: start2, end: end2, fromY: from2Doc, toY: to2Doc });
+          const transform = `translate3d(${pos2.x.toFixed(3)}px,${y.toFixed(3)}px,0) translate(-50%,-50%)`;
+          if (orb2.style.transform !== transform) orb2.style.transform = transform;
+        };
+        const buildStar2 = () => {
+          journey2?.kill();
+          const b = root.getBoundingClientRect();
+          const eb = emerge.getBoundingClientRect();
+          const db = dock.getBoundingClientRect();
+          const dockWidth2 = dock.parentElement!.getBoundingClientRect().width;
+          const from2 = { x: eb.left + eb.width / 2 - b.left, y: eb.top + eb.height / 2 - b.top };
+          const to2 = { x: db.left + db.width / 2 - b.left, y: db.top + db.height / 2 - b.top };
+          from2Doc = b.top + window.scrollY + from2.y;
+          to2Doc = b.top + window.scrollY + to2.y;
+          pos2.x = from2.x + b.left;
+          const span = Math.max(1, to2Doc - from2Doc);
+          gsap.set(orb2, { opacity: 1 });
+          gsap.set(inner2, { scale: eb.width / 156, rotation: 0, rotationX: 0 });
+          journey2 = gsap.timeline({ paused: true });
+          journey2.to(pos2, { x: to2.x + b.left, duration: span, ease: "sine.inOut" }, 0);
+          journey2.to(inner2, { scale: dockWidth2 / 360, rotationX: 48, duration: 300, ease: "sine.inOut" }, span - 300);
+          start2 = Math.max(0, from2Doc - window.innerHeight * .62);
+          end2 = Math.max(start2 + 1, to2Doc - window.innerHeight * .5);
+          if (!measured2) { playhead2.progress = Math.max(0, Math.min(1, (window.scrollY - start2) / (end2 - start2))); measured2 = true; }
+          journey2.progress(playhead2.progress);
+          renderStar2();
+        };
+        buildStar2();
+        const scrub2 = gsap.fromTo(playhead2, { progress: 0 }, {
+          progress: 1, ease: "none", paused: true, immediateRender: false,
+          onUpdate: () => { journey2?.progress(playhead2.progress); renderStar2(); },
+        });
+        ScrollTrigger.create({
+          animation: scrub2, start: () => start2, end: () => end2,
+          scrub: compact ? 1 : 1.25, invalidateOnRefresh: true, markers, id: "plus-journey-2",
+        });
+
         const trackAnchor = () => {
           latestScroll = window.scrollY;
           // Between the anchors, scrub alone owns the viewport position.
           if (latestScroll < startScroll || latestScroll > endScroll) renderPosition();
+          if (latestScroll < start2 || latestScroll > end2) renderStar2();
         };
         window.addEventListener("scroll", trackAnchor, { passive: true });
         ScrollTrigger.addEventListener("refreshInit", buildJourney);
+        ScrollTrigger.addEventListener("refreshInit", buildStar2);
         cards.forEach((card) => {
           gsap.from(card, { y: 22, opacity: .35, duration: .65, ease: "power2.out", scrollTrigger: { trigger: card.parentElement, start: "top 90%", once: true } });
           gsap.timeline({ scrollTrigger: { trigger: card.parentElement, start: "top 75%", end: "bottom 25%", scrub: 1 } })
@@ -390,7 +452,9 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           ScrollTrigger.removeEventListener("refreshInit", buildJourney);
           window.removeEventListener("scroll", trackAnchor);
           orb.style.removeProperty("transform");
+          orb2.style.removeProperty("transform");
           journey?.kill();
+          journey2?.kill();
           delete root.dataset.motion;
         };
       }, root);
@@ -438,7 +502,20 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
             
             <h1 className={styles.heroTitle}>سروا پلاس</h1>
             <p className={styles.heroLede}>همهٔ درس‌های بازی‌ها، نقش و آرایهٔ درسنامه، هوشواره، همهٔ امتحان‌های نهایی و مرور شب امتحان.</p>
-            <a className={styles.heroCta} href="#plans">دیدن قیمت‌ها <ArrowDown size={16} aria-hidden /></a>
+            {/* ⚠️ مسیریابِ برنامه هش‌محور است (`#/plus`)؛ اگر لنگر کارِ خودش را
+                بکند، `#plans` مسیر را عوض می‌کند و صفحه به ناکجاآباد می‌رود.
+                برای همین جهش را می‌گیریم و خودمان نرم می‌لغزیم. `href` سرِ
+                جایش می‌ماند تا راست‌کلیک و صفحه‌خوان همچنان درست باشند. */}
+            <a
+              className={styles.heroCta}
+              href="#plans"
+              onClick={(event) => {
+                const target = document.getElementById("plans");
+                if (!target) return;
+                event.preventDefault();
+                target.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >دیدن قیمت‌ها <ArrowDown size={16} aria-hidden /></a>
             <div ref={seedRef} className={styles.heroSeed} aria-hidden><Jewel /></div>
             
           </div>
@@ -484,6 +561,7 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
       {showPath && <svg className={styles.pathSvg} aria-hidden><path ref={pathRef} className={styles.pathLine} /></svg>}
       <div className={styles.stage} aria-hidden>
         <div ref={orbRef} className={styles.orbHolder}><div ref={orbInnerRef} className={styles.orb}><Jewel className={styles.orbStar} /></div></div>
+        <div ref={orb2Ref} className={styles.orbHolder}><div ref={orb2InnerRef} className={styles.orb}><Jewel className={styles.orbStar} /></div></div>
       </div>
     </div>
   );
