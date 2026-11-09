@@ -1,4 +1,7 @@
-import { AudioWaveform, FileCheck2, Image as ImageIcon, MoonStar, Palette, ScanText, type LucideIcon } from "lucide-react";
+import {
+  AudioWaveform, CalendarPlus, FileCheck2, Image as ImageIcon, Landmark, MoonStar, Palette, ScanText,
+  ScrollText, UserRound, type LucideIcon,
+} from "lucide-react";
 import type { CycleStep } from "./PlusScrollPage";
 
 /**
@@ -198,11 +201,18 @@ export const PLUS_PREPAID_NOTE = "پیش‌پرداخت است و تمدید خ�
 
 export const PLUS_RULES_HEADING = "قوانین خرید";
 
-export const PLUS_RULES = [
-  "اشتراک پیش‌پرداخت است، تمدید خودکار ندارد و بلافاصله بعد از پرداخت فعال می‌شود.",
-  "اگر اشتراک فعال داری، مدت جدید به انتهای آن اضافه می‌شود.",
-  "هر حساب مخصوص یک نفر است و استفادهٔ چند نفر از یک اشتراک مجاز نیست.",
-  "اگر مبلغ کم شد و اشتراک فعال نشد، بانک معمولاً تا ۷۲ ساعت آن را برمی‌گرداند. در غیر این صورت به پشتیبانی پیام بده.",
+/* هر قانون یک آیکن دارد — از کلاسِ `lucide-*` کنارِ هر `<li>` در سایت. */
+export const PLUS_RULES: { icon: LucideIcon; text: string }[] = [
+  {
+    icon: ScrollText,
+    text: "اشتراک پیش‌پرداخت است، تمدید خودکار ندارد و بلافاصله بعد از پرداخت فعال می‌شود.",
+  },
+  { icon: CalendarPlus, text: "اگر اشتراک فعال داری، مدت جدید به انتهای آن اضافه می‌شود." },
+  { icon: UserRound, text: "هر حساب مخصوص یک نفر است و استفادهٔ چند نفر از یک اشتراک مجاز نیست." },
+  {
+    icon: Landmark,
+    text: "اگر مبلغ کم شد و اشتراک فعال نشد، بانک معمولاً تا ۷۲ ساعت آن را برمی‌گرداند. در غیر این صورت به پشتیبانی پیام بده.",
+  },
 ];
 
 /** پایانِ صفحه — بلوکِ پشتیبانی. */

@@ -1,0 +1,40 @@
+/* دکمه‌ی «پشتیبانی» — کپیِ استایلِ سایت (support-button-module). */
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  height: 2.6rem;
+  padding-inline: 1.05rem;
+  border: 1px solid color-mix(in oklch, var(--foreground) 10%, transparent);
+  border-radius: 99px;
+  background: var(--card);
+  color: var(--foreground);
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color .25s, transform .12s;
+}
+.button:hover { border-color: color-mix(in oklch, var(--primary) 45%, transparent); }
+.button:active { transform: scale(.97); }
+.button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.face {
+  box-sizing: content-box;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: .3rem;
+  border-radius: 99px;
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+  overflow: visible;
+}
+
+.bubble { fill: var(--primary); transform-origin: 50% 80%; transition: transform .3s cubic-bezier(.3, 1.6, .5, 1); }
+.eyes { fill: var(--primary-foreground); transform-box: fill-box; transform-origin: 50%; }
+.cheek { fill: color-mix(in oklch, #f48998 80%, var(--primary-foreground)); opacity: .85; }
+.smile { fill: none; stroke: var(--primary-foreground); stroke-width: 1.7px; stroke-linecap: round; }
+
+.button:hover .bubble { transform: rotate(-6deg) scale(1.04); }
+.button:hover .eyes { animation: .45s ease-in-out support-blink; }
+
+@keyframes support-blink {
+  0%, 100% { scale: 1 1 }
+  45% { scale: 1 0.1 }
+}

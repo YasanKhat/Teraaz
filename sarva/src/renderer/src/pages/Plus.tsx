@@ -1,6 +1,8 @@
 import PlanCards from '@/components/UI/plus/PlanCards'
 import PlusScrollPage from '@/components/UI/plus/scroll/PlusScrollPage'
 import { PLUS_COMPARE, PLUS_CYCLE, PLUS_RULES, PLUS_RULES_HEADING, PLUS_SUPPORT } from '@/components/UI/plus/scroll/plus-content'
+import SupportButton from '@/components/UI/kit/support-button'
+import purchaseRules from '@/components/UI/plus/purchase-rules.module.css'
 import { usePlusSummary } from '@/lib/auth/use-current-user'
 import { jalaliLong } from '@/lib/panel/format'
 import type { PlusPlanOffer } from '@/lib/plus/types'
@@ -98,21 +100,22 @@ export default function Plus() {
 
       <section className="mx-auto mt-8 max-w-2xl rounded-2xl border border-border/70 bg-card px-5 pb-3 pt-4">
         <h3 className="mb-1 text-sm font-extrabold">{PLUS_RULES_HEADING}</h3>
-        <ul className="space-y-1 text-xs leading-6 text-muted-foreground">
-          {PLUS_RULES.map((rule) => (
-            <li key={rule}>{rule}</li>
-          ))}
+        <ul className={purchaseRules.list}>
+          {PLUS_RULES.map((rule) => {
+            const Icon = rule.icon;
+            return (
+              <li key={rule.text} className={purchaseRules.item}>
+                <span className={purchaseRules.icon} aria-hidden="true"><Icon size={16} /></span>
+                <span>{rule.text}</span>
+              </li>
+            );
+          })}
         </ul>
       </section>
 
       <div className="mt-10 flex flex-col items-center gap-3">
         <p className="text-sm text-muted-foreground">{PLUS_SUPPORT.question}</p>
-        <a
-          href="mailto:info@sarvaedu.ir"
-          className="relative cursor-pointer rounded-lg border border-primary/50 px-6 py-2.5 text-sm font-medium backdrop-blur-xl transition-shadow duration-300 ease-in-out hover:shadow dark:bg-[radial-gradient(circle_at_50%_0%,color-mix(in_oklab,var(--primary)_10%,transparent)_0%,transparent_60%)]"
-        >
-          {PLUS_SUPPORT.action}
-        </a>
+        <SupportButton>{PLUS_SUPPORT.action}</SupportButton>
       </div>
     </div>
   )

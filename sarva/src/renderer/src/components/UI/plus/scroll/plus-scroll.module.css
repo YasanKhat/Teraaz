@@ -737,8 +737,21 @@ the decorative layers stay small. */
   background: color-mix(in oklab, var(--primary) 13%, var(--card));
 }
 
-.boardScoreName { font-size: 13px; font-weight: 700; }
+.boardScoreName {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted-foreground);
+}
 .boardScorePlus .boardScoreName { color: var(--primary); }
+
+/* نشانه‌ی هر خانه از کوچک و ناپیدا درمی‌آید؛ «روشن» شدن با `data-on` است که
+   در سایت هنگامِ رسیدنِ ردیف به دید اضافه می‌شود. */
+.boardRow[data-on] .boardWash { transform: none; }
+.boardRow[data-on] .boardMark { opacity: 1; transform: none; }
 
 .boardGroup { margin-top: 28px; }
 
@@ -761,23 +774,34 @@ the decorative layers stay small. */
 .boardPlusCell { isolation: isolate; }
 
 .boardWash {
+  z-index: -1;
   position: absolute;
   inset: 0;
-  z-index: -1;
   border-radius: 17px 0 0 17px;
   background: color-mix(in oklab, var(--primary) 13%, var(--card));
+  transform-origin: 100%;
+  transform: scaleX(0);
+  transition: transform .55s cubic-bezier(.16, 1, .3, 1);
 }
 
-.boardMark { display: grid; justify-items: center; gap: 3px; text-align: center; }
+.boardMark {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  text-align: center;
+  opacity: 0;
+  transform: scale(.3);
+  transition: opacity .25s 80ms, transform .45s cubic-bezier(.34, 1.56, .64, 1) 80ms;
+}
 
 .boardBadge {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid color-mix(in oklab, var(--foreground) 30%, transparent);
   border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--card);
+  color: color-mix(in oklab, var(--foreground) 55%, transparent);
 }
 
 /* نشانه‌یِ سروا پلاس برجسته است. */
@@ -1037,61 +1061,98 @@ the decorative layers stay small. */
 
 /* ── شمارنده‌هایِ بالای جدول (۵ در برابرِ ۱۷) ── */
 .boardOdometer {
-  display: grid;
-  place-items: center;
-  min-width: 46px;
-  margin-top: 6px;
-  padding: 3px 10px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--card) 60%, transparent);
-  font-size: 22px;
+  display: inline-grid;
+  justify-items: center;
+  position: relative;
+  overflow: hidden;
+  min-width: 1.4em;
+  height: 1.3em;
+  font-family: var(--font-sans);
+  font-size: 44px;
   font-weight: 900;
+  line-height: 1.3;
 }
-.boardScorePlus .boardOdometer {
-  border-color: color-mix(in oklab, var(--primary) 45%, transparent);
-  color: var(--primary);
-}
+.boardScorePlus .boardOdometer { color: var(--primary); }
 
-.boardBookWord { color: var(--muted-foreground); }
+/* «کتاب » در سایت پنهان است و تنها «کمک‌درسی» دیده می‌شود. */
+.boardBookWord { display: none; }
 
 /* خطِ تیره‌یِ «ندارد» — یک نشانه‌یِ خالی که با «دارد» اشتباه نشود. */
 .boardDash {
-  display: block;
-  width: 22px;
+  width: 14px;
   height: 2px;
   border-radius: 2px;
-  background: color-mix(in oklab, var(--foreground) 28%, transparent);
+  background: color-mix(in oklab, var(--foreground) 25%, transparent);
 }
 
 /* ── بهایِ کتابِ کمک‌درسی، زیرِ جدول ── */
-.boardCost { display: grid; place-items: center; margin-top: 34px; }
+.boardCost {
+  margin-top: 150px;
+}
 
 .boardCostBook {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 16px 24px;
-  border: 1px dashed color-mix(in oklab, var(--border) 90%, transparent);
-  border-radius: 20px;
-  background: color-mix(in oklab, var(--card) 75%, transparent);
+  gap: 26px;
+  width: min(100%, 560px);
+  margin: 0 auto;
+  padding: 26px 30px;
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background: var(--card);
 }
 
 .boardCostBookMark {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  color: var(--muted-foreground);
+  flex: none;
+  width: 72px;
+  height: 72px;
+  rotate: -7deg;
+  border-radius: 22px;
+  color: var(--brick, #9a3b30);
+  background: linear-gradient(170deg, #f9f4e9, #eee6d4);
+  box-shadow: inset 0 0 0 1px #4630161f, 0 16px 28px -14px #00000073;
 }
 
 .boardCostText { display: grid; gap: 2px; }
-.boardCostName { font-size: 13px; color: var(--muted-foreground); }
-.boardCostValue { display: flex; align-items: baseline; gap: 6px; font-weight: 800; }
-.boardCostValue b { font-size: 24px; font-weight: 900; }
+.boardCostName {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--muted-foreground);
+}
+.boardCostValue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted-foreground);
+}
+/* ⚠️ عددِ «۱٬۱۰۰٬۰۰۰» در سایت به‌اندازه‌ای بزرگ است که خودش حرف را بزند
+   (`clamp(34px, 4.4vw, 52px)`)؛ کوچک‌تر از این یعنی بخشِ «بها» همان‌قدر
+   دیده می‌شود که یک پانویس. */
+.boardCostValue b {
+  font-family: var(--font-sans);
+  font-size: clamp(34px, 4.4vw, 52px);
+  font-weight: 900;
+  line-height: 1.3;
+  color: var(--foreground);
+}
 .boardCostValue small { font-size: 12px; font-weight: 500; color: var(--muted-foreground); }
+
+/* نخِ باریکی که از کارتِ بها به بخشِ «قیمت‌ها» می‌رود. */
+.boardThread { display: flex; flex-direction: column; align-items: center; margin-top: 40px; }
+.boardThread [data-journey-emerge] { display: block; width: 45.6px; height: 45.6px; }
+.boardThread svg { display: block; width: 100%; height: 100%; }
+.boardThread::after {
+  content: "";
+  width: 1px;
+  height: 150px;
+  margin-top: 14px;
+  background: linear-gradient(color-mix(in oklab, var(--primary) 55%, transparent), transparent);
+}
 
 @media (max-width: 720px) {
   .storyStage { grid-template-columns: 1fr; gap: 18px; padding: 60px 16px 20px; }
@@ -1100,7 +1161,12 @@ the decorative layers stay small. */
   .storyCard { grid-area: auto / 1; }
   .storyCaption { order: calc(var(--i) * 2); }
   .storyCard { order: calc(var(--i) * 2 + 1); width: min(100%, 340px); margin: 0 auto 36px; }
-  .boardCostBook { padding: 14px 16px; }
+  .boardCostBook { gap: 16px; padding: 20px 18px; }
+  .boardCostBookMark { width: 56px; height: 56px; }
+  .boardCostBookMark svg { width: 22px; height: 22px; }
+  .boardCostName,
+  .boardCostValue { font-size: 12.5px; }
+  .boardCost { margin-top: 90px; }
 
   .board { padding: 80px 16px 20px; }
   .boardTable { --col: 104px; }

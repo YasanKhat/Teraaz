@@ -234,6 +234,9 @@ function CompareBoard({ groups }: { groups: CompareGroup[] }) {
             </span>
           </span>
         </div>
+        <div className={styles.boardThread} aria-hidden>
+          <span data-journey-emerge="true"><Jewel /></span>
+        </div>
       </div>
     </div>
   </section>;
