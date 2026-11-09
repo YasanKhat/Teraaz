@@ -371,10 +371,10 @@ export default function LiteraryTimeline() {
 
     <section className={s.hero} aria-labelledby="timeline-title">
       <Reveal className={s.heroCopy}>
-        <h1 id="timeline-title">خط زمان <Highlighter action="circle" color="var(--tl-accent)" strokeWidth={2.4} padding={10} iterations={1} duration={1100} delay={500}>ادبیات</Highlighter> فارسی</h1>
-        <p className={s.heroDescription}>سبک‌ها، شاعران و آثار؛ از فارسی باستان تا امروز. بر اساس کتاب <Highlighter action="highlight" color="color-mix(in oklch, var(--tl-accent) 38%, transparent)" delay={1300}>علوم و فنون ادبی</Highlighter> دهم، یازدهم و دوازدهم.</p>
-        <div className={s.heroActions}><button className={s.primaryButton} onClick={() => jumpTo("roots")}>شروع <ArrowDown size={18} /></button><button className={s.softButton} onClick={() => openPanel({ kind: "library" })}><LibraryBig size={18} /> شاعران و نویسندگان</button></div>
-        <div className={s.heroStats}>{[[fa(ERAS.length), "دوره"], [fa(SOURCE.people.length), "شاعر و نویسنده"], [fa(WORKS.length), "اثر"]].map(([value, label], i) => <motion.div key={label} initial={reduced ? false : { opacity: 0, y: 20, rotate: 0 }} animate={{ opacity: 1, y: 0, rotate: TILTS[i] }} transition={{ ...BOUNCE, delay: .5 + i * .1 }}><strong>{value}</strong><span>{label}</span></motion.div>)}</div>
+        <h1 id="timeline-title" data-intro="title">خط زمان <Highlighter action="circle" color="var(--tl-accent)" strokeWidth={2.4} padding={10} iterations={1} duration={1100} delay={500}>ادبیات</Highlighter> فارسی</h1>
+        <p className={s.heroDescription} data-intro="copy">سبک‌ها، شاعران و آثار؛ از فارسی باستان تا امروز. بر اساس کتاب <Highlighter action="highlight" color="color-mix(in oklch, var(--tl-accent) 38%, transparent)" delay={1300}>علوم و فنون ادبی</Highlighter> دهم، یازدهم و دوازدهم.</p>
+        <div className={s.heroActions} data-intro="actions"><button className={s.primaryButton} onClick={() => jumpTo("roots")}>شروع <ArrowDown size={18} /></button><button className={s.softButton} onClick={() => openPanel({ kind: "library" })}><LibraryBig size={18} /> شاعران و نویسندگان</button></div>
+        <div className={s.heroStats}>{[[fa(ERAS.length), "دوره"], [fa(SOURCE.people.length), "شاعر و نویسنده"], [fa(WORKS.length), "اثر"]].map(([value, label], i) => <motion.div key={label} data-intro="stat" initial={reduced ? false : { opacity: 0, y: 20, rotate: 0 }} animate={{ opacity: 1, y: 0, rotate: TILTS[i] }} transition={{ ...BOUNCE, delay: .5 + i * .1 }}><strong>{value}</strong><span>{label}</span></motion.div>)}</div>
       </Reveal>
       <Reveal className={s.heroArtwork} delay={.15}><HeroArt onPerson={person => openPanel({ kind: "person", person })} /></Reveal>
     </section>
