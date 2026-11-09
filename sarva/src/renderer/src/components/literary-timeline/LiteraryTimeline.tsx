@@ -175,25 +175,39 @@ function EraSection({ era, index, reached, onPanel, saved, onSave, answers, onAn
       </div>
     </Reveal>
 
-    <Reveal className={s.eraMain} delay={.05}>
+    {/* بازآراییِ ۱۴۰۴/۰۸/۱۷ برابرِ سایتِ زنده (HAR-4، timeline-live.css):
+        چیدمانِ هر دوره با `grid-template-areas` است — `intro` و `aside` در
+        دو ستونِ کنارِ هم، `stage` در عرضِ هر سه ستون، و `outro` و `quiz` در
+        ردیفِ پایین. پیش‌تر همه چیز در یک `.eraMain` بود و آزمون درونِ
+        `.eraAside` می‌نشست؛ برای همین ترتیبِ دیداری فرق می‌کرد. */}
+    <Reveal className={s.eraIntro} delay={.05}>
       <p className={s.eraSummary}>{era.summary}</p>
       <div className={s.tags}>{era.tags.map((tag, i) => <motion.span key={tag} initial={reduced ? false : { opacity: 0, scale: .5, rotate: -10 }} whileInView={{ opacity: 1, scale: 1, rotate: TILTS[i % TILTS.length] / 2 }} viewport={{ once: true }} transition={{ ...BOUNCE, delay: .15 + i * .07 }}>{tag}</motion.span>)}</div>
-      {featured.length > 0 && <div className={s.peopleBlock}>
-        <div className={s.peopleHeading}>چهره‌های این دوره</div>
-        <PoetStage people={featured} lines={ERA_STAGE[era.id] ?? []} reduced={reduced} saved={saved} onSave={onSave} onPerson={person => onPanel({ kind: "person", person })} />
-      </div>}
-      {remaining.length > 0 && <div className={s.otherPeople}>{remaining.slice(0, 6).map(person => <button onClick={() => onPanel({ kind: "person", person })} key={person.id}>{person.name}</button>)}{remaining.length > 6 && <button className={s.morePeople} onClick={() => onPanel({ kind: "era", era })}>+ {fa(remaining.length - 6)} نفر دیگر</button>}</div>}
+      {era.rangeNote && <Reveal className={s.rangeNote} delay={.1}><Clock3 size={16} /><div><strong>بازهٔ زمانی</strong><p>{era.rangeNote}</p></div></Reveal>}
       {era.id === "roots" && <div className={s.languageSteps}>{[["باستان", "هخامنشیان · خط میخی"], ["میانه", "پارتی و پهلوی"], ["نو", "فارسی دری · الفبای عربی"]].map(([title, detail], i) => <motion.div key={title} initial={reduced ? false : { opacity: 0, x: 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ ...BOUNCE, delay: i * .12 }}><span>{title}</span><small>{detail}</small></motion.div>)}</div>}
-      <button className={s.readMore} onClick={() => onPanel({ kind: "era", era })}><BookOpen size={18} /> درسنامهٔ کامل <ArrowLeft size={16} /></button>
-      <p className={s.lessonRef}><GraduationCap size={14} />{era.lessons}</p>
     </Reveal>
 
     <div className={s.eraAside}>
       <NoteCard era={era} delay={.08} />
       <Reveal delay={.1}><FeatureTabs era={era} /></Reveal>
-      {era.rangeNote && <Reveal className={s.rangeNote} delay={.1}><Clock3 size={16} /><div><strong>بازهٔ زمانی</strong><p>{era.rangeNote}</p></div></Reveal>}
-      <Reveal delay={.12}><EraQuiz era={era} answers={answers} onAnswer={onAnswer} reduced={reduced} /></Reveal>
     </div>
+
+    {/* صحنه در عرضِ هر سه ستون است (`grid-area: stage`). «چهره‌های این دوره»
+        که پیش‌تر بالای صحنه بود در سایت نیست — سایت هیچ عنوانی آنجا
+        نمی‌نویسد — پس برداشته شد. */}
+    {featured.length > 0 && <div className={s.eraStage}>
+      <PoetStage people={featured} lines={ERA_STAGE[era.id] ?? []} reduced={reduced} onPerson={person => onPanel({ kind: "person", person })} />
+    </div>}
+
+    <Reveal className={s.eraOutro} delay={.1}>
+      {remaining.length > 0 && <div className={s.otherPeople}>{remaining.slice(0, 6).map(person => <button onClick={() => onPanel({ kind: "person", person })} key={person.id}>{person.name}</button>)}{remaining.length > 6 && <button className={s.morePeople} onClick={() => onPanel({ kind: "era", era })}>+ {fa(remaining.length - 6)} نفر دیگر</button>}</div>}
+      <button className={s.readMore} onClick={() => onPanel({ kind: "era", era })}><BookOpen size={18} /> درسنامهٔ کامل <ArrowLeft size={16} /></button>
+      <p className={s.lessonRef}><GraduationCap size={14} />{era.lessons}</p>
+    </Reveal>
+
+    <Reveal className={s.eraQuiz} delay={.12}>
+      <EraQuiz era={era} answers={answers} onAnswer={onAnswer} reduced={reduced} />
+    </Reveal>
   </section>;
 }
 
@@ -349,6 +363,10 @@ export default function LiteraryTimeline() {
 
   return <div className={s.page} dir="rtl">
     <motion.div className={s.readingProgress} style={{ scaleX: reduced ? scrollYProgress : progress }} aria-hidden="true" />
+    {/* لایهٔ رنگِ دوره: در سایت یک لایهٔ `position:fixed` است که با عبور از هر
+        دوره رنگِ همان دوره را می‌گیرد (HAR-4). در پورت نبود، برای همین پس‌زمینهٔ
+        صفحه در همهٔ دوره‌ها یکسان می‌ماند. */}
+    <div className={s.eraTint} style={colorStyle(activeEra.color)} aria-hidden="true" />
     <a className={s.skipLink} href="#timeline">رفتن به خط زمان</a>
 
     <section className={s.hero} aria-labelledby="timeline-title">

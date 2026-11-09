@@ -156,12 +156,20 @@
 .walkerBubble { position: absolute; bottom: 70px; right: 26px; direction: rtl; white-space: nowrap; padding: 2px 14px; border-radius: 18px 18px 4px 18px; background: var(--tl-card); border: 2.5px solid; box-shadow: 2px 3px 0 var(--tl-drop); font: 15px/2 var(--display); transform-origin: 100% 100%; }
 .walkerBubble small { display: block; width: max-content; max-width: 210px; margin-top: -4px; padding-bottom: 4px; white-space: normal; font: 13px/1.8 var(--font-vazirmatn), sans-serif; color: var(--tl-muted); }
 
-.era { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 132px minmax(0, 1fr); grid-template-rows: auto 1fr; column-gap: 8px; row-gap: 24px; padding-block: 110px 90px; scroll-margin-top: 80px; }
-.eraHeading { grid-column: 1; grid-row: 1; display: flex; align-items: center; gap: 18px; }
-.eraMain { grid-column: 1; grid-row: 2; min-width: 0; }
-.eraAside { grid-column: 3; grid-row: 1 / 3; display: flex; flex-direction: column; gap: 22px; min-width: 0; padding-top: 6px; }
-.era[data-side="left"] .eraHeading, .era[data-side="left"] .eraMain { grid-column: 3; }
-.era[data-side="left"] .eraAside { grid-column: 1; }
+/* چیدمانِ هر دوره در سایت با `grid-template-areas` است (HAR-4، timeline-live.css):
+   ستونِ میانی ۱۳۲ پیکسل راهِ خط‌زمان است؛ «صحنه» در عرضِ هر سه ستون می‌آید و
+   «درسنامهٔ کامل» و آزمون در ردیفِ پایین، دو سویِ آن می‌نشینند. پیش از این جایگاه
+   با اعداد (`grid-column`/`grid-row`) چیده شده بود و ترتیبِ دیداری فرق می‌کرد. */
+.era { position: relative; display: grid; grid-template: "head . aside" "intro . aside" 1fr "stage stage stage" "outro . quiz" / minmax(0, 1fr) 132px minmax(0, 1fr); gap: 26px 8px; padding-block: 110px 90px; scroll-margin-top: 80px; }
+.eraHeading { grid-area: head; display: flex; align-items: center; gap: 18px; }
+.eraIntro { grid-area: intro; min-width: 0; }
+.eraAside { grid-area: aside; display: flex; flex-direction: column; gap: 22px; min-width: 0; padding-top: 6px; }
+.eraStage { grid-area: stage; position: relative; z-index: 3; min-width: 0; margin-top: 30px; }
+.eraOutro { grid-area: outro; min-width: 0; }
+.eraQuiz { grid-area: quiz; min-width: 0; }
+/* در دوره‌های سمتِ چپ سایت فقط جایِ ستون‌ها را عوض می‌کند، نه ترتیبِ ردیف‌ها را. */
+.era[data-side="left"] { grid-template-areas: "aside . head" "aside . intro" "stage stage stage" "quiz . outro"; }
+.eraTint { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(120% 80% at 50% 110%, color-mix(in oklab, var(--era-color) 16%, transparent), transparent 70%); opacity: .9; transition: background .8s; }
 .eraGhost { position: absolute; top: 40px; z-index: -1; font: 700 clamp(110px, 14vw, 200px)/1 var(--display); color: transparent; -webkit-text-stroke: 2px color-mix(in oklch, var(--era-color) 40%, transparent); white-space: nowrap; pointer-events: none; user-select: none; }
 .era[data-side="right"] .eraGhost { left: 0; }
 .era[data-side="left"] .eraGhost { right: 0; }
@@ -176,8 +184,6 @@
 .eraSummary { margin: 0 0 18px; font-size: 16px; line-height: 2.25; }
 .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 26px; }
 .tags > span { padding: 1px 14px; border-radius: 999px; font-size: 13px; background: var(--era-soft); border: 2px solid var(--tl-outline); }
-.peopleBlock { margin-top: 4px; }
-.peopleHeading { margin-bottom: 12px; font: 16px/2 var(--display); color: var(--era-ink); }
 /* Stage: the featured people as full-length characters, talking in turn. */
 /* The room the stage stays pinned for. A sticky box only travels inside its
    parent's content box, so this must be content, not padding. */
@@ -185,36 +191,47 @@
 .stageTrack::after { content: ""; display: block; height: calc(var(--lines) * 110px); }
 /* Pinned just under the era dock while the lines play (see PoetStage). */
 .stage { position: sticky; top: 92px; z-index: 2; }
-.stageTalk { position: relative; min-height: 92px; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; padding-bottom: 14px; }
-.stageBubble { position: relative; margin: 0; padding: 8px 16px 10px; border-radius: 20px; background: var(--tl-card); border: var(--sticker); box-shadow: 3px 4px 0 var(--tl-drop); font-size: 15px; line-height: 2; }
-.stageBubble b { display: block; margin-bottom: -2px; font: 14px/1.9 var(--display); font-weight: 400; color: var(--era-ink); }
-/* Tail points down at whoever is talking. */
-.stageBubble::after { content: ""; position: absolute; bottom: -11px; right: calc(var(--tail, 50%) - 10px); width: 18px; height: 18px; background: var(--tl-card); border-right: 2.5px solid var(--tl-outline); border-bottom: 2.5px solid var(--tl-outline); transform: rotate(45deg); transition: right .35s cubic-bezier(.3, 1.4, .5, 1); }
-.stageDots { position: absolute; bottom: -2px; left: 4px; display: flex; gap: 4px; }
-.stageDots > i { width: 6px; height: 6px; border-radius: 50%; background: var(--tl-line); transition: background .3s; }
-.stageDots > i[data-on] { background: var(--era-ink); }
-.stageFloor { position: relative; display: grid; grid-template-columns: repeat(var(--slots), minmax(0, 1fr)); align-items: end; gap: 6px; padding: 0 4px; }
-.stageFloor::before { content: ""; position: absolute; inset: auto -8px 26px; height: 42px; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in oklch, var(--era-color) 45%, transparent), transparent); z-index: -1; }
-.actor { position: relative; min-width: 0; display: flex; flex-direction: column; align-items: center; will-change: transform; }
-.actorBody { display: flex; flex-direction: column; align-items: center; width: 100%; transform-origin: 50% 100%; }
-.actorOpen { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
-.actorFigure { display: block; width: 100%; max-width: 150px; aspect-ratio: 2 / 3; filter: drop-shadow(3px 4px 0 color-mix(in oklch, var(--foreground) 22%, transparent)); transition: filter .3s, transform .3s cubic-bezier(.3, 1.6, .5, 1); }
+/* صحنه — مقادیر برابرِ سایت زنده (HAR-4، timeline-live.css). مکانیزمِ
+   چسبندگی همانِ خودِ پورت می‌ماند (sticky + فاصله‌انداز) چون بازنویسیِ لایهٔ
+   پین کردن پرریسک است و دیداری یکسان است. */
+.stageTalk { position: relative; z-index: 2; height: 150px; margin: 22px 28px 0; }
+/* سایت همهٔ حباب‌ها را می‌نویسد و تنها یکی را `visibility:visible` می‌کند. */
+.stageBubble { position: absolute; bottom: 14px; margin: 0; padding: 10px 22px 14px; border-radius: 24px; background: var(--tl-card); border: var(--sticker); box-shadow: 4px 5px 0 var(--tl-drop); font-size: 19px; line-height: 2; width: max-content; min-width: 42%; max-width: 72%; visibility: hidden; }
+.stageBubble[data-align="start"] { right: 0; }
+.stageBubble[data-align="end"] { left: 0; }
+.stageBubble[data-align="center"] { margin-inline: auto; left: 0; right: 0; }
+.stageBubble b { display: block; margin-bottom: -2px; font: 15px/1.9 var(--display); font-weight: 400; color: var(--era-ink); }
+/* هر واژه جداگانه پیدا می‌شود، پس باید inline-block باشد تا جابه‌جا شود. */
+.stageWord { display: inline-block; }
+.stageTail { position: absolute; bottom: 5px; width: 20px; height: 20px; margin-left: -10px; transform-origin: 50% 0; transition: left .18s cubic-bezier(.4, 0, .2, 1); }
+.stageTail::before { content: ""; position: absolute; inset: 0; background: var(--tl-card); border-right: 2.5px solid var(--tl-outline); border-bottom: 2.5px solid var(--tl-outline); transform: rotate(45deg); }
+.stageFloor { position: relative; display: grid; grid-template-columns: repeat(var(--slots), minmax(0, 1fr)); align-items: end; gap: 6px; min-height: 0; padding: 0 24px 18px; }
+.stageFloor::before { content: ""; position: absolute; inset: auto -8px 26px; height: 54px; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in oklch, var(--era-color) 50%, transparent), transparent); z-index: -1; }
+.stageSpot { position: absolute; bottom: 10px; width: 260px; height: 90%; margin-left: -130px; border-radius: 50% 50% 40% 40% / 60% 60% 40% 40%; background: radial-gradient(closest-side, color-mix(in oklch, var(--era-color) 38%, transparent), transparent); pointer-events: none; transition: left .18s cubic-bezier(.4, 0, .2, 1); }
+/* نوارِ گروه: در رایانه پنهان است، در پنجرهٔ باریک پیدا می‌شود. */
+.stageCast { display: none; }
+.stageCastQalami { display: grid; place-items: end center; padding: 4px 9px 0; }
+.stageCount { position: absolute; top: 14px; left: 20px; display: flex; align-items: center; gap: 5px; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--tl-muted); }
+.stageCount > span { margin-inline-end: 4px; }
+.stageCount > i { width: 7px; height: 7px; border-radius: 50%; background: var(--tl-line); transition: background .3s, transform .3s; }
+.stageCount > i[data-on] { background: var(--era-ink); transform: scale(1.2); }
+.actor { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-width: 0; height: 100%; will-change: transform; }
+.actor[data-speaking] { z-index: 1; }
+.actorBody { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; width: 100%; height: 100%; transform-origin: 50% 100%; }
+.actorOpen { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; width: 100%; height: 100%; min-height: 0; }
+.actorFigure { display: block; width: min(100%, 150px); aspect-ratio: 2 / 3; filter: drop-shadow(3px 4px 0 color-mix(in oklch, var(--foreground) 22%, transparent)); transition: transform .3s cubic-bezier(.3, 1.6, .5, 1); }
 /* CartoonFigure: stacked layers of one image; percentages in RIGS map onto it. */
 .figure { position: relative; display: block; width: 100%; aspect-ratio: 2 / 3; transform-origin: 50% 100%; transform-style: preserve-3d; }
+.actorFigure > .figure { width: auto; height: 100%; margin-inline: auto; }
 .figureLayer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; user-select: none; }
 .glasses { position: absolute; z-index: 1; overflow: visible; fill: color-mix(in oklch, #7fc4e8 22%, transparent); stroke: #1f1a2b; stroke-width: 4.5; stroke-linecap: round; }
 .glasses path { fill: none; }
 .actorFallback { display: block; width: 80%; margin: 30% auto 0; aspect-ratio: 1; overflow: hidden; border-radius: 50%; border: var(--sticker); }
 .actorOpen:hover .actorFigure { transform: translateY(-6px) rotate(-2deg); }
-.actor:not([data-speaking]) .actorFigure { filter: drop-shadow(3px 4px 0 color-mix(in oklch, var(--foreground) 22%, transparent)) saturate(.85); }
-.actorName { max-width: 100%; padding: 0 10px; border-radius: 999px; background: var(--tl-card); border: 2px solid var(--tl-outline); font-size: 13px; line-height: 1.9; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: background .3s; }
+.actorName { max-width: 100%; flex-shrink: 0; padding: 0 12px; border-radius: 999px; background: var(--tl-card); border: 2px solid var(--tl-outline); font-size: 14px; line-height: 1.9; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: background .3s; }
 .actor[data-speaking] .actorName { background: var(--era-color); color: #2b2440; }
 .actorOpen:hover .actorName { background: var(--era-soft); }
-.actorQalami { display: block; width: 52%; max-width: 64px; margin-bottom: 8px; }
-.actor .savePerson { top: 0; left: 4px; width: 28px; height: 28px; }
-.savePerson { position: absolute; top: -8px; left: -8px; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--tl-card); border: 2px solid var(--tl-outline); transition: transform .2s; }
-.savePerson:hover { transform: scale(1.12) rotate(-10deg); }
-.savePerson[aria-pressed="true"] { background: var(--era-color); color: #2b2440; }
+.actorQalami { display: block; width: 46%; max-width: 74px; margin-bottom: 10px; }
 .otherPeople { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 20px; }
 .otherPeople > button { padding: 0 12px; border-radius: 999px; border: 2px dashed var(--tl-line); font-size: 13px; transition: border-color .2s, background .2s; }
 .otherPeople > button:hover { border-color: var(--era-ink); background: var(--era-wash); }
@@ -424,12 +441,34 @@
   /* One column; the road runs down the right edge. */
   .era { display: flex; flex-direction: column; gap: 22px; padding: 80px 64px 60px 0; }
   .eraAside { padding-top: 0; }
+  /* صحنه در تک‌ستونی از لبهٔ راست بیرون می‌زند تا چهره‌ها جا شوند. */
+  .eraStage { margin: 10px -64px 0 0; }
   .stop { left: auto; right: 0; margin-left: 0; top: 86px; width: 48px; }
   .stop > span:first-child { width: 44px; height: 44px; }
   .stop > span:last-child { font-size: 11px; padding: 0 6px; }
   .era[data-side] .eraGhost { left: 0; right: auto; font-size: 120px; }
   .walkerMascot { width: 34px; left: -17px; top: -56px; }
 }
+@media (max-width: 700px) {
+  /* در پنجرهٔ باریک سایت تنها گوینده را روی صحنه نگه می‌دارد و بقیه را در
+     نوارِ گروه نشان می‌دهد. */
+  .actor:not([data-speaking]) { display: none; }
+  .stageTrack[data-reduced] .actor:not([data-speaking]) { display: flex; }
+  .stageCast { display: flex; justify-content: center; gap: 8px; padding: 0 12px 14px; }
+  .stageCast > span { width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; overflow: hidden; background: var(--era-soft); border: 2px solid var(--tl-line); opacity: .7; transition: opacity .3s, border-color .3s, scale .3s; }
+  .stageCast > span[data-speaking] { opacity: 1; border-color: var(--tl-outline); box-shadow: 0 0 0 3px var(--era-color); scale: 1.12; }
+  .stageTrack[data-reduced] .stageCast { display: none; }
+  .stageFloor { grid-template-columns: minmax(0, 1fr); padding: 0 12px 8px; }
+  .stageSpot { width: 220px; margin-left: -110px; }
+  .stageBubble, .stageBubble[data-align] { min-width: 0; max-width: 100%; margin-inline: auto; padding: 6px 16px 10px; font-size: 16px; left: 0; right: 0; }
+  .actorQalami { width: 34%; max-width: 104px; }
+  .stageTrack[data-reduced] .stageFloor { grid-template-columns: repeat(var(--slots), minmax(0, 1fr)); height: 220px; }
+}
+/* حالتِ کاهشِ حرکت: همهٔ حباب‌ها پیدا و زیرِ هم می‌نشینند. */
+.stageTrack[data-reduced] .stageTalk { display: flex; flex-direction: column; gap: 10px; height: auto; padding-bottom: 6px; }
+.stageTrack[data-reduced] .stageBubble { visibility: visible; max-width: 100%; position: relative; bottom: 0; }
+.stageTrack[data-reduced] .stageTail { display: none; }
+.stageTrack[data-reduced] .stageFloor { height: 320px; }
 @media (max-width: 600px) {
   .page { font-size: 14px; }
   .hero { padding: 28px 16px 48px; gap: 12px; }
@@ -443,9 +482,11 @@
   .eraDock { top: 8px; width: calc(100% - 16px); }
   .stage { top: 76px; }
   .stageTrack::after { height: calc(var(--lines) * 90px); }
+  .stageCount { top: 12px; left: 16px; }
   .dockStamps { display: none; }
   .timeline { width: calc(100% - 24px); }
   .era { padding-right: 68px; }
+  .eraStage { margin-right: -68px; }
   .eraGhost { display: none; }
   .eraHeading { gap: 12px; }
   .eraHeading .badge_large { width: 64px; height: 64px; }

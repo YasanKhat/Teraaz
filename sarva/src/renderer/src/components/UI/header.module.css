@@ -100,8 +100,8 @@
 .menu {
   z-index: 300;
   direction: rtl;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 6px;
   width: 404px;
   max-width: calc(100vw - 32px);
@@ -114,6 +114,7 @@
 }
 
 .menuItem {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -162,6 +163,114 @@
 .menuItem[data-plus]:hover .menuIcon, .menuItem[data-plus][data-highlighted] .menuIcon {
   color: #fff;
   background: linear-gradient(135deg, var(--gold-deep), var(--primary));
+}
+
+/* شبکه‌یِ بخش‌ها: در سایت سه ستونِ ۱۰۴ پیکسلی است (HAR-4). */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 104px);
+  gap: 6px;
+}
+
+/* کارتِ سروا پلاس: یک کارتِ جدا در پایینِ فهرست، نه یک آیتمِ دیگرِ شبکه. */
+.plusCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 132px;
+  padding: 10px 2px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--foreground);
+  text-align: center;
+  text-decoration: none;
+  outline: none;
+  border: 1px solid color-mix(in oklab, var(--gold) 34%, transparent);
+  background: linear-gradient(160deg, color-mix(in oklab, var(--gold) 18%, transparent), color-mix(in oklab, var(--primary) 10%, transparent));
+  transition: background 160ms, color 160ms, border-color 160ms;
+}
+
+.plusCard:hover, .plusCard[data-highlighted] {
+  border-color: var(--gold);
+}
+
+.plusCard .menuIcon {
+  color: var(--gold-ink);
+  background: color-mix(in oklab, var(--gold) 24%, transparent);
+}
+
+.plusCard:hover .menuIcon, .plusCard[data-highlighted] .menuIcon {
+  transform: translateY(-2px);
+  color: #fff;
+  background: linear-gradient(135deg, var(--gold-deep), var(--primary));
+}
+
+.plusText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.5;
+}
+
+.plusText b {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.plusText small {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+/* نشانِ «جدید/تازه/داغ» گوشه‌یِ هر بخش. */
+.badge {
+  position: absolute;
+  top: 5px;
+  inset-inline-end: 5px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 18px;
+  color: var(--primary-foreground);
+  background: var(--primary);
+  pointer-events: none;
+}
+
+.badge[data-kind="hot"] {
+  color: #fff;
+  background: linear-gradient(135deg, #f67300, var(--destructive));
+}
+
+.badge[data-kind="fresh"] {
+  color: #2d1f01;
+  background: var(--gold);
+}
+
+.badge[data-kind="en"] {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+
+/* نشانِ آتش (تصویرِ متحرک با نسخه‌یِ بی‌حرکت برای کاهشِ حرکت). */
+.fire {
+  position: absolute;
+  top: 2px;
+  inset-inline-end: 2px;
+  width: 28px;
+  height: 28px;
+  pointer-events: none;
+}
+
+.fire img {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 /* ── نشانِ سروا پلاس کنارِ نام ──────────────────────────────────────────
@@ -286,6 +395,7 @@
     gap: 4px;
     padding: 8px;
   }
+  .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
   .menuItem {
     min-height: 78px;
     font-size: 11px;

@@ -2,8 +2,9 @@
 
 import { Link } from "@/app/router";
 import * as Menu from "@radix-ui/react-dropdown-menu";
-import { Activity, BookOpen, ChevronDown, FileText, Gamepad2, History, MoonStar, Music2 } from "lucide-react";
+import { Activity, BookOpen, ChevronDown, FileText, Gamepad2, GraduationCap, History, MoonStar, Music2, Shapes } from "lucide-react";
 import { usePlusSummary } from "@/lib/auth/use-current-user";
+import { useSiteContent } from "@/lib/site/use-site-content";
 import MainLogo from "../svgs/mainLogo";
 import AccountMenu from "./AccountMenu";
 import DarkModeButton from "./DarkModeButton";
@@ -11,15 +12,35 @@ import PaletteButton from "./PaletteButton";
 import SarvaStar from "./SarvaStar";
 import styles from "./header.module.css";
 
-const learningLinks = [
-  { title: "آزمون‌ها", href: "/exam", icon: FileText },
-  { title: "درسنامه", href: "/doroos", icon: BookOpen },
-  { title: "بازی‌ها", href: "/game", icon: Gamepad2 },
-  { title: "عروض", href: "/aruz", icon: Activity },
-  { title: "وزن‌یاب", href: "/vazn-yab", icon: Music2 },
-  { title: "خط زمان", href: "/timeline", icon: History },
-  { title: "شب امتحان", href: "/shab-emtehan", icon: MoonStar },
+/** فهرستِ سایت — ترتیب و نام‌ها برابرِ سایتِ زنده است (بسته‌ی سربرگ در
+ *  HAR-4). نسبت به پورتِ پیشین دو بخش کم بود («کنکور» و «کارگاه») و ترتیب
+ *  فرق می‌کرد: سایت آزمون‌ها، درسنامه، کنکور، بازی‌ها، کارگاه، شب امتحان،
+ *  عروض، وزن‌یاب، خط زمان. */
+const navLinks = [
+  { id: "exam", title: "آزمون‌ها", href: "/exam", icon: FileText },
+  { id: "doroos", title: "درسنامه", href: "/doroos", icon: BookOpen },
+  { id: "konkur", title: "کنکور", href: "/konkur", icon: GraduationCap },
+  { id: "game", title: "بازی‌ها", href: "/game", icon: Gamepad2 },
+  { id: "learn", title: "کارگاه", href: "/learn", icon: Shapes },
+  { id: "shab", title: "شب امتحان", href: "/shab-emtehan", icon: MoonStar },
+  { id: "aruz", title: "عروض", href: "/aruz", icon: Activity },
+  { id: "vazn", title: "وزن‌یاب", href: "/vazn-yab", icon: Music2 },
+  { id: "timeline", title: "خط زمان", href: "/timeline", icon: History },
 ];
+
+const BADGE_LABELS: Record<string, string> = { new: "جدید", en: "NEW", fresh: "تازه", hot: "داغ", fire: "" };
+
+/** نشانِ کوچکِ کنارِ یک بخش (جدید/تازه/داغ/آتش). متن از `navBadges` در
+ *  محتوایِ سایت می‌آید و تا چیزی تنظیم نشود چیزی نمایش داده نمی‌شود. */
+function NavBadge({ kind }: { kind?: string | number }) {
+  if (!kind) return null;
+  if (kind === "fire") return <picture className={styles.fire}>
+    <source srcSet="/emoji/fire-still.webp" media="(prefers-reduced-motion: reduce)" />
+    {/* eslint-disable-next-line @next/next/no-img-element -- an emoji, not content imagery */}
+    <img src="/emoji/fire.webp" alt="" width={28} height={28} loading="lazy" />
+  </picture>;
+  return <span className={styles.badge} data-kind={kind}>{BADGE_LABELS[kind] ?? kind}</span>;
+}
 
 /** ستارهٔ چهارپرِ کنارِ «پلاس». */
 function Sparkle() {
@@ -36,8 +57,10 @@ export default function Header({ compact = false, previewPlus = false }: { compa
   const plusVisible = plus.state !== "off" || (process.env.NODE_ENV === "development" && previewPlus);
   const plusActive = !loading && (plus.state === "active" || (process.env.NODE_ENV === "development" && previewPlus));
   const plusHref = plus.state === "active" ? "/panel/subscription" : "/plus";
-  const plusTitle = plus.state === "expired" || plus.state === "revoked" ? "تمدید پلاس" : "سروا پلاس";
-  const links = plusVisible ? [...learningLinks, { title: plusTitle, href: plusHref, icon: SarvaStar }] : learningLinks;
+  // در سایت عنوان همیشه «سروا پلاس» است؛ «خرید سروا پلاس» و «تمدید» مالِ
+  // منویِ حساب است، نه این‌جا.
+  const plusTitle = "سروا پلاس";
+  const navBadges = useSiteContent()?.navBadges as Record<string, string> | undefined;
 
   return (
     <nav dir="rtl" aria-label="ناوبری اصلی" className={`container ${styles.header}`} data-compact={compact}>
@@ -64,14 +87,30 @@ export default function Header({ compact = false, previewPlus = false }: { compa
               </Menu.Trigger>
               <Menu.Portal>
                 <Menu.Content aria-label="بخش‌های سروا" className={`${styles.menu} glass-pop`} align="start" sideOffset={12} collisionPadding={16} loop>
-                  {links.map(({ title, href, icon: Icon }) => (
-                    <Menu.Item key={href} asChild>
-                      <Link href={href} className={styles.menuItem} data-plus={Icon === SarvaStar || undefined}>
-                        <span className={styles.menuIcon}><Icon size={22} strokeWidth={1.6} aria-hidden /></span>
-                        <span>{title}</span>
+                  <div className={styles.grid}>
+                    {navLinks.map(({ id, title, href, icon: Icon }) => (
+                      <Menu.Item key={id} asChild>
+                        <Link href={href} className={styles.menuItem}>
+                          <span className={styles.menuIcon}><Icon size={22} strokeWidth={1.6} aria-hidden /></span>
+                          <span>{title}</span>
+                          <NavBadge kind={navBadges?.[id]} />
+                        </Link>
+                      </Menu.Item>
+                    ))}
+                  </div>
+                  {/* کارتِ پلاس در سایت یک «کارت» جدا است، نه یک آیتمِ دیگرِ شبکه. */}
+                  {plusVisible && (
+                    <Menu.Item asChild>
+                      <Link href={plusHref} className={styles.plusCard}>
+                        <span className={styles.menuIcon}><SarvaStar size={24} aria-hidden /></span>
+                        <span className={styles.plusText}>
+                          <b>{plusTitle}</b>
+                          <small>{plusActive ? "اشتراکِ فعال" : "همهٔ درس‌ها و بازی‌ها"}</small>
+                        </span>
+                        <NavBadge kind={navBadges?.plus} />
                       </Link>
                     </Menu.Item>
-                  ))}
+                  )}
                 </Menu.Content>
               </Menu.Portal>
             </Menu.Root>

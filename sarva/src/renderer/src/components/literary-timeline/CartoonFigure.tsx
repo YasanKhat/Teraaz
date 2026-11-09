@@ -18,7 +18,7 @@ const BODY: Partial<Record<Move, [TargetAndTransition, Transition]>> = {
  *  over the body with that hand removed, so it can wave around the wrist; glasses
  *  drop onto the eye line; the whole body can hop, spin, squash or lean.
  *  With no rig, or with reduced motion, it is a still picture. */
-export function CartoonFigure({ id, src, alt, active, reduced, idleDelay = 0 }: { id: string; src: string; alt: string; active: boolean; reduced: boolean; idleDelay?: number }) {
+export function CartoonFigure({ id, src, alt, active, reduced, live = true, idleDelay = 0 }: { id: string; src: string; alt: string; active: boolean; reduced: boolean; live?: boolean; idleDelay?: number }) {
   const rig = RIGS[id];
   const play = active && !reduced;
   const pivot = rig?.moves.includes("wave") && !reduced ? (PIVOTS as Record<string, number[]>)[id] : undefined;
@@ -32,8 +32,8 @@ export function CartoonFigure({ id, src, alt, active, reduced, idleDelay = 0 }: 
     {/* Speaking: a full wave. Otherwise a small one now and then, staggered by `idleDelay`. */}
     {pivot && <motion.img className={s.figureLayer} src={layer("hand")} alt="" aria-hidden="true" draggable={false}
       style={{ transformOrigin: `${pivot[0]}% ${pivot[1]}%` }}
-      animate={{ rotate: play ? [0, -16, 12, -16, 12, 0] : [0, -9, 6, 0] }}
-      transition={play ? { duration: 1.3, ease: "easeInOut", repeat: Infinity, repeatDelay: .7 } : { duration: 1, ease: "easeInOut", repeat: Infinity, repeatDelay: 7, delay: idleDelay }} />}
+      animate={{ rotate: play ? [0, -16, 12, -16, 12, 0] : live ? [0, -9, 6, 0] : 0 }}
+      transition={play ? { duration: 1.3, ease: "easeInOut", repeat: Infinity, repeatDelay: .7 } : live ? { duration: 1, ease: "easeInOut", repeat: Infinity, repeatDelay: 7, delay: idleDelay } : { duration: .3 }} />}
     {eyes && <motion.svg className={s.glasses} viewBox="0 0 100 40" aria-hidden="true"
       style={{ left: `${eyes[0]}%`, top: `${eyes[1]}%`, width: `${eyes[2] * 2}%`, marginLeft: `${-eyes[2]}%`, marginTop: `${-eyes[2] * .4}%` }}
       initial={false} animate={play ? { y: [-60, 4, 0], opacity: [0, 1, 1], rotate: [-25, 6, 0] } : { y: -60, opacity: 0, rotate: -25 }}
