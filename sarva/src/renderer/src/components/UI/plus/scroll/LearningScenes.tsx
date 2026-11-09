@@ -26,9 +26,9 @@ export function LearningParallax() {
       </div>
       <div className={styles.parallaxCopy} data-journey-surface>
         
-        <h2 id={`${id}-title`}>فقط همان چیزی را تمرین کن که بلد نیستی</h2>
+        <h2 id={`${id}-title`}>هر درسِ کتاب، یک بازی</h2>
         
-        <div className={styles.subjects}><span>واژه و معنا</span><span>وزن و آوا</span><span>دستور زبان</span></div>
+        <div className={styles.subjects}><span>واژه و املا</span><span>دستور و آرایه</span><span>معنا و قرابت</span></div>
       </div>
     </section>
   );

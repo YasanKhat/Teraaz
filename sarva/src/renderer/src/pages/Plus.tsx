@@ -1,6 +1,6 @@
 import PlanCards from '@/components/UI/plus/PlanCards'
 import PlusScrollPage from '@/components/UI/plus/scroll/PlusScrollPage'
-import { PLUS_CYCLE, PLUS_REASONS } from '@/components/UI/plus/scroll/plus-content'
+import { PLUS_COMPARE, PLUS_CYCLE, PLUS_REASONS } from '@/components/UI/plus/scroll/plus-content'
 import { usePlusSummary } from '@/lib/auth/use-current-user'
 import type { PlusPlanOffer } from '@/lib/plus/types'
 
@@ -51,9 +51,12 @@ export default function Plus() {
         <li>• اشتراک پیش‌پرداخت است، تمدید خودکار ندارد و بلافاصله بعد از پرداخت فعال می‌شود.</li>
         <li>• اگر اشتراک فعال داری، مدت جدید به انتهای آن اضافه می‌شود.</li>
         <li>• هر حساب مخصوص یک نفر است و استفادهٔ چند نفر از یک اشتراک مجاز نیست.</li>
+        <li>• اگر مبلغ کم شد و اشتراک فعال نشد، بانک معمولاً تا ۷۲ ساعت آن را برمی‌گرداند. در غیر این صورت به پشتیبانی پیام بده.</li>
       </ul>
     </>
   )
 
-  return <PlusScrollPage reasons={PLUS_REASONS} cycle={PLUS_CYCLE} plans={plans} />
+
+
+  return <PlusScrollPage reasons={PLUS_REASONS} cycle={PLUS_CYCLE} plans={plans} compare={PLUS_COMPARE} />
 }

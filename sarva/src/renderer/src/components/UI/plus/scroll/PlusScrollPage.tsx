@@ -5,7 +5,8 @@ import { ArrowDown, AudioLines, BookOpen, ChartNoAxesCombined, Focus, Network, S
 import { GeometricPattern } from "@/components/persian-patterns";
 import SarvaStar, { SARVA_STAR_PATH } from "@/components/UI/SarvaStar";
 import { buildJourneyPoints, journeyViewportY } from "./journey-path";
-import { PLUS_ORBIT_LABELS } from "./plus-content";
+import { PLUS_ORBIT_LABELS, type CompareGroup } from "./plus-content";
+import { fa } from "@/lib/panel/format";
 import { LearningParallax } from "./LearningScenes";
 import StarDock from "./StarDock";
 import styles from "./plus-scroll.module.css";
@@ -50,8 +51,55 @@ function Jewel({ className }: { className?: string }) {
 }
 
 /** Native scrolling, a single scrubbed journey and geometry measured only on refresh. */
-export default function PlusScrollPage({ reasons, cycle, plans, header, footer, markers = false, showPath = false }: {
-  reasons: Reason[]; cycle: CycleStep[]; plans: ReactNode; header?: ReactNode; footer?: ReactNode; markers?: boolean; showPath?: boolean;
+/**
+ * جدولِ «همهٔ تفاوت‌ها» — ۱۷ مورد در پنج گروه، برابرِ سایتِ زنده.
+ *
+ * در سایت هر خانه یا فقط یک نشانه است (دارد / تا حدی / ندارد) یا نشانه به‌علاوهٔ
+ * یک توضیحِ کوتاه در `<small>`؛ مثلاً «تا حدی — در متن». متنِ نشانه برای
+ * صفحه‌خوان است (`sr-only`) و توضیح دیداری می‌ماند.
+ */
+const STATE_WORD = { yes: "دارد", part: "تا حدی", no: "ندارد" } as const;
+
+function Mark({ state, note, plus = false }: { state: "yes" | "part" | "no"; note?: string; plus?: boolean }) {
+  const word = STATE_WORD[state];
+  const small = note && note !== word ? note : undefined;
+  return <span className={styles.boardMark} data-mark={state} data-plus={plus || undefined}>
+    {state === "yes" && <span className={styles.boardBadge} aria-hidden />}
+    <span className="sr-only">{word}</span>
+    {small && <small>{small}</small>}
+  </span>;
+}
+
+function CompareBoard({ groups }: { groups: CompareGroup[] }) {
+  const total = groups.reduce((n, g) => n + g.rows.length, 0);
+  return <section className={styles.board} aria-labelledby="plus-compare-heading">
+    <h3 id="plus-compare-heading" className={styles.boardHeading}>همهٔ تفاوت‌ها</h3>
+    <div className={styles.boardTable} role="table" aria-label="مقایسهٔ کتاب کمک‌درسی و سروا پلاس">
+      <div className={styles.boardScore} role="rowgroup">
+        <div className={styles.boardScoreRow} role="row">
+          <span className={styles.boardScoreLead} role="columnheader"><b>{fa(total)} مورد</b></span>
+          <span className={styles.boardScoreBook} role="columnheader"><span className={styles.boardScoreName}>کتاب کمک‌درسی</span></span>
+          <span className={styles.boardScorePlus} role="columnheader"><span className={styles.boardScoreName}>سروا پلاس</span></span>
+        </div>
+      </div>
+      {groups.map(group => (
+        <div key={group.title} className={styles.boardGroup} role="rowgroup">
+          <div className={styles.boardGroupTitle} role="row"><span role="rowheader">{group.title}</span></div>
+          {group.rows.map(row => (
+            <div key={row.label} className={styles.boardRow} role="row" data-on="true">
+              <span className={styles.boardLabel} role="rowheader">{row.label}</span>
+              <span className={styles.boardBookCell} role="cell"><Mark state={row.state} note={row.book} /></span>
+              <span className={styles.boardPlusCell} role="cell"><i className={styles.boardWash} aria-hidden="true" /><Mark state="yes" note={row.plus} plus /></span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  </section>;
+}
+
+export default function PlusScrollPage({ reasons, cycle, plans, compare, header, footer, markers = false, showPath = false }: {
+  reasons: Reason[]; cycle: CycleStep[]; plans: ReactNode; compare?: CompareGroup[]; header?: ReactNode; footer?: ReactNode; markers?: boolean; showPath?: boolean;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const orbRef = useRef<HTMLDivElement>(null);
@@ -292,6 +340,8 @@ export default function PlusScrollPage({ reasons, cycle, plans, header, footer, 
             );
           })}
         </div>
+
+        {compare && <CompareBoard groups={compare} />}
 
         <section className={styles.plans} id="plans">
           <div className={styles.dockScene} aria-hidden>
