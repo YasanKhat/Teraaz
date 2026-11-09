@@ -5,6 +5,7 @@ import { ShinyButton } from "@/components/UI/kit/magic-shiny-button";
 import { formatRials } from "@/lib/plus/money";
 import { fa } from "@/lib/panel/format";
 import type { PlusPlanOffer, PlusState } from "@/lib/plus/types";
+import { PLUS_FEATURES } from "@/components/UI/plus/scroll/plus-content";
 import AnimatedPlanCard from "./AnimatedPlanCard";
 
 /**
@@ -68,9 +69,10 @@ export default function PlanCards({
   return (
     <div className={columns}>
       {offers.map((offer, index) => {
-        // «پیشنهاد ما» فقط روی پلنی که واقعاً صرفه‌جویی دارد — نه روی
-        // گران‌ترین پلن به‌عنوان یک ترفندِ فروش.
-        const highlighted = offer.savingPercent !== null && offer.savingPercent >= 10;
+        /* ⚠️ هیچ نشانِ «به‌صرفه‌تر»ای ساخته نمی‌شود. سایت روی پلنِ سه‌ماهه
+           فقط زیرتیترِ «کمترین هزینهٔ ماهانه» و خطِ «۱۷٪ به‌صرفه‌تر» را
+           می‌نویسد؛ نشانِ بالای کارت فقط برای تخفیفِ واقعی است. گذاشتنِ یک
+           نشانِ دیگر یعنی دو برچسبِ رقابتی روی یک کارت. */
 
         return (
           <AnimatedPlanCard
@@ -85,10 +87,6 @@ export default function PlanCards({
               <span className="absolute -top-3 right-6 rounded-full border border-gold/40 bg-background px-3 py-0.5 text-[11px] font-bold plus-ink">
                 {fa(offer.discountPercent)}٪ تخفیف
               </span>
-            ) : highlighted ? (
-              <span className="absolute -top-3 right-6 rounded-full border border-gold/40 bg-background px-3 py-0.5 text-[11px] font-bold plus-ink">
-                ✦ به‌صرفه‌تر
-              </span>
             ) : null}
 
             <header className="space-y-1">
@@ -98,24 +96,41 @@ export default function PlanCards({
               )}
             </header>
 
-            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-              {/* ⚠️ واحد همیشه کنارِ عدد است. «۱۹۹۰۰۰» بدونِ واحد یعنی
-                  کاربر باید حدس بزند ریال است یا تومان. */}
-              <span className="text-2xl font-extrabold">{formatRials(offer.amountRials)}</span>
-
-              {/* ⚠️ قیمتِ خط‌خورده فقط وقتی می‌آید که مدیر عددِ *واقعیِ*
-                  قبلی را ثبت کرده باشد. اینجا هیچ عددی ساخته نمی‌شود؛ اگر
-                  ستون خالی باشد هیچ خط‌خوردگی‌ای وجود ندارد. */}
-              {offer.compareAtRials !== null && (
-                <span className="text-sm text-muted-foreground line-through decoration-muted-foreground/60">
-                  {formatRials(offer.compareAtRials)}
+            {/* ⚠️ دو شکلِ قیمت، برابرِ سایت: پلنِ یک‌ماهه یک عدد دارد
+                («۱۵۳٬۰۰۰ تومان برای ۳۰ روز»)؛ پلن‌هایِ بلندتر اول هزینهٔ
+                ماهانه را بزرگ می‌نویسند («۱۲۷٬۰۰۰ تومان در ماه») و بعد
+                پرداختِ یک‌جا را در یک خطِ جدا می‌آورند. یکی کردنِ این دو شکل
+                یعنی کاربر باید خودش حساب کند کدام به‌صرفه‌تر است. */}
+            {offer.monthlyEquivalentRials !== null ? (
+              <>
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <span className="text-2xl font-extrabold">{formatRials(offer.monthlyEquivalentRials)}</span>
+                  <span className="text-sm text-muted-foreground">در ماه</span>
+                </div>
+                <p className="-mt-2 text-sm text-muted-foreground">
+                  پرداخت یک‌جا{" "}
+                  {/* ⚠️ قیمتِ خط‌خورده فقط وقتی می‌آید که مدیر عددِ *واقعیِ*
+                      قبلی را ثبت کرده باشد. اینجا هیچ عددی ساخته نمی‌شود؛ اگر
+                      ستون خالی باشد هیچ خط‌خوردگی‌ای وجود ندارد. */}
+                  {offer.compareAtRials !== null && (
+                    <span className="line-through decoration-muted-foreground/60">
+                      {formatRials(offer.compareAtRials)}{" "}
+                    </span>
+                  )}
+                  <b className="font-bold text-foreground">{formatRials(offer.amountRials)}</b> برای{" "}
+                  {fa(offer.durationDays)} روز
+                </p>
+              </>
+            ) : (
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                {/* ⚠️ واحد همیشه کنارِ عدد است. «۱۹۹۰۰۰» بدونِ واحد یعنی
+                    کاربر باید حدس بزند ریال است یا تومان. */}
+                <span className="text-2xl font-extrabold">{formatRials(offer.amountRials)}</span>
+                <span className="text-sm text-muted-foreground">
+                  برای {fa(offer.durationDays)} روز
                 </span>
-              )}
-
-              <span className="text-sm text-muted-foreground">
-                برای {fa(offer.durationDays)} روز
-              </span>
-            </div>
+              </div>
+            )}
 
             {offer.savingPercent !== null && (
               <p className="text-xs plus-ink">
@@ -123,12 +138,14 @@ export default function PlanCards({
               </p>
             )}
 
+            {/* ⚠️ این چهار خط از خودِ صفحهٔ `/plus` آمده‌اند. پیش از این پنج
+                خطِ دیگر اینجا بود (دفتر اشتباه‌ها، روند پیشرفت هفتگی…) که
+                روی سایت نیستند؛ نوشتنِ قابلیتی که در سایت فروخته نمی‌شود،
+                روی این کارت هم درست نیست. */}
             <ul className="space-y-1.5 text-sm text-muted-foreground">
-              <li>• نقش دستوری، آرایه‌ها و هوشواره در درسنامه</li>
-              <li>• تحلیل اشتباه‌ها در وزن‌ها و نقش‌های دستوری</li>
-              <li>• دفتر اشتباه‌ها</li>
-              <li>• تمرین پیشنهادی هر روز</li>
-              <li>• روند پیشرفت هفتگی</li>
+              {PLUS_FEATURES.map((feature) => (
+                <li key={feature}>• {feature}</li>
+              ))}
             </ul>
 
             {/* ⚠️ پرداخت خودکار نداریم و این باید *قبل* از خرید صریح گفته

@@ -1,41 +1,70 @@
 import PlanCards from '@/components/UI/plus/PlanCards'
 import PlusScrollPage from '@/components/UI/plus/scroll/PlusScrollPage'
-import { PLUS_COMPARE, PLUS_CYCLE, PLUS_REASONS } from '@/components/UI/plus/scroll/plus-content'
+import { PLUS_COMPARE, PLUS_CYCLE, PLUS_RULES, PLUS_RULES_HEADING, PLUS_SUPPORT } from '@/components/UI/plus/scroll/plus-content'
 import { usePlusSummary } from '@/lib/auth/use-current-user'
+import { jalaliLong } from '@/lib/panel/format'
 import type { PlusPlanOffer } from '@/lib/plus/types'
 
 /**
  * سروا پلاس.
  *
- * 💚 در این نسخه **خرید رایگان و بی‌درنگ است**: همان لحظه‌ای که روی یک طرح
- * کلیک می‌کنی، سفارش ساخته و بلافاصله پرداخت‌شده ثبت می‌شود و دسترسی فعال
- * می‌گردد — بدون درگاه، بدون انتظار، بدون شماره کارت.
- *
- * چرا؟ چون کلِ محتوا همین‌جا روی دستگاه است و پشتِ درگاهی نشسته که در یک
- * برنامهٔ آفلاین معنایی ندارد. مسیرِ سایت (`checkout` → `pay`) دست‌نخورده
- * مانده تا همان تجربه حفظ شود؛ فقط مرحله‌ای که منتظر بانک می‌ماند حذف شده.
+ * ⚠️ مبالغ از صفحهٔ زندهٔ `/plus` آمده‌اند (واحدِ نمایش تومان است و در
+ * `amountRials` به ریال نوشته می‌شوند تا با `formatRials` درست چاپ شوند).
+ * در این برنامهٔ آفلاین خرید بی‌درنگ و بدون درگاه انجام می‌شود — همان‌طور که
+ * پیش از این بود — ولی **قیمت‌ها همانی است که سایت نشان می‌دهد**؛ نشان دادنِ
+ * یک پلنِ «رایگان / برای ۰ روز» چیزی نبود که کاربر روی سایت ببیند.
  *
  * ⚠️ این صفحه پیش از این تنها یک تیتر و یک کارت نشان می‌داد، در حالی که
- * `PlusScrollPage` (همان صفحهٔ کاملِ سایت: قهرمان، چرخِ «چطور کار می‌کند»،
- * صحنه‌های یادگیری، دلیل‌ها و قیمت‌ها) از پیش ساخته شده بود و هیچ‌جا به کار
- * نرفته بود. اکنون همان رندر می‌شود.
+ * `PlusScrollPage` (همان صفحهٔ کاملِ سایت) از پیش ساخته شده بود و هیچ‌جا به کار
+ * نرفته بود. بعدتر هم وقتی وصل شد، متن‌هایش از خودِ صفحه نبودند. ترتیب و
+ * متنِ همه‌چیز اینجا از `sarva-sources/plus-scrolled.html` می‌آید.
  */
 const OFFERS: PlusPlanOffer[] = [
   {
-    planId: 'plus-free',
-    code: 'FREE',
-    title: 'سروا پلاس',
-    subtitle: 'همهٔ امکانات، برای همیشه',
-    durationDays: 0,
-    planVersionId: 'plus-free-v1',
+    planId: 'plus-1m',
+    code: 'plus_1m',
+    title: 'سروا پلاس یک ماهه',
+    subtitle: null,
+    durationDays: 30,
+    planVersionId: 'plus-1m-v1',
     version: 1,
-    amountRials: 0,
-    currency: 'IRT',
+    amountRials: 1_530_000,
+    currency: 'IRR',
     monthlyEquivalentRials: null,
     savingPercent: null,
     compareAtRials: null,
-    discountPercent: null
-  }
+    discountPercent: null,
+  },
+  {
+    planId: 'plus-3m',
+    code: 'plus_3m',
+    title: 'سروا پلاس سه‌ماهه',
+    subtitle: 'کمترین هزینهٔ ماهانه',
+    durationDays: 90,
+    planVersionId: 'plus-3m-v1',
+    version: 1,
+    amountRials: 3_800_000,
+    currency: 'IRR',
+    monthlyEquivalentRials: 1_270_000,
+    savingPercent: 17,
+    compareAtRials: null,
+    discountPercent: null,
+  },
+  {
+    planId: 'plus-12m',
+    code: 'plus_12m',
+    title: 'سروا پلاس یک‌ساله',
+    subtitle: 'بهترین انتخاب',
+    durationDays: 365,
+    planVersionId: 'plus-12m-v1',
+    version: 1,
+    amountRials: 9_900_000,
+    currency: 'IRR',
+    monthlyEquivalentRials: 830_000,
+    savingPercent: 47,
+    compareAtRials: 15_600_000,
+    discountPercent: 37,
+  },
 ]
 
 export default function Plus() {
@@ -43,20 +72,50 @@ export default function Plus() {
 
   /* سربرگ و پاورقی را خودِ `App` می‌سازد؛ اینجا فرستاده نمی‌شوند تا دوبار
      نیایند. تنها بخشی که صفحه باید پر کند «قیمت‌ها» است. */
+
+  /* ⚠️ مشترکِ فعال باید بداند تا کی وقت دارد و بتواند تمدید کند. پیش از این
+     خطی نبود و کارتِ پلن برای کسی که اشتراک داشت اصلاً دکمه نشان نمی‌داد
+     (`permanent`), یعنی راهی برای تمدید وجود نداشت. سایت برای مشترکِ فعال هم
+     «تمدید اشتراک» می‌نویسد. */
+  const subscriptionLine =
+    plus.state === 'active' && plus.expiresAt
+      ? `اشتراک تو فعال است تا ${jalaliLong(plus.expiresAt)}.`
+      : null
+
   const plans = (
-    <>
-      <h3 className="mb-4 text-center text-lg font-bold">انتخاب مدت</h3>
-      <PlanCards offers={OFFERS} state={plus.state} permanent={plus.state === 'active'} />
-      <ul className="mx-auto mt-10 max-w-2xl space-y-2 text-sm leading-7 text-muted-foreground">
-        <li>• اشتراک پیش‌پرداخت است، تمدید خودکار ندارد و بلافاصله بعد از پرداخت فعال می‌شود.</li>
-        <li>• اگر اشتراک فعال داری، مدت جدید به انتهای آن اضافه می‌شود.</li>
-        <li>• هر حساب مخصوص یک نفر است و استفادهٔ چند نفر از یک اشتراک مجاز نیست.</li>
-        <li>• اگر مبلغ کم شد و اشتراک فعال نشد، بانک معمولاً تا ۷۲ ساعت آن را برمی‌گرداند. در غیر این صورت به پشتیبانی پیام بده.</li>
-      </ul>
-    </>
+    <div className="mx-auto max-w-4xl">
+      <h2 className="mb-6 text-center text-xl font-bold">انتخاب مدت</h2>
+
+      {subscriptionLine && (
+        <p className="mb-5 text-center text-sm plus-ink">{subscriptionLine}</p>
+      )}
+
+      <PlanCards
+        offers={OFFERS}
+        state={plus.state}
+        permanent={plus.state === 'active' && plus.expiresAt === null}
+      />
+
+      <section className="mx-auto mt-8 max-w-2xl rounded-2xl border border-border/70 bg-card px-5 pb-3 pt-4">
+        <h3 className="mb-1 text-sm font-extrabold">{PLUS_RULES_HEADING}</h3>
+        <ul className="space-y-1 text-xs leading-6 text-muted-foreground">
+          {PLUS_RULES.map((rule) => (
+            <li key={rule}>{rule}</li>
+          ))}
+        </ul>
+      </section>
+
+      <div className="mt-10 flex flex-col items-center gap-3">
+        <p className="text-sm text-muted-foreground">{PLUS_SUPPORT.question}</p>
+        <a
+          href="mailto:info@sarvaedu.ir"
+          className="relative cursor-pointer rounded-lg border border-primary/50 px-6 py-2.5 text-sm font-medium backdrop-blur-xl transition-shadow duration-300 ease-in-out hover:shadow dark:bg-[radial-gradient(circle_at_50%_0%,color-mix(in_oklab,var(--primary)_10%,transparent)_0%,transparent_60%)]"
+        >
+          {PLUS_SUPPORT.action}
+        </a>
+      </div>
+    </div>
   )
 
-
-
-  return <PlusScrollPage reasons={PLUS_REASONS} cycle={PLUS_CYCLE} plans={plans} compare={PLUS_COMPARE} />
+  return <PlusScrollPage cycle={PLUS_CYCLE} plans={plans} compare={PLUS_COMPARE} />
 }

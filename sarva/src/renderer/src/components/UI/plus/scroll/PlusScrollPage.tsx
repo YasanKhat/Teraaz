@@ -1,19 +1,27 @@
 "use client";
 
-import { useEffect, useId, useRef, type CSSProperties, type ReactNode } from "react";
-import { ArrowDown, AudioLines, BookOpen, ChartNoAxesCombined, Focus, Network, Sparkles } from "lucide-react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { ArrowDown, BookOpen } from "lucide-react";
+import MainLogo from "@/components/svgs/mainLogo";
 import { GeometricPattern } from "@/components/persian-patterns";
 import SarvaStar, { SARVA_STAR_PATH } from "@/components/UI/SarvaStar";
 import { buildJourneyPoints, journeyViewportY } from "./journey-path";
-import { PLUS_ORBIT_LABELS, type CompareGroup } from "./plus-content";
+import {
+  PLUS_COST,
+  PLUS_ORBIT_LABELS,
+  PLUS_STORY,
+  PLUS_STORY_HEADING,
+  PLUS_STORY_LEDE,
+  type CompareGroup,
+  type CompareMark,
+  type StoryItem,
+} from "./plus-content";
 import { fa } from "@/lib/panel/format";
 import { LearningParallax } from "./LearningScenes";
 import StarDock from "./StarDock";
 import styles from "./plus-scroll.module.css";
 
-export type Reason = { id: string; title: string; body: string; note: string };
 export type CycleStep = { title: string; body: string };
-const REASON_ICONS = [AudioLines, Network, BookOpen, Focus, ChartNoAxesCombined];
 
 // Fixed positions avoid hydration differences. Mobile keeps only six small motes.
 const PARALLAX_MOTES = [
@@ -52,22 +60,133 @@ function Jewel({ className }: { className?: string }) {
 
 /** Native scrolling, a single scrubbed journey and geometry measured only on refresh. */
 /**
- * جدولِ «همهٔ تفاوت‌ها» — ۱۷ مورد در پنج گروه، برابرِ سایتِ زنده.
+ * یک نشانه در جدولِ «همهٔ تفاوت‌ها».
  *
- * در سایت هر خانه یا فقط یک نشانه است (دارد / تا حدی / ندارد) یا نشانه به‌علاوهٔ
- * یک توضیحِ کوتاه در `<small>`؛ مثلاً «تا حدی — در متن». متنِ نشانه برای
- * صفحه‌خوان است (`sr-only`) و توضیح دیداری می‌ماند.
+ * ⚠️ دو ستون یکی نیستند و این عمدی است — سایت همین‌طور است:
+ *   • ستونِ کتاب: نشانه (دارد / تا حدی / ندارد) برای صفحه‌خوان، **و** توضیح در
+ *     `<small>` اگر چیزی برای گفتن داشته باشد.
+ *   • ستونِ پلاس: **یا** توضیح در `<small>` **یا** واژهٔ نشانه؛ هر دو با هم
+ *     نمی‌آیند. چرا؟ چون در ستونِ پلاس تقریباً همه‌چیز «دارد» است و نوشتنِ
+ *     «دارد» کنارِ هر توضیح، ستون را پر از یک واژهٔ تکراری می‌کند.
  */
 const STATE_WORD = { yes: "دارد", part: "تا حدی", no: "ندارد" } as const;
 
-function Mark({ state, note, plus = false }: { state: "yes" | "part" | "no"; note?: string; plus?: boolean }) {
-  const word = STATE_WORD[state];
-  const small = note && note !== word ? note : undefined;
-  return <span className={styles.boardMark} data-mark={state} data-plus={plus || undefined}>
-    {state === "yes" && <span className={styles.boardBadge} aria-hidden />}
-    <span className="sr-only">{word}</span>
-    {small && <small>{small}</small>}
-  </span>;
+function Mark({ mark, plus = false }: { mark: CompareMark; plus?: boolean }) {
+  const word = STATE_WORD[mark.state];
+  return (
+    <span className={styles.boardMark} data-mark={mark.state} data-plus={plus || undefined}>
+      {mark.state === "yes" && <span className={styles.boardBadge} aria-hidden />}
+      {mark.state === "no" && !plus && <span className={styles.boardDash} aria-hidden />}
+      {plus ? (
+        mark.note ? <small>{mark.note}</small> : <span className="sr-only">{word}</span>
+      ) : (
+        <>
+          <span className="sr-only">{word}</span>
+          {mark.note && <small>{mark.note}</small>}
+        </>
+      )}
+    </span>
+  );
+}
+
+/**
+ * بخشِ «کتاب کمک‌درسی یا سروا پلاس؟» — شش توضیحِ بلند، بعد یک دسته کارتِ
+ * برگردان با همان شش ابزار، و شش دکمه برای رفتن به هر کارت.
+ */
+function StoryCompare({ items }: { items: StoryItem[] }) {
+  const [open, setOpen] = useState<number | null>(null);
+
+  return (
+    <section className={styles.compare}>
+      <div className={styles.story}>
+        <div className={styles.storyStage}>
+          <div className={styles.storyIntro}>
+            <h2 className={styles.storyTitle}>{PLUS_STORY_HEADING}</h2>
+            <p className={styles.storyLede}>{PLUS_STORY_LEDE}</p>
+          </div>
+
+          {/* ⚠️ `display:contents` روی این دو ظرف عمدی است و از خودِ سایت
+              آمده: با آن هر «توضیح» و «کارتِ» هم‌شماره در یک سطرِ شبکه
+              می‌نشینند (`grid-row: calc(var(--i) + 2)`) بی‌آنکه یک لایهٔ
+              واسطه ساخته شود. بستنشان در یک <div> یعنی توضیح و کارت دیگر
+              روبه‌روی هم قرار نمی‌گیرند. */}
+          <div className={styles.storyCaptions}>
+            {items.map((item, index) => {
+              const style = { "--i": index, "--accent": item.accent } as CSSProperties;
+              const Icon = item.icon;
+              return (
+                <div key={item.id} className={styles.storyCaption} style={style} data-reason-card>
+                  <span className={styles.storyPrinciple}>{item.principle}</span>
+                  <h3>{item.title}</h3>
+                  <p>{item.body}</p>
+                  <p className={styles.storyBookLine}>
+                    <BookOpen size={15} aria-hidden />
+                    <span>کتاب:</span> {item.book}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className={styles.storyDeck}>
+            {items.map((item, index) => {
+              const style = { "--i": index, "--accent": item.accent } as CSSProperties;
+              const Icon = item.icon;
+              return (
+                <div key={item.id} className={styles.storyCard} style={style}>
+                  <div className={styles.storyFlip} data-flipped={index === open || undefined}>
+                    <div className={styles.storyFront}>
+                      <div className={styles.storyFrontInner}>
+                        <span className={styles.storyFrontLogo}><MainLogo /></span>
+                        <div className={styles.storyFrontTop}>
+                          <span className={styles.storyBrand}>
+                            <span className={styles.storyBrandMark}><SarvaStar size={20} /></span>
+                            سروا <b>پلاس</b>
+                          </span>
+                        </div>
+                        <div className={styles.storyFrontBottom}>
+                          <small>{item.principle}</small>
+                          <strong>{item.card}</strong>
+                        </div>
+                      </div>
+                    </div>
+                    <div className={styles.storyBack}>
+                      <div className={styles.storyBackInner}>
+                        <span className={styles.storyBackIndex}>
+                          {fa(index + 1)} / {fa(items.length)}
+                        </span>
+                        <span className={styles.storyEmblem}>
+                          <span className={styles.storyEmblemTile}><Icon size={24} aria-hidden /></span>
+                        </span>
+                        <span className={styles.storyBackText}>
+                          <strong>{item.card}</strong>
+                          <small>{item.caption}</small>
+                        </span>
+                        <i className={styles.storyGlare} aria-hidden />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <nav className={styles.storyChips} aria-label="انتخابِ کارت">
+          {items.map((item, index) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setOpen(index === open ? null : index)}
+              data-active={index === open || undefined}
+            >
+              {item.chip}
+            </button>
+          ))}
+        </nav>
+      </div>
+    </section>
+  );
 }
 
 function CompareBoard({ groups }: { groups: CompareGroup[] }) {
@@ -78,8 +197,19 @@ function CompareBoard({ groups }: { groups: CompareGroup[] }) {
       <div className={styles.boardScore} role="rowgroup">
         <div className={styles.boardScoreRow} role="row">
           <span className={styles.boardScoreLead} role="columnheader"><b>{fa(total)} مورد</b></span>
-          <span className={styles.boardScoreBook} role="columnheader"><span className={styles.boardScoreName}>کتاب کمک‌درسی</span></span>
-          <span className={styles.boardScorePlus} role="columnheader"><span className={styles.boardScoreName}>سروا پلاس</span></span>
+          <span className={styles.boardScoreBook} role="columnheader">
+            <span className={styles.boardScoreName}>
+              <BookOpen size={15} aria-hidden />
+              <span className={styles.boardBookWord}>کتاب </span>کمک‌درسی
+            </span>
+            <span className={styles.boardOdometer}><span>{fa(5)}</span></span>
+          </span>
+          <span className={styles.boardScorePlus} role="columnheader">
+            <span className={styles.boardScoreName}>
+              <SarvaStar size={15} />سروا پلاس
+            </span>
+            <span className={styles.boardOdometer}><span>{fa(total)}</span></span>
+          </span>
         </div>
       </div>
       {groups.map(group => (
@@ -88,18 +218,29 @@ function CompareBoard({ groups }: { groups: CompareGroup[] }) {
           {group.rows.map(row => (
             <div key={row.label} className={styles.boardRow} role="row" data-on="true">
               <span className={styles.boardLabel} role="rowheader">{row.label}</span>
-              <span className={styles.boardBookCell} role="cell"><Mark state={row.state} note={row.book} /></span>
-              <span className={styles.boardPlusCell} role="cell"><i className={styles.boardWash} aria-hidden="true" /><Mark state="yes" note={row.plus} plus /></span>
+              <span className={styles.boardBookCell} role="cell"><Mark mark={row.book} /></span>
+              <span className={styles.boardPlusCell} role="cell"><i className={styles.boardWash} aria-hidden="true" /><Mark mark={row.plus} plus /></span>
             </div>
           ))}
         </div>
       ))}
+      <div className={styles.boardCost}>
+        <div className={styles.boardCostBook}>
+          <span className={styles.boardCostBookMark}><BookOpen size={18} aria-hidden /></span>
+          <span className={styles.boardCostText}>
+            <span className={styles.boardCostName}>{PLUS_COST.name}</span>
+            <span className={styles.boardCostValue}>
+              <small>{PLUS_COST.prefix}</small> <b>{PLUS_COST.value}</b> <small>{PLUS_COST.unit}</small>
+            </span>
+          </span>
+        </div>
+      </div>
     </div>
   </section>;
 }
 
-export default function PlusScrollPage({ reasons, cycle, plans, compare, header, footer, markers = false, showPath = false }: {
-  reasons: Reason[]; cycle: CycleStep[]; plans: ReactNode; compare?: CompareGroup[]; header?: ReactNode; footer?: ReactNode; markers?: boolean; showPath?: boolean;
+export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compare, header, footer, markers = false, showPath = false }: {
+  story?: StoryItem[]; cycle: CycleStep[]; plans: ReactNode; compare?: CompareGroup[]; header?: ReactNode; footer?: ReactNode; markers?: boolean; showPath?: boolean;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const orbRef = useRef<HTMLDivElement>(null);
@@ -274,7 +415,7 @@ export default function PlusScrollPage({ reasons, cycle, plans, compare, header,
     preference.addEventListener("change", start);
     start();
     return () => { disposed = true; preference.removeEventListener("change", start); teardown(); };
-  }, [markers, reasons.length]);
+  }, [markers, story.length]);
 
   return (
     <div ref={rootRef} className={styles.page} dir="rtl">
@@ -321,25 +462,7 @@ export default function PlusScrollPage({ reasons, cycle, plans, compare, header,
 
         <LearningParallax />
 
-        <div className={styles.reasonsField}>
-          {reasons.map((reason, i) => {
-            const Icon = REASON_ICONS[i % REASON_ICONS.length];
-            return (
-              <section key={reason.id} id={reason.id} className={styles.reason}>
-                <div className={styles.cardSlot}>
-                  <article className={styles.card} data-reason-card>
-                    <span className={styles.cardAura} aria-hidden />
-                    <span className={styles.cardGhost} aria-hidden>{(i + 1).toLocaleString("fa-IR")}</span>
-                    <div className={styles.cardHead}><span className={styles.cardStep}><Icon size={23} aria-hidden /></span></div>
-                    <h2 className={styles.cardTitle}>{reason.title}</h2>
-                    <p className={styles.cardBody}>{reason.body}</p>
-                    <p className={styles.cardNote}><Sparkles size={14} aria-hidden />{reason.note}</p>
-                  </article>
-                </div>
-              </section>
-            );
-          })}
-        </div>
+        <StoryCompare items={story} />
 
         {compare && <CompareBoard groups={compare} />}
 

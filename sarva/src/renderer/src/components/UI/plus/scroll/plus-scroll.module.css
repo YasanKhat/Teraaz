@@ -791,7 +791,317 @@ the decorative layers stay small. */
 .boardMark small { font-size: 11px; line-height: 1.5; color: var(--muted-foreground); }
 .boardMark[data-plus] small { font-weight: 700; color: color-mix(in oklab, var(--primary) 75%, var(--foreground)); }
 
+
+/* ─────────────────────────────────────────────────────────────────────────
+   بخشِ «کتاب کمک‌درسی یا سروا پلاس؟»
+
+   ⚠️ این استایل از بسته‌یِ CSSِ خودِ سایت (WARC) کپی شده، نه از حدس. دو نکته‌یِ
+   حساس:
+     • `display:contents` روی ظرفِ توضیح‌ها و ظرفِ کارت‌ها عمدی است — با آن هر
+       توضیح و کارتِ هم‌شماره در یک سطرِ شبکه می‌نشینند.
+     • واحدهایِ `cqw` (درصد از عرضِ کارت) فقط با `container-type:inline-size`
+       رویِ خودِ کارت معنا دارند؛ کارت هر اندازه‌ای شود، متن با آن تناسب دارد.
+   ───────────────────────────────────────────────────────────────────────── */
+.compare { max-width: 1000px; margin: 0 auto; }
+
+.story { --brick: #9a3b30; position: relative; }
+
+.storyStage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
+  align-items: center;
+  gap: 64px;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 90px 24px 40px;
+}
+
+.storyIntro { grid-column: 1 / -1; text-align: center; }
+
+.storyTitle {
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  font-size: clamp(32px, 4.6vw, 66px);
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.storyLede { color: var(--muted-foreground); margin-top: 10px; font-size: clamp(15px, 1.4vw, 19px); }
+
+.storyCaptions,
+.storyDeck { display: contents; }
+
+.storyCaption { grid-column: 1; grid-row: calc(var(--i) + 2); }
+
+.storyPrinciple {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 800;
+  color: color-mix(in oklab, var(--accent) 72%, var(--foreground));
+}
+.storyPrinciple::before { content: ""; width: 16px; height: 2px; border-radius: 2px; background: currentColor; }
+
+.storyCaption h3 { text-wrap: balance; font-size: clamp(22px, 2.4vw, 34px); font-weight: 900; line-height: 1.5; }
+
+.storyCaption p {
+  max-width: 34em;
+  margin-top: 10px;
+  color: var(--muted-foreground);
+  text-wrap: pretty;
+  font-size: 15px;
+  line-height: 2;
+}
+
+.storyBookLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+.storyBookLine span { color: var(--brick); font-weight: 800; }
+:global(.dark) .storyBookLine span { color: #e0806f; }
+
+.storyCard { grid-column: 2; grid-row: calc(var(--i) + 2); }
+
+.storyFlip {
+  display: grid;
+  grid-template-areas: "face";
+  transform-style: preserve-3d;
+  transition: transform .7s cubic-bezier(.2, .8, .2, 1);
+}
+.storyFlip[data-flipped] { transform: rotateY(180deg); }
+
+.storyFront,
+.storyBack {
+  grid-area: face;
+  aspect-ratio: 1 / 1.28;
+  position: relative;
+  container-type: inline-size;
+  backface-visibility: hidden;
+}
+
+/* حالتِ پیش‌فرض پشتِ کارت است — مثلِ همان چیزی که سایت پیش از اجرای انیمیشن
+   نشان می‌دهد: نام و توضیحِ ابزار. رویِ کارت با کلیک روی برچسب دیده می‌شود. */
+.storyFront { transform: rotateY(180deg); }
+
+.storyFrontInner {
+  isolation: isolate;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 8cqw 8cqw 9cqw;
+  border: 1px solid #ffffffbf;
+  border-radius: 7cqw;
+  font-size: 4.6cqw;
+  color: var(--foreground);
+  background: linear-gradient(150deg,
+    color-mix(in oklab, var(--primary) 22%, #fff),
+    color-mix(in oklab, var(--primary) 8%, #fff) 56%,
+    color-mix(in oklab, var(--gold) 16%, #fff));
+  box-shadow: inset 0 1px #ffffffe6, 0 1.6em 3em -1.9em #00000080;
+}
+:global(.dark) .storyFrontInner {
+  border-color: #ffffff1f;
+  background: linear-gradient(150deg,
+    color-mix(in oklab, var(--primary) 30%, #0b121d),
+    color-mix(in oklab, var(--primary) 10%, #0b121d) 60%,
+    color-mix(in oklab, var(--gold) 12%, #0b121d));
+}
+
+.storyFrontLogo {
+  z-index: -2;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -46%;
+  height: 66%;
+  aspect-ratio: 376.8 / 449.8;
+  opacity: .6;
+  filter: blur(3cqw) saturate(.9);
+  pointer-events: none;
+}
+:global(.dark) .storyFrontLogo { opacity: .38; }
+
+.storyFrontTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 1em; }
+
+.storyBrand { display: flex; align-items: center; gap: .4em; font-size: 1.05em; font-weight: 900; }
+.storyBrand b { color: var(--gold-ink); font-weight: 900; }
+.storyBrandMark { flex: none; width: 1.5em; height: 1.5em; }
+
+.storyFrontBottom { display: grid; gap: .15em; }
+.storyFrontBottom small { color: color-mix(in oklab, var(--foreground) 58%, transparent); font-size: .68em; font-weight: 700; }
+.storyFrontBottom strong { letter-spacing: -.01em; font-size: 1.85em; font-weight: 900; line-height: 1.35; }
+
+.storyBackInner {
+  isolation: isolate;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6cqw;
+  padding: 10cqw 8cqw;
+  border: 1px solid color-mix(in oklab, var(--accent) 28%, var(--border));
+  border-radius: 7cqw;
+  text-align: center;
+  font-size: 4.6cqw;
+  color: var(--foreground);
+  background:
+    radial-gradient(90% 60% at 50% 36%, color-mix(in oklab, var(--accent) 20%, transparent), transparent 70%),
+    var(--card);
+}
+
+.storyBackIndex {
+  position: absolute;
+  top: 7cqw;
+  right: 8cqw;
+  font-size: .7em;
+  font-weight: 700;
+  color: var(--muted-foreground);
+}
+
+.storyEmblem { position: relative; display: grid; place-items: center; width: 56cqw; aspect-ratio: 1; }
+.storyEmblem::before,
+.storyEmblem::after {
+  content: "";
+  position: absolute;
+  border: 1px solid color-mix(in oklab, var(--accent) 22%, transparent);
+  border-radius: 50%;
+}
+.storyEmblem::before { inset: 0; }
+.storyEmblem::after { inset: 14%; border-color: color-mix(in oklab, var(--accent) 38%, transparent); }
+
+.storyEmblemTile {
+  display: grid;
+  place-items: center;
+  width: 52%;
+  aspect-ratio: 1;
+  border-radius: 30%;
+  color: #fff;
+  background: linear-gradient(150deg,
+    color-mix(in oklab, var(--accent) 58%, #fff),
+    var(--accent) 50%,
+    color-mix(in oklab, var(--accent) 70%, #000));
+  box-shadow:
+    inset 0 1px 0 #ffffff73,
+    inset 0 -1px 0 #0000002e,
+    0 1.4em 2.2em -1.3em color-mix(in oklab, var(--accent) 80%, transparent);
+}
+.storyEmblemTile svg { width: 50%; height: 50%; }
+
+.storyBackText { display: grid; gap: .2em; }
+.storyBackText strong { font-size: 1.5em; font-weight: 900; line-height: 1.45; }
+.storyBackText small { color: var(--muted-foreground); font-size: .8em; font-weight: 600; }
+
+.storyGlare { display: none; }
+
+.storyChips {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 8px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: var(--card);
+  width: fit-content;
+  margin-inline: auto;
+}
+
+.storyChips button {
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 99px;
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background-color .25s, color .25s;
+}
+.storyChips button:hover { color: var(--foreground); }
+.storyChips button[data-active] { background: var(--primary); color: var(--primary-foreground); }
+.storyChips button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* ── شمارنده‌هایِ بالای جدول (۵ در برابرِ ۱۷) ── */
+.boardOdometer {
+  display: grid;
+  place-items: center;
+  min-width: 46px;
+  margin-top: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--card) 60%, transparent);
+  font-size: 22px;
+  font-weight: 900;
+}
+.boardScorePlus .boardOdometer {
+  border-color: color-mix(in oklab, var(--primary) 45%, transparent);
+  color: var(--primary);
+}
+
+.boardBookWord { color: var(--muted-foreground); }
+
+/* خطِ تیره‌یِ «ندارد» — یک نشانه‌یِ خالی که با «دارد» اشتباه نشود. */
+.boardDash {
+  display: block;
+  width: 22px;
+  height: 2px;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--foreground) 28%, transparent);
+}
+
+/* ── بهایِ کتابِ کمک‌درسی، زیرِ جدول ── */
+.boardCost { display: grid; place-items: center; margin-top: 34px; }
+
+.boardCostBook {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 24px;
+  border: 1px dashed color-mix(in oklab, var(--border) 90%, transparent);
+  border-radius: 20px;
+  background: color-mix(in oklab, var(--card) 75%, transparent);
+}
+
+.boardCostBookMark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--muted-foreground);
+}
+
+.boardCostText { display: grid; gap: 2px; }
+.boardCostName { font-size: 13px; color: var(--muted-foreground); }
+.boardCostValue { display: flex; align-items: baseline; gap: 6px; font-weight: 800; }
+.boardCostValue b { font-size: 24px; font-weight: 900; }
+.boardCostValue small { font-size: 12px; font-weight: 500; color: var(--muted-foreground); }
+
 @media (max-width: 720px) {
+  .storyStage { grid-template-columns: 1fr; gap: 18px; padding: 60px 16px 20px; }
+  .storyIntro { order: -1; }
+  .storyCaption,
+  .storyCard { grid-area: auto / 1; }
+  .storyCaption { order: calc(var(--i) * 2); }
+  .storyCard { order: calc(var(--i) * 2 + 1); width: min(100%, 340px); margin: 0 auto 36px; }
+  .boardCostBook { padding: 14px 16px; }
+
   .board { padding: 80px 16px 20px; }
   .boardTable { --col: 104px; }
   .boardLabel { padding: 10px 14px; font-size: 13px; }
