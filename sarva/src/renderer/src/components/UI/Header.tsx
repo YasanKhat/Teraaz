@@ -54,8 +54,13 @@ function Sparkle() {
 export default function Header({ compact = false, previewPlus = false }: { compact?: boolean; previewPlus?: boolean }) {
   const { plus, loading } = usePlusSummary();
   // Only the development showcase may display Plus without a database connection.
-  const plusVisible = plus.state !== "off" || (process.env.NODE_ENV === "development" && previewPlus);
-  const plusActive = !loading && (plus.state === "active" || (process.env.NODE_ENV === "development" && previewPlus));
+  /* ⚠️ `previewPlus` در امضایِ کامپوننتِ سایت هم هست ولی در محاسبه به کار
+     نمی‌رود: آن‌جا تنها `state !== "off"` و `!loading && state === "active"`
+     است و بس. افزودنِ استثنایِ توسعه یعنی در پیش‌نمایش نشانِ «پلاسِ فعال»
+     می‌نشیند (که به `/panel/subscription` می‌رود) و پیوندِ «سروا پلاس» — که
+     باید به صفحه‌یِ خرید برود — پنهان می‌ماند. */
+  const plusVisible = plus.state !== "off";
+  const plusActive = !loading && plus.state === "active";
   const plusHref = plus.state === "active" ? "/panel/subscription" : "/plus";
   // در سایت عنوان همیشه «سروا پلاس» است؛ «خرید سروا پلاس» و «تمدید» مالِ
   // منویِ حساب است، نه این‌جا.

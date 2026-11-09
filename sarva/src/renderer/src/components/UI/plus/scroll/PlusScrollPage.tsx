@@ -146,7 +146,17 @@ function Mark({ mark, plus = false }: { mark: CompareMark; plus?: boolean }) {
   const word = STATE_WORD[mark.state];
   return (
     <span className={styles.boardMark} data-mark={mark.state} data-plus={plus || undefined}>
-      {mark.state === "yes" && <span className={styles.boardBadge} aria-hidden />}
+      {/* ⚠️ نشانِ «دارد» یک تیک است، نه یک دایره‌یِ تهی. در سایت درونِ
+          `badge` یک `svg.lucide-check` نشسته (`M20 6 9 17l-5-5`) و کنارش
+          یک `sr-only`ِ «دارد». پیش از این `badge` تُهی بود و هیچ تیکی
+          دیده نمی‌شد. */}
+      {mark.state === "yes" && (
+        <span className={styles.boardBadge}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+        </span>
+      )}
       {/* ⚠️ در سایت خطِ تیره تنها وقتی است که خانه هیچ یادداشتی ندارد؛
           هر جا یادداشت هست (مثل «تا چاپ بعد») همان یادداشت جایِ خط را
           می‌گیرد و خطِ تیره نمی‌آید. */}
@@ -252,20 +262,24 @@ function StoryCompare({ items, children }: { items: StoryItem[]; children?: Reac
               );
             })}
           </div>
-        </div>
 
-        <nav className={styles.storyChips} aria-label="بخش‌های مقایسه">
-          {items.map((item, index) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setOpen(index === open ? null : index)}
-              data-active={index === open || undefined}
-            >
-              {item.chip}
-            </button>
-          ))}
-        </nav>
+          {/* ⚠️ این دکمه‌ها فرزندِ «صحنه»اند، نه خواهرِ آن. در سایت
+              `nav.chips` درونِ `stage` نشسته و صحنه چسبنده است؛ بیرونش که
+              بگذاری `bottom:max(16px,3svh)` نسبت به کلِ بخشِ ۶۶۶۰ پیکسلی
+              حساب می‌شود و دکمه‌ها هیچ‌گاه به دید نمی‌آیند. */}
+          <nav className={styles.storyChips} aria-label="بخش‌های مقایسه">
+            {items.map((item, index) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setOpen(index === open ? null : index)}
+                data-active={index === open || undefined}
+              >
+                {item.chip}
+              </button>
+            ))}
+          </nav>
+        </div>
       </div>
       {children}
     </section>
@@ -310,13 +324,21 @@ function CompareBoard({ groups }: { groups: CompareGroup[] }) {
       {groups.map(group => (
         <div key={group.title} className={styles.boardGroup} role="rowgroup">
           <div className={styles.boardGroupTitle} role="row"><span role="rowheader">{group.title}</span></div>
-          {group.rows.map(row => (
-            <div key={row.label} className={styles.boardRow} role="row" data-row={(rowIndex += 1)} data-on="true">
+          {group.rows.map(row => {
+            /* ⚠️ `data-on` را حالا آگاهی از ردیف‌ها می‌گرداند، نه یک «درست» ی
+               ثابت. در سایت هر ردیف تا از خطِ ۶۵٪ِ پنجره نگذرد کمرنگ است
+               (`opacity:.4`) و نشان‌هایش در آنِ واحد در نمی‌آیند؛ وقتی ردیف
+               روشن می‌شود نشان از `scale(.3)` به جایِ خود باز می‌گردد. پیش از
+               این همه‌یِ ردیف‌ها از ابتدا روشن بودند و تخته هیچ ورودی نداشت. */
+            const index = (rowIndex += 1);
+            return (
+            <div key={row.label} className={styles.boardRow} role="row" data-row={index} data-on={on[index] ? "true" : undefined}>
               <span className={styles.boardLabel} role="rowheader">{row.label}</span>
               <span className={styles.boardBookCell} role="cell"><Mark mark={row.book} /></span>
               <span className={styles.boardPlusCell} role="cell"><i className={styles.boardWash} aria-hidden="true" /><Mark mark={row.plus} plus /></span>
             </div>
-          ))}
+            );
+          })}
         </div>
       ))}
       {/* سایت این بلوک را با یک ورودِ نرم (بالا آمدنِ ۲۸ پیکسلی) نشان می‌دهد
@@ -384,6 +406,9 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
       if (!root || !orb || !inner || !seed || !dock || !emerge || !orb2 || !inner2) return;
       gsap.registerPlugin(ScrollTrigger);
       const mm = gsap.matchMedia();
+      /* دسته‌ی کارت‌ها نقطه‌ی شکستِ خودش را دارد و آن را با سفر سهیم نیست؛
+         برای همین `matchMedia` ی جدایی می‌گیرد (پایین‌تر، سرِ خودِ دسته). */
+      const deckMm = gsap.matchMedia();
       /* ⚠️ شرطِ سوم (`oneColumn`) از نسخه‌یِ زنده آمده و در برنامه نبود:
          کارت‌هایِ پلان تنها وقتی «بادبزن» می‌شوند که ستون‌ها بیش از یکی
          باشند (`max-width: 639px` یعنی یک ستون). */
@@ -604,6 +629,14 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
         const stage = storySection?.querySelector<HTMLElement>(`.${styles.storyStage}`);
         const intro = storySection?.querySelector<HTMLElement>(`.${styles.storyIntro}`);
         if (storySection && stage && intro) {
+          /* ⚠️ شرطِ «فشرده»ی دسته با شرطِ سفر یکی نیست. در بسته‌یِ زنده دو
+             شرطِ جداست: سفر `(max-width: 699px)`، و دسته
+             `(max-width: 899px) and (orientation: portrait)` در برابر
+             `(min-width: 900px), (orientation: landscape)`. پیش از این هر دو
+             از ۶۹۹ پیروی می‌کردند و در پهنا‌یِ میانه (مثل ۸۲۰) کارت ۵۸٪ به
+             چپ می‌رفت، در حالی که سایت آن را میان می‌نشاند. */
+          deckMm.add({ motion: "(prefers-reduced-motion: no-preference)", deckCompact: "(max-width: 899px) and (orientation: portrait)", deckWide: "(min-width: 900px), (orientation: landscape)" }, (deckContext) => {
+          const deckCompact = Boolean(deckContext.conditions?.deckCompact);
           storySection.style.setProperty("--len", "640");
           const captions = Array.from(storySection.querySelectorAll<HTMLElement>(`.${styles.storyCaption}`));
           const cards = Array.from(storySection.querySelectorAll<HTMLElement>(`.${styles.storyCard}`));
@@ -628,11 +661,11 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           storySection.dataset.motion = "on";
           gsap.set([...captions, ...backs, ...(chips ? [chips] : [])], { autoAlpha: 0 });
           gsap.set(glares.flat(), { autoAlpha: 0 });
-          cards.forEach((card, i) => gsap.set(card, { xPercent: compact ? 0 : -58, zIndex: total - i, ...rest(i) }));
+          cards.forEach((card, i) => gsap.set(card, { xPercent: deckCompact ? 0 : -58, zIndex: total - i, ...rest(i) }));
 
           const deck = gsap.timeline({
             defaults: { ease: "power2.inOut", duration: .6 },
-            scrollTrigger: { trigger: storySection, start: "top top", end: "bottom bottom", scrub: compact ? .5 : .8 },
+            scrollTrigger: { trigger: storySection, start: "top top", end: "bottom bottom", scrub: deckCompact ? .5 : .8 },
           });
           deck.from(cards, { yPercent: "+=24", autoAlpha: 0, duration: .8, stagger: .05, ease: "power3.out" }, 0)
             .to(intro, { autoAlpha: 0, y: -30, duration: .5 }, .85);
@@ -644,16 +677,16 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
             if (i > 0) {
               const previous = cards[i - 1];
               deck.set(previous, { zIndex: 20 + i }, at)
-                .to(previous, compact
+                .to(previous, deckCompact
                   ? { xPercent: -150, yPercent: 4, rotation: -16, autoAlpha: 0, duration: .6 }
                   : { xPercent: -182 + (i - 1) * 6, yPercent: 6 + (i - 1) * 1.2, rotation: -12 + (i - 1) * 2.4, scale: .78, duration: .7 }, at)
                 .to(captions[i - 1], { autoAlpha: 0, y: -20, duration: .35 }, at);
               for (let j = i + 1; j < total; j++) deck.to(cards[j], { ...rest(j - i), duration: .55 }, at + .1);
             }
             deck.fromTo(captions[i], { autoAlpha: 0, y: 26 }, { autoAlpha: 1, y: 0, duration: .45, immediateRender: false }, at + .45)
-              .to(card, { yPercent: compact ? 0 : -9, scale: compact ? 1.04 : 1.08, rotation: 0, duration: .4, ease: "power2.out" }, at + .25);
+              .to(card, { yPercent: deckCompact ? 0 : -9, scale: deckCompact ? 1.04 : 1.08, rotation: 0, duration: .4, ease: "power2.out" }, at + .25);
             if (flips[i]) {
-              deck.to(flips[i], { rotationX: compact ? 10 : 14, rotation: compact ? -4 : -7, duration: .3, ease: "power1.out" }, at + .3)
+              deck.to(flips[i], { rotationX: deckCompact ? 10 : 14, rotation: deckCompact ? -4 : -7, duration: .3, ease: "power1.out" }, at + .3)
                 .to(flips[i], { rotationY: 180, duration: .8, ease: "power3.inOut" }, at + .5)
                 .to(flips[i], { rotationX: 0, rotation: 0, duration: .6 }, at + .75);
             }
@@ -672,13 +705,14 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
             const offset = (total - 1) / 2 - i;
             deck.set(card, { zIndex: 40 + i }, finale)
               .to(card, {
-                xPercent: offset * (compact ? 21 : 32),
-                yPercent: Math.abs(offset) * (compact ? 4.5 : 3.5) - (compact ? 8 : 4),
-                rotation: offset * (compact ? 6.5 : 5.5),
-                scale: compact ? .44 : .58, autoAlpha: 1, duration: 1, ease: "power3.inOut",
+                xPercent: offset * (deckCompact ? 21 : 32),
+                yPercent: Math.abs(offset) * (deckCompact ? 4.5 : 3.5) - (deckCompact ? 8 : 4),
+                rotation: offset * (deckCompact ? 6.5 : 5.5),
+                scale: deckCompact ? .44 : .58, autoAlpha: 1, duration: 1, ease: "power3.inOut",
               }, finale + .1 + (total - 1 - i) * .04);
           });
           deck.to({}, { duration: .4 });
+          });
         }
 
         /* ── کارت‌هایِ پلان ───────────────────────────────────────────────
@@ -764,7 +798,7 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
       window.addEventListener("load", scheduleRefresh);
       teardown = () => {
         cancelAnimationFrame(frame); observer.disconnect();
-        window.removeEventListener("load", scheduleRefresh); mm.revert();
+        window.removeEventListener("load", scheduleRefresh); mm.revert(); deckMm.revert();
       };
     }
     // No animation-library download or observers until motion is actually wanted.
