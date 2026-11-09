@@ -432,19 +432,26 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           const dockBounds = dock.getBoundingClientRect();
           const dockWidth = dock.parentElement!.getBoundingClientRect().width;
           const center = (r: DOMRect) => ({ x: r.left + r.width / 2 - bounds.left, y: r.top + r.height / 2 - bounds.top });
+          /* ⚠️ مقصدِ ستاره‌یِ نخست «هسته‌یِ چرخ» است، نه لنگرگاهِ پایینِ صفحه.
+             در سایت دو ستاره کاملاً مستقل‌اند: یکی از نگینِ قهرمان می‌آید و
+             همان بالا، رویِ چرخِ «چطور کار می‌کند» می‌نشیند؛ دیگری از نگینِ
+             تخته‌ی هزینه برمی‌خیزد و در لنگرگاه فرود می‌آید. پیش از این هر دو
+             به لنگرگاه می‌رفتند و ستاره‌یِ نخست سراسرِ صفحه را می‌پیمود. */
+          const coreBounds = (root.querySelector<HTMLElement>(`.${styles.coreSlot}`) ?? dock).getBoundingClientRect();
           const from = center(seedBounds);
-          const to = center(dockBounds);
+          const to = center(coreBounds);
           boundsLeft = bounds.left;
           fromPoint = from;
           toPoint = to;
-          // Pass the cycle illustration (the copy's outside edge on mobile), then
-          // trace the cards. Static slots keep entrance transforms out of geometry.
-          const cycleSurface = root.querySelector<HTMLElement>(`.${compact ? styles.wheelCopy : styles.wheelArt}`);
-          const surfaces = [...root.querySelectorAll<HTMLElement>("[data-journey-surface]"), ...(cycleSurface ? [cycleSurface] : []), ...cards.map((card) => card.parentElement!)].map((surface) => {
-            const r = surface.getBoundingClientRect();
-            return { left: r.left - bounds.left, right: r.right - bounds.left, top: r.top - bounds.top, bottom: r.bottom - bounds.top };
-          }).sort((a, b) => a.top - b.top);
-          const ordered = buildJourneyPoints({ from, to, width: bounds.width, compact, surfaces });
+          /* مسیر در رایانه خطیِ راست است و تنها در تلفن دورِ متنِ چرخ
+             می‌چرخد — همان که سایت می‌سازد، بی‌هیچ خمی از پیشِ خود. */
+          const copyBounds = root.querySelector<HTMLElement>(`.${styles.wheelCopy}`)?.getBoundingClientRect();
+          const copyTop = copyBounds ? copyBounds.top - bounds.top : 0;
+          const copyBottom = copyBounds ? copyBounds.bottom - bounds.top : 0;
+          const ordered: { x: number; y: number }[] = compact
+            ? [from, { x: 12, y: copyTop - 24 }, { x: 12, y: copyBottom + 24 }, to]
+            : [from, to];
+          const legEase = compact ? "sine.inOut" : "power1.in";
           const distance = to.y - from.y;
           fromDocumentY = bounds.top + window.scrollY + from.y;
           toDocumentY = bounds.top + window.scrollY + to.y;
@@ -459,7 +466,7 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           for (let i = 1; i < ordered.length; i++) {
             const previous = ordered[i - 1];
             const point = ordered[i];
-            journey.to(position, { x: point.x + bounds.left, duration: point.y - previous.y, ease: "sine.inOut" }, previous.y - from.y);
+            journey.to(position, { x: point.x + bounds.left, duration: point.y - previous.y, ease: legEase }, previous.y - from.y);
           }
 
           /* ستاره‌ی نخست: درشت از تخمه بیرون می‌آید، در میانه ریز می‌شود تا
@@ -467,9 +474,7 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
              برخلافِ ستاره‌ی دوم کج‌شدنِ سه‌بعدی ندارد. */
           const shrink = Math.min(260, .35 * distance);
           journey.to(inner, { scale: (compact ? 22 : 45.6) / 156, duration: shrink, ease: "sine.out" }, 0);
-          journey.to(inner, { scale: dockBounds.width / 156, rotation: 0, duration: shrink, ease: "sine.inOut" }, distance - shrink);
-          journey.to(glow, { opacity: 1, duration: 45, ease: "sine.in" }, distance - 45);
-          journey.fromTo(root.querySelector(`.${styles.dockAura}`), { scale: .88 }, { scale: 1, duration: 140, ease: "sine.out" }, distance - 140);
+          journey.to(inner, { scale: coreBounds.width / 156, rotation: 0, duration: shrink, ease: "sine.inOut" }, distance - shrink);
           startScroll = Math.max(0, fromDocumentY - window.innerHeight * .77);
           endScroll = Math.max(startScroll + 1, toDocumentY - window.innerHeight * .5);
           if (pathRef.current) pathRef.current.setAttribute("d", ordered.map((p, i) => `${i ? "L" : "M"} ${p.x} ${p.y}`).join(" "));
@@ -526,9 +531,14 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           const span = Math.max(1, to2Doc - from2Doc);
           gsap.set(orb2, { opacity: 1 });
           gsap.set(inner2, { scale: eb.width / 156, rotation: 0, rotationX: 0 });
+          /* هاله‌ی لنگرگاه و درخشش به ستاره‌یِ دوم تعلق دارند، نه به نخستین؛
+             در سایت این دو در پایانِ سفرِ دوم جان می‌گیرند. */
+          gsap.set(glow, { opacity: 0 });
           journey2 = gsap.timeline({ paused: true });
           journey2.to(pos2, { x: to2.x + b.left, duration: span, ease: "sine.inOut" }, 0);
           journey2.to(inner2, { scale: dockWidth2 / 360, rotationX: 48, duration: 300, ease: "sine.inOut" }, span - 300);
+          journey2.to(glow, { opacity: 1, duration: 45, ease: "sine.in" }, span - 45);
+          journey2.fromTo(root.querySelector(`.${styles.dockAura}`), { scale: .88 }, { scale: 1, duration: 140, ease: "sine.out" }, span - 140);
           start2 = Math.max(0, from2Doc - window.innerHeight * .62);
           end2 = Math.max(start2 + 1, to2Doc - window.innerHeight * .5);
           if (!measured2) { playhead2.progress = Math.max(0, Math.min(1, (window.scrollY - start2) / (end2 - start2))); measured2 = true; }

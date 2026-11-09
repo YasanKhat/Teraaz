@@ -39,12 +39,11 @@ export function buildJourneyPoints({ from, to, surfaces, width, compact }: {
 export function journeyViewportY({ progress, scroll, start, end, fromY, toY }: {
   progress: number; scroll: number; start: number; end: number; fromY: number; toY: number;
 }) {
+  /* ⚠️ تنها «پیشرفت» در بازه بسته می‌شود، نه خودِ لغزش — این همان فرمولِ
+     خودِ سایت است. پیش از این لغزش را هم حبس می‌کردیم و چون بیرونِ بازه همیشه
+     صفر می‌شد، ستاره پس از رسیدن دیگر همراهِ سند نمی‌رفت: در پایانِ سفر درست
+     در میانه‌یِ دید میخکوب می‌ماند (۴۵۰ پیکسل) به‌جای آنکه سرِ جایش بنشیند. */
   const p = Math.max(0, Math.min(1, progress));
-  // ⚠️ لغزش را هم در بازه می‌بندیم. تا پیش از این بیرونِ بازه از مقدار کم
-  // می‌شد: هرچه کاربر پایین‌تر می‌رفت، ستاره از بالای صفحه دورتر می‌شد (تا
-  // ۴۰۰۰- پیکسل) به‌جای آنکه سرِ جایش در محوطه بنشیند. سایت همین‌جا دیگر
-  // حساب نمی‌کند و ستاره را در نقطه‌یِ پایانی رها می‌کند.
-  const bounded = Math.max(start, Math.min(end, scroll));
-  const outside = bounded < start ? bounded - start : bounded > end ? bounded - end : 0;
+  const outside = scroll < start ? scroll - start : scroll > end ? scroll - end : 0;
   return (fromY - start) * (1 - p) + (toY - end) * p - outside;
 }
