@@ -107,13 +107,22 @@ export function PoetStage({ people, lines, reduced, onPerson }: { people: Person
   return <div ref={track} className={s.stageTrack} data-reduced={reduced || undefined} data-live={live || undefined} style={{ "--lines": lines.length } as React.CSSProperties}>
     <div ref={ref} className={s.stage} data-stage style={{ "--slots": slots } as React.CSSProperties}>
       <div className={s.stageTalk}>
-        {lines.map((entry, i) => <motion.p key={i} className={s.stageBubble} data-bubble data-align={alignOf(entry.who)}
+        {lines.map((entry, i) => { const words = entry.text.split(" "); return <motion.p key={i} className={s.stageBubble} data-bubble data-align={alignOf(entry.who)}
           style={{ visibility: i === shown ? "visible" : "hidden" }}
           animate={{ opacity: i === shown ? 1 : 0, y: i === shown ? 0 : i < shown ? -16 : 22, scale: i === shown ? 1 : .9 }}
           transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 26 }}>
           <b>{entry.who}</b>
-          <span>{entry.text.split(" ").map((word, w) => <motion.span key={w} initial={false} animate={{ opacity: i === shown ? 1 : 0, y: i === shown ? 0 : 10 }} transition={reduced ? { duration: 0 } : { duration: .08, delay: i === shown ? w * .32 / Math.max(1, entry.text.split(" ").length) : 0 }}>{w > 0 && " "}<span data-w className={s.stageWord}>{word}</span></motion.span>)}</span>
-        </motion.p>)}
+          <span>{words.map((word, w) => {
+            // تنها واژه‌هایِ حبابِ جاری انیمیشن دارند. ساختارِ DOM با سایت یکی
+            // می‌ماند (<span><span data-w class="stageWord">)، ولی به‌جایِ
+            // سیصد عنصرِ متحرک، تنها هشت‌تایِ حبابِ جاری متحرک‌اند — وگرنه
+            // برنامه رویِ نه صحنه لگ می‌گرفت.
+            const inner = <>{w > 0 && " "}<span data-w className={s.stageWord}>{word}</span></>;
+            return i === shown
+              ? <motion.span key={w} initial={false} animate={{ opacity: 1, y: 0 }} transition={reduced ? { duration: 0 } : { duration: .08, delay: w * .32 / words.length }}>{inner}</motion.span>
+              : <span key={w}>{inner}</span>;
+          })}</span>
+        </motion.p> })}
         <i className={s.stageTail} data-tail aria-hidden="true" style={{ left: markerLeft }} />
       </div>
       <div className={s.stageFloor}>
