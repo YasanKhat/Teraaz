@@ -287,15 +287,29 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
         let toDocumentY = 1;
         let latestScroll = window.scrollY;
         let measured = false;
+        let boundsLeft = 0;
         const playhead = { progress: 0 };
         const position = { x: 0 };
+        /* دو سرِ مسیر به مختصاتِ خودِ صفحه. سایت هنگامِ آغاز و پایان، ستاره
+           را `absolute` می‌کند و همین نقطه‌ها را به‌کار می‌برد؛ تنها در
+           میانه‌ی راه است که `fixed` می‌شود و مختصات نسبت به دید حساب
+           می‌شود. بی‌این جابه‌جایی، ستاره به‌جای نشستن سرِ جایش، با هر
+           پیمایش از بالای صفحه دورتر می‌رفت. */
+        let fromPoint = { x: 0, y: 0 };
+        let toPoint = { x: 0, y: 0 };
         let lastTransform = "";
         // Scrub owns one complete transform write on its existing GSAP frame.
         // A second requestAnimationFrame would halve the star's update cadence.
         const renderPosition = () => {
-          const y = journeyViewportY({ progress: playhead.progress, scroll: latestScroll,
+          const atStart = playhead.progress <= 0 && latestScroll <= startScroll;
+          const atEnd = playhead.progress >= 1 && latestScroll >= endScroll;
+          const anchor = atStart ? fromPoint : atEnd ? toPoint : null;
+          const nextPosition = anchor ? "absolute" : "fixed";
+          if (orb.style.position !== nextPosition) orb.style.position = nextPosition;
+          const x = anchor ? anchor.x + boundsLeft : position.x;
+          const y = anchor ? anchor.y : journeyViewportY({ progress: playhead.progress, scroll: latestScroll,
             start: startScroll, end: endScroll, fromY: fromDocumentY, toY: toDocumentY });
-          const transform = `translate3d(${position.x.toFixed(3)}px,${y.toFixed(3)}px,0) translate(-50%,-50%)`;
+          const transform = `translate3d(${x.toFixed(3)}px,${y.toFixed(3)}px,0) translate(-50%,-50%)`;
           if (transform !== lastTransform) { orb.style.transform = transform; lastTransform = transform; }
         };
         const buildJourney = () => {
@@ -307,6 +321,9 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           const center = (r: DOMRect) => ({ x: r.left + r.width / 2 - bounds.left, y: r.top + r.height / 2 - bounds.top });
           const from = center(seedBounds);
           const to = center(dockBounds);
+          boundsLeft = bounds.left;
+          fromPoint = from;
+          toPoint = to;
           // Pass the cycle illustration (the copy's outside edge on mobile), then
           // trace the cards. Static slots keep entrance transforms out of geometry.
           const cycleSurface = root.querySelector<HTMLElement>(`.${compact ? styles.wheelCopy : styles.wheelArt}`);
@@ -369,10 +386,17 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
         const pos2 = { x: 0 };
         let journey2: ReturnType<typeof gsap.timeline> | undefined;
         let start2 = 0, end2 = 1, from2Doc = 0, to2Doc = 1, measured2 = false;
+        let from2 = { x: 0, y: 0 }, to2 = { x: 0, y: 0 };
         const renderStar2 = () => {
-          const y = journeyViewportY({ progress: playhead2.progress, scroll: latestScroll,
+          const atStart = playhead2.progress <= 0 && latestScroll <= start2;
+          const atEnd = playhead2.progress >= 1 && latestScroll >= end2;
+          const anchor = atStart ? from2 : atEnd ? to2 : null;
+          const nextPosition = anchor ? "absolute" : "fixed";
+          if (orb2.style.position !== nextPosition) orb2.style.position = nextPosition;
+          const x = anchor ? anchor.x + boundsLeft : pos2.x;
+          const y = anchor ? anchor.y : journeyViewportY({ progress: playhead2.progress, scroll: latestScroll,
             start: start2, end: end2, fromY: from2Doc, toY: to2Doc });
-          const transform = `translate3d(${pos2.x.toFixed(3)}px,${y.toFixed(3)}px,0) translate(-50%,-50%)`;
+          const transform = `translate3d(${x.toFixed(3)}px,${y.toFixed(3)}px,0) translate(-50%,-50%)`;
           if (orb2.style.transform !== transform) orb2.style.transform = transform;
         };
         const buildStar2 = () => {
@@ -381,8 +405,8 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           const eb = emerge.getBoundingClientRect();
           const db = dock.getBoundingClientRect();
           const dockWidth2 = dock.parentElement!.getBoundingClientRect().width;
-          const from2 = { x: eb.left + eb.width / 2 - b.left, y: eb.top + eb.height / 2 - b.top };
-          const to2 = { x: db.left + db.width / 2 - b.left, y: db.top + db.height / 2 - b.top };
+          from2 = { x: eb.left + eb.width / 2 - b.left, y: eb.top + eb.height / 2 - b.top };
+          to2 = { x: db.left + db.width / 2 - b.left, y: db.top + db.height / 2 - b.top };
           from2Doc = b.top + window.scrollY + from2.y;
           to2Doc = b.top + window.scrollY + to2.y;
           pos2.x = from2.x + b.left;

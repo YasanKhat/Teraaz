@@ -40,6 +40,11 @@ export function journeyViewportY({ progress, scroll, start, end, fromY, toY }: {
   progress: number; scroll: number; start: number; end: number; fromY: number; toY: number;
 }) {
   const p = Math.max(0, Math.min(1, progress));
-  const outside = scroll < start ? scroll - start : scroll > end ? scroll - end : 0;
+  // ⚠️ لغزش را هم در بازه می‌بندیم. تا پیش از این بیرونِ بازه از مقدار کم
+  // می‌شد: هرچه کاربر پایین‌تر می‌رفت، ستاره از بالای صفحه دورتر می‌شد (تا
+  // ۴۰۰۰- پیکسل) به‌جای آنکه سرِ جایش در محوطه بنشیند. سایت همین‌جا دیگر
+  // حساب نمی‌کند و ستاره را در نقطه‌یِ پایانی رها می‌کند.
+  const bounded = Math.max(start, Math.min(end, scroll));
+  const outside = bounded < start ? bounded - start : bounded > end ? bounded - end : 0;
   return (fromY - start) * (1 - p) + (toY - end) * p - outside;
 }
