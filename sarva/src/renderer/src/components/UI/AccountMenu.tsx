@@ -163,7 +163,12 @@ export default function AccountMenu() {
 
           {isPlus ? (
             <Menu.Item asChild>
-              <Link href="/panel/subscription" className={styles.plus}>
+              {/* ⚠️ «سروا پلاس» به صفحه‌یِ معرفیِ اشتراک می‌رود (`/plus`)، نه
+                  به درونِ پروفایل (`/panel/subscription`). در بسته‌یِ زنده این
+                  آیتم برای مشترکِ فعال به `/panel/subscription` می‌رود؛ به
+                  درخواستِ شما مقصد عوض شده است، وگرنه رونویسیِ وفادار همان
+                  `/panel/subscription` بود. */}
+              <Link href="/plus" className={styles.plus}>
                 <SarvaStar size={17} aria-hidden />
                 <span>سروا پلاس</span>
                 {left !== null && <small>{left === 0 ? "امروز تمام می‌شود" : `${fa(left)} روز مانده`}</small>}
@@ -173,7 +178,7 @@ export default function AccountMenu() {
             <Menu.Item asChild>
               <Link href="/plus" className={`${styles.plus} ${styles.plusOff}`}>
                 <SarvaStar size={17} aria-hidden />
-                <span>{plus.state === "expired" || plus.state === "revoked" ? "تمدید سروا پلاس" : "خرید سروا پلاس"}</span>
+                <span>{plus.state === "expired" || plus.state === "revoked" ? "سروا پلاس" : "خرید سروا پلاس"}</span>
               </Link>
             </Menu.Item>
           ) : null}
