@@ -30,6 +30,7 @@ import Timeline from '@/pages/Timeline'
 import ShabEmtehan from '@/pages/ShabEmtehan'
 import Club from '@/pages/Club'
 import Plus from '@/pages/Plus'
+const Checkout = lazy(() => import('@/pages/Checkout'))
 import Panel from '@/pages/Panel'
 import PanelRoute from '@/pages/PanelRoute'
 import Auth from '@/pages/Auth'
@@ -117,6 +118,8 @@ function render(path: string): JSX.Element {
       return <Club />
     case 'plus':
       return <Plus />
+    case 'checkout':
+      return <Checkout />
     case 'admin':
       return <Admin />
 

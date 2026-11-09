@@ -9,6 +9,7 @@ import { formatRials, formatRialsAmountOnly } from "@/lib/plus/money";
 import { fa, jalaliLong } from "@/lib/panel/format";
 import type { PlusOrderSummary } from "@/lib/plus/types";
 import MainLogo from "@/components/svgs/mainLogo";
+import SupportButton from "@/components/UI/kit/support-button";
 import { useBfcacheReset } from "./use-bfcache-reset";
 import css from "./checkout.module.css";
 
@@ -23,6 +24,8 @@ export type CheckoutOffer = {
   savingPercent: number | null;
   /** پایانِ اعتبار اگر همین حالا پرداخت شود — روی سرور حساب شده. */
   accessUntil: string;
+  /** یک خطِ راهنما زیرِ قیمت — مثلاً «تا پایان امتحان‌های دی». */
+  note: string | null;
 };
 
 /**
@@ -122,7 +125,10 @@ export default function CheckoutPanel({
   if (!selected) return null;
 
   return (
-    <div>
+    <div className="mx-auto max-w-3xl px-4 pb-10 pt-6">
+      {/* تیترِ صفحه — در سایت هم بالای کارتِ عضویت است. */}
+      <h1 className="mb-5 text-center text-2xl font-extrabold sm:text-3xl">خرید اشتراک</h1>
+
       <MemberCard
         holder={holder}
         account={account}
@@ -160,10 +166,12 @@ export default function CheckoutPanel({
                 />
 
                 <span className="flex min-h-6 items-start justify-between gap-2">
+                  {/* ⚠️ تنها نشان، تخفیفِ واقعی است. روی کاشیِ سه‌ماهه یک
+                      نشانِ «به‌صرفه‌تر» می‌گذاشتیم که سایت ندارد: دو برچسبِ
+                      رقابتی روی کاشی‌هایِ کنارِ هم، یعنی هیچ‌کدام خوانده
+                      نمی‌شود. صرفه‌جویی در خودِ «روزی … تومان» پیداست. */}
                   {offer.discountPercent !== null ? (
                     <Badge>{fa(offer.discountPercent)}٪ تخفیف</Badge>
-                  ) : offer.savingPercent !== null && offer.savingPercent >= 10 ? (
-                    <Badge>به‌صرفه‌تر</Badge>
                   ) : (
                     <span />
                   )}
@@ -192,25 +200,34 @@ export default function CheckoutPanel({
 
                 <span className="mt-3 text-sm font-bold">{offer.title}</span>
 
+                {/* ⚠️ قیمتِ خط‌خورده **و** هزینهٔ روزانه با هم می‌آیند؛ در
+                    سایت هم هر دو هستند. پیش از این یکی جایِ دیگری را می‌گرفت
+                    و کسی که تخفیف داشت، هزینهٔ روزانه‌اش را نمی‌دید — یعنی
+                    دقیقاً همان عددی که مقایسه با آن آسان‌تر است. */}
+                {/* ⚠️ ترتیب با سایت است: اول «۳۰ روز، روزی ۵٬۱۰۰ تومان»،
+                    بعد خودِ مبلغ. برعکسش یعنی خواننده اول عددِ بزرگ را
+                    می‌بیند و تازه بعد می‌فهمد که بابتِ چه مدتی است. */}
+                <span className="mt-1.5 text-xs text-muted-foreground">
+                  {fa(offer.durationDays)} روز، روزی {formatRials(perDay)}
+                </span>
+
                 <span className="mt-2 flex items-baseline gap-1.5">
+                  {offer.compareAtRials !== null && (
+                    <span className="text-xs text-muted-foreground line-through decoration-muted-foreground/60">
+                      {formatRialsAmountOnly(offer.compareAtRials)}
+                    </span>
+                  )}
                   <span className={`text-[1.75rem] font-black leading-none tracking-tight ${on ? "text-primary" : ""}`}>
                     {formatRialsAmountOnly(offer.amountRials)}
                   </span>
                   <span className="text-xs text-muted-foreground">تومان</span>
                 </span>
 
-                <span className="mt-1.5 text-xs text-muted-foreground">
-                  {offer.compareAtRials !== null ? (
-                    <span className="line-through">{formatRials(offer.compareAtRials)}</span>
-                  ) : (
-                    <>روزی {formatRials(perDay)}</>
-                  )}
-                </span>
-
-                <span className="mt-auto pt-3 text-[11px] leading-relaxed text-muted-foreground">
-                  <span className="font-bold text-foreground/80">{fa(offer.durationDays)} روز</span>
-                  {offer.subtitle ? ` • ${offer.subtitle}` : ""}
-                </span>
+                {offer.note && (
+                  <span className="mt-auto pt-3 text-[11px] leading-relaxed text-muted-foreground">
+                    {offer.note}
+                  </span>
+                )}
               </motion.label>
             );
           })}
@@ -222,6 +239,11 @@ export default function CheckoutPanel({
           اشتراک فعلی‌ات تا {jalaliLong(activeUntil)} اعتبار دارد. این خرید به انتهای آن اضافه می‌شود.
         </p>
       )}
+
+      <div className="mt-10 flex flex-col items-center gap-3">
+        <p className="text-sm text-muted-foreground">سؤالی داری؟</p>
+        <SupportButton />
+      </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
