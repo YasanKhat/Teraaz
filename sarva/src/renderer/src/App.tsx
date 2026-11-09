@@ -31,6 +31,9 @@ import ShabEmtehan from '@/pages/ShabEmtehan'
 import Club from '@/pages/Club'
 import Plus from '@/pages/Plus'
 const Checkout = lazy(() => import('@/pages/Checkout'))
+/* ماسکوتِ سه‌بعدی با خودش WebGL می‌آورد؛ تنبل بار می‌شود تا هزینه‌اش روی
+   نخستین رنگ‌آمیزیِ صفحه نیفتد. */
+const MascotOverlay = lazy(() => import('@/components/UI/mascot/MascotOverlay'))
 import Panel from '@/pages/Panel'
 import PanelRoute from '@/pages/PanelRoute'
 import Auth from '@/pages/Auth'
@@ -190,6 +193,14 @@ export default function App() {
           {chrome === 'off' && <Footer />}
           {chrome !== 'fullscreen' && !isGalaxy && (
             <GeometricPattern className="fixed z-10 h-screen text-gold" opacity={0.06} />
+          )}
+
+          {/* ماسکوتِ سراسری: در سایتِ زنده رویِ همه‌یِ صفحه‌هایِ عمومی هست و
+              رویِ بازیِ تمام‌صفحه کنار می‌رود تا با آن رقابت نکند. */}
+          {chrome !== 'fullscreen' && !isGalaxy && (
+            <Suspense fallback={null}>
+              <MascotOverlay />
+            </Suspense>
           )}
         </SiteContentProvider>
       )}
