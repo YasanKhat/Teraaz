@@ -1,4 +1,6 @@
 import PlanCards from '@/components/UI/plus/PlanCards'
+import PlusScrollPage from '@/components/UI/plus/scroll/PlusScrollPage'
+import { PLUS_CYCLE, PLUS_REASONS } from '@/components/UI/plus/scroll/plus-content'
 import { usePlusSummary } from '@/lib/auth/use-current-user'
 import type { PlusPlanOffer } from '@/lib/plus/types'
 
@@ -12,6 +14,11 @@ import type { PlusPlanOffer } from '@/lib/plus/types'
  * چرا؟ چون کلِ محتوا همین‌جا روی دستگاه است و پشتِ درگاهی نشسته که در یک
  * برنامهٔ آفلاین معنایی ندارد. مسیرِ سایت (`checkout` → `pay`) دست‌نخورده
  * مانده تا همان تجربه حفظ شود؛ فقط مرحله‌ای که منتظر بانک می‌ماند حذف شده.
+ *
+ * ⚠️ این صفحه پیش از این تنها یک تیتر و یک کارت نشان می‌داد، در حالی که
+ * `PlusScrollPage` (همان صفحهٔ کاملِ سایت: قهرمان، چرخِ «چطور کار می‌کند»،
+ * صحنه‌های یادگیری، دلیل‌ها و قیمت‌ها) از پیش ساخته شده بود و هیچ‌جا به کار
+ * نرفته بود. اکنون همان رندر می‌شود.
  */
 const OFFERS: PlusPlanOffer[] = [
   {
@@ -34,15 +41,19 @@ const OFFERS: PlusPlanOffer[] = [
 export default function Plus() {
   const { plus } = usePlusSummary()
 
-  return (
-    <div dir="rtl" className="container py-16">
-      <div className="mx-auto mb-10 max-w-2xl text-center">
-        <h1 className="text-3xl font-black text-foreground sm:text-4xl">سروا پلاس</h1>
-        <p className="mt-4 text-sm leading-7 text-muted-foreground">
-          در نسخهٔ دسکتاپ، پلاس رایگان است. همین حالا فعالش کن تا قفلِ هیچ بخشی نماند.
-        </p>
-      </div>
+  /* سربرگ و پاورقی را خودِ `App` می‌سازد؛ اینجا فرستاده نمی‌شوند تا دوبار
+     نیایند. تنها بخشی که صفحه باید پر کند «قیمت‌ها» است. */
+  const plans = (
+    <>
+      <h3 className="mb-4 text-center text-lg font-bold">انتخاب مدت</h3>
       <PlanCards offers={OFFERS} state={plus.state} permanent={plus.state === 'active'} />
-    </div>
+      <ul className="mx-auto mt-10 max-w-2xl space-y-2 text-sm leading-7 text-muted-foreground">
+        <li>• اشتراک پیش‌پرداخت است، تمدید خودکار ندارد و بلافاصله بعد از پرداخت فعال می‌شود.</li>
+        <li>• اگر اشتراک فعال داری، مدت جدید به انتهای آن اضافه می‌شود.</li>
+        <li>• هر حساب مخصوص یک نفر است و استفادهٔ چند نفر از یک اشتراک مجاز نیست.</li>
+      </ul>
+    </>
   )
+
+  return <PlusScrollPage reasons={PLUS_REASONS} cycle={PLUS_CYCLE} plans={plans} />
 }

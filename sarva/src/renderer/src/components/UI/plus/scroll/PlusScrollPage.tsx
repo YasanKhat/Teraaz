@@ -5,6 +5,7 @@ import { ArrowDown, AudioLines, BookOpen, ChartNoAxesCombined, Focus, Network, S
 import { GeometricPattern } from "@/components/persian-patterns";
 import SarvaStar, { SARVA_STAR_PATH } from "@/components/UI/SarvaStar";
 import { buildJourneyPoints, journeyViewportY } from "./journey-path";
+import { PLUS_ORBIT_LABELS } from "./plus-content";
 import { LearningParallax } from "./LearningScenes";
 import StarDock from "./StarDock";
 import styles from "./plus-scroll.module.css";
@@ -244,7 +245,7 @@ export default function PlusScrollPage({ reasons, cycle, plans, header, footer, 
           <div className={styles.heroInner}>
             
             <h1 className={styles.heroTitle}>سروا پلاس</h1>
-            <p className={styles.heroLede}>نقش دستوری و آرایه‌های درسنامه، هوشواره، تحلیل اشتباه‌ها و تمرین پیشنهادی هر روز.</p>
+            <p className={styles.heroLede}>همهٔ درس‌های بازی‌ها، نقش و آرایهٔ درسنامه، هوشواره، همهٔ امتحان‌های نهایی و مرور شب امتحان.</p>
             <a className={styles.heroCta} href="#plans">دیدن قیمت‌ها <ArrowDown size={16} aria-hidden /></a>
             <div ref={seedRef} className={styles.heroSeed} aria-hidden><Jewel /></div>
             
@@ -266,7 +267,7 @@ export default function PlusScrollPage({ reasons, cycle, plans, header, footer, 
           <div className={styles.wheelArt} aria-hidden>
             <div className={styles.wheelRing}><i /><i /><i /></div>
             <div className={styles.wheelCore}><SarvaStar size={68} /></div>
-            <span className={styles.orbitLabel}>تمرین</span><span className={styles.orbitLabel}>شناخت</span><span className={styles.orbitLabel}>پیشرفت</span>
+            {PLUS_ORBIT_LABELS.map(label => <span key={label} className={styles.orbitLabel}>{label}</span>)}
           </div>
         </section>
 
