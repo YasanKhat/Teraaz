@@ -432,11 +432,33 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
         let fromPoint = { x: 0, y: 0 };
         let toPoint = { x: 0, y: 0 };
         let lastTransform = "";
+        /* ⚠️ اندازه‌گیریِ زنده برایِ لحظه‌یِ نشستن. مبدأ و مقصد در زمانِ ساخت
+           اندازه گرفته می‌شوند؛ اگر پس از آن چیزی در صفحه جابه‌جا شود (فونتی
+           که دیر می‌رسد، نگاره‌ای که بار می‌شود، پایه‌یِ چسبانِ دسته که اضافه
+           می‌گردد)، آن یادداشت کهنه می‌شود و ستاره درست کنارِ — نه درونِ —
+           سوراخ می‌نشیند؛ آن هم به اندازه‌ای که هر بار فرق می‌کند. اینجا در
+           همان لحظه‌ای که ستاره به ته می‌رسد، هدف دوباره اندازه گرفته
+           می‌شود تا هرچه بالا دست جابه‌جا شده باشد بی‌اثر شود. خواندنِ طرح
+           گران است، پس تنها هنگامِ گذار به حالتِ نشستن انجام می‌شود، نه در
+           هر نما. */
+        const livePoint = (el: HTMLElement | null) => {
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          const b = root.getBoundingClientRect();
+          return { x: r.left + r.width / 2 - b.left, y: r.top + r.height / 2 - b.top };
+        };
         // Scrub owns one complete transform write on its existing GSAP frame.
         // A second requestAnimationFrame would halve the star's update cadence.
+        let restState = "";
         const renderPosition = () => {
           const atStart = playhead.progress <= 0 && latestScroll <= startScroll;
           const atEnd = playhead.progress >= 1 && latestScroll >= endScroll;
+          const state = atStart ? "start" : atEnd ? "end" : "";
+          if (state !== restState) {
+            restState = state;
+            if (state === "end") { const live = livePoint(root.querySelector<HTMLElement>(`.${styles.coreSlot}`) ?? dock); if (live) toPoint = live; }
+            else if (state === "start") { const live = livePoint(seed); if (live) fromPoint = live; }
+          }
           const anchor = atStart ? fromPoint : atEnd ? toPoint : null;
           const nextPosition = anchor ? "absolute" : "fixed";
           if (orb.style.position !== nextPosition) orb.style.position = nextPosition;
@@ -526,9 +548,16 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
         let journey2: ReturnType<typeof gsap.timeline> | undefined;
         let start2 = 0, end2 = 1, from2Doc = 0, to2Doc = 1, measured2 = false;
         let from2 = { x: 0, y: 0 }, to2 = { x: 0, y: 0 };
+        let restState2 = "";
         const renderStar2 = () => {
           const atStart = playhead2.progress <= 0 && latestScroll <= start2;
           const atEnd = playhead2.progress >= 1 && latestScroll >= end2;
+          const state = atStart ? "start" : atEnd ? "end" : "";
+          if (state !== restState2) {
+            restState2 = state;
+            if (state === "end") { const live = livePoint(dock); if (live) to2 = live; }
+            else if (state === "start") { const live = livePoint(emerge); if (live) from2 = live; }
+          }
           const anchor = atStart ? from2 : atEnd ? to2 : null;
           const nextPosition = anchor ? "absolute" : "fixed";
           if (orb2.style.position !== nextPosition) orb2.style.position = nextPosition;

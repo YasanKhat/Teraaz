@@ -163,10 +163,11 @@ export default function AccountMenu() {
 
           {isPlus ? (
             <Menu.Item asChild>
-              {/* ⚠️ برایِ مشترکِ فعال این آیتم به بخشِ اشتراکِ درونِ پروفایل
-                  می‌رود (`/panel/subscription`)، درست مثلِ بسته‌یِ زنده — نه
-                  به صفحه‌یِ معرفی. */}
-              <Link href="/panel/subscription" className={styles.plus}>
+              {/* ⚠️ «سروا پلاس» به صفحه‌یِ معرفیِ اشتراک می‌رود (`/plus`).
+                  بسته‌یِ زنده‌یِ سایت برایِ مشترکِ فعال به `/panel/subscription`
+                  می‌رود، ولی مقصدِ دلخواهِ شما همین صفحه‌یِ معرفی است و
+                  همان مانده است. */}
+              <Link href="/plus" className={styles.plus}>
                 <SarvaStar size={17} aria-hidden />
                 <span>سروا پلاس</span>
                 {left !== null && <small>{left === 0 ? "امروز تمام می‌شود" : `${fa(left)} روز مانده`}</small>}
