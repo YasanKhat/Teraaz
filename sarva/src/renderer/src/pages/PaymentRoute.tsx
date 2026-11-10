@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { Link, useRouter, useSearchParams } from "@/app/router";
 import { apiGet, apiPost, errorText } from "@/lib/api/client";
 import { formatRials } from "@/lib/plus/money";
@@ -87,12 +87,8 @@ function SandboxScreen({ orderId }: { orderId: string }) {
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
-  async function onSubmit(event: FormEvent<HTMLDivElement>) {
-    event.preventDefault();
+  async function pick(action: Outcome) {
     if (busy) return;
-    const native = event.nativeEvent as SubmitEvent;
-    const submitter = native.submitter as HTMLButtonElement | null;
-    const action = (submitter?.value ?? "cancelled") as Outcome;
 
     setBusy(true);
     setFailure(null);
@@ -109,13 +105,14 @@ function SandboxScreen({ orderId }: { orderId: string }) {
   if (error || !data) return <Centered>{error ?? "سفارش پیدا نشد."}</Centered>;
 
   return (
-    <div onSubmitCapture={onSubmit}>
+    <div>
       {failure && (
         <p role="alert" className="container mx-auto mt-6 max-w-md rounded-2xl bg-destructive/10 px-4 py-2 text-xs text-destructive">
           {failure}
         </p>
       )}
       <SandboxGateway
+        onSubmit={(a) => pick(a as Outcome)}
         providerRef={data.providerRef}
         amount={formatRials(data.amountRials)}
         orderNumber={data.orderNumber}

@@ -106,7 +106,14 @@ export default function Header({ compact = false, previewPlus = false }: { compa
                   {/* کارتِ پلاس در سایت یک «کارت» جدا است، نه یک آیتمِ دیگرِ شبکه. */}
                   {plusVisible && (
                     <Menu.Item asChild>
-                      <Link href={plusHref} className={styles.plusCard}>
+                      {/* ⚠️ این کارت همیشه به صفحه‌یِ معرفی می‌رود (`/plus`)،
+                          حتی وقتی اشتراک فعال است. در بسته‌یِ زنده آدرسِ آن
+                          `plusHref` است و با اشتراکِ فعال به
+                          `/panel/subscription` می‌رود — اما کاربر اینجا
+                          دنبالِ همان صفحه‌یِ معرفی است، نه پروفایل. نشانِ
+                          کوچکِ کنارِ نشانِ سروا (بالا) همچنان به صفحه‌یِ
+                          اشتراک می‌رود؛ این استثنا تنها همین یک کارت است. */}
+                      <Link href="/plus" className={styles.plusCard}>
                         <span className={styles.menuIcon}><SarvaStar size={24} aria-hidden /></span>
                         <span className={styles.plusText}>
                           <b>{plusTitle}</b>

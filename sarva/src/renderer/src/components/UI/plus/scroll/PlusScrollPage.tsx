@@ -178,8 +178,6 @@ function Mark({ mark, plus = false }: { mark: CompareMark; plus?: boolean }) {
  * برگردان با همان شش ابزار، و شش دکمه برای رفتن به هر کارت.
  */
 function StoryCompare({ items, children }: { items: StoryItem[]; children?: ReactNode }) {
-  const [open, setOpen] = useState<number | null>(null);
-
   return (
     <section className={styles.compare}>
       <div className={styles.story}>
@@ -199,7 +197,7 @@ function StoryCompare({ items, children }: { items: StoryItem[]; children?: Reac
               const style = { "--i": index, "--accent": item.accent } as CSSProperties;
               const Icon = item.icon;
               return (
-                <div key={item.id} className={styles.storyCaption} style={style} data-reason-card>
+                <div key={item.id} className={styles.storyCaption} style={style}>
                   <span className={styles.storyPrinciple}>{item.principle}</span>
                   <h3>{item.title}</h3>
                   <p>{item.body}</p>
@@ -267,14 +265,13 @@ function StoryCompare({ items, children }: { items: StoryItem[]; children?: Reac
               `nav.chips` درونِ `stage` نشسته و صحنه چسبنده است؛ بیرونش که
               بگذاری `bottom:max(16px,3svh)` نسبت به کلِ بخشِ ۶۶۶۰ پیکسلی
               حساب می‌شود و دکمه‌ها هیچ‌گاه به دید نمی‌آیند. */}
+          {/* ⚠️ این دکمه‌ها در سایت نه `onClick` دارند و نه نشانیِ فعالی:
+              نشانه‌یِ گامِ جاری را `onUpdate`ـِ ماشه‌یِ دسته می‌گذارد و رفتن
+              به هر گام با `onclick` در همان‌جا وصل می‌شود (هر دو بیرونِ
+              ری‌اکت). اینجا تنها برچسب می‌ماند، درست مثلِ خودِ سایت. */}
           <nav className={styles.storyChips} aria-label="بخش‌های مقایسه">
             {items.map((item, index) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setOpen(index === open ? null : index)}
-                data-active={index === open || undefined}
-              >
+              <button key={item.id} type="button">
                 {item.chip}
               </button>
             ))}
@@ -416,7 +413,6 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
         if (!context.conditions?.motion) return;
         const compact = Boolean(context.conditions.compact);
         const oneColumn = Boolean(context.conditions.oneColumn);
-        const cards = Array.from(root.querySelectorAll<HTMLElement>("[data-reason-card]"));
         const glow = root.querySelectorAll("[data-dock-glow]");
         let journey: ReturnType<typeof gsap.timeline> | undefined;
         let startScroll = 0;
@@ -587,14 +583,44 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           if (latestScroll < start2 || latestScroll > end2) renderStar2();
         };
         window.addEventListener("scroll", trackAnchor, { passive: true });
-        ScrollTrigger.addEventListener("refreshInit", buildJourney);
-        ScrollTrigger.addEventListener("refreshInit", buildStar2);
-        cards.forEach((card) => {
-          gsap.from(card, { y: 22, opacity: .35, duration: .65, ease: "power2.out", scrollTrigger: { trigger: card.parentElement, start: "top 90%", once: true } });
-          gsap.timeline({ scrollTrigger: { trigger: card.parentElement, start: "top 75%", end: "bottom 25%", scrub: 1 } })
-            .fromTo(card.querySelector(`.${styles.cardAura}`), { opacity: 0 }, { opacity: 1, duration: 1, ease: "sine.inOut" })
-            .to(card.querySelector(`.${styles.cardAura}`), { opacity: 0, duration: 1, ease: "sine.inOut" });
-        });
+        /* ⚠️ بازسازی رویِ رویدادِ «refresh» است (پس از تازه‌شدن)، نه
+           «refreshInit» (پیش از آن) — و تفاوتش فقط در ستاره‌یِ دوم نیست،
+           بلکه همان یکی است که دیده می‌شود.
+
+           نگینِ آغازِ ستاره‌یِ دوم درونِ بخشِ میخ‌کوبِ دسته‌یِ کارت‌ها
+           نشسته. ScrollTrigger در آغازِ هر تازه‌شدن، فضاهایِ میخ را
+           برمی‌دارد تا اندازه‌یِ طبیعیِ عنصرها را بخواند؛ یعنی هرچه در
+           `refreshInit` اندازه گرفته شود، بی‌آن فضا دیده می‌شود. آن فضا
+           اینجا نزدیکِ ۳۲۵۰ پیکسل است — درست به اندازه‌ای که ستاره‌یِ دوم
+           در جایِ غلط می‌نشست و به‌جایِ لنگرگاهِ پایینِ صفحه، همان بالا
+           فرود می‌آمد. پس از تازه‌شدن، فضاها برقرارند و اندازه درست است. */
+        let geometrySignature = "";
+        let followUp = 0;
+        const rebuildJourneys = () => {
+          buildJourney();
+          buildStar2();
+          /* اگر جایگاه‌ها عوض شده باشند، یک تازه‌شدنِ دیگر لازم است تا
+             کران‌هایِ خودِ این دو ماشه هم با مقدارِ تازه حساب شود. بارِ
+             دوم مقدارها همان می‌مانند، پس زنجیره همان‌جا می‌ایستد. */
+          const signature = `${startScroll}|${endScroll}|${start2}|${end2}`;
+          if (signature !== geometrySignature) {
+            geometrySignature = signature;
+            if (!followUp) {
+              followUp = window.requestAnimationFrame(() => {
+                followUp = 0;
+                ScrollTrigger.refresh();
+              });
+            }
+          }
+        };
+        ScrollTrigger.addEventListener("refresh", rebuildJourneys);
+        /* ⚠️ اینجا تا پیش از این یک انیمیشنِ ورود برایِ `[data-reason-card]`
+           بود که آن نشان تنها رویِ همین توضیح‌هایِ دسته نشسته بود — و چون
+           با `opacity` کار می‌کرد، با `autoAlpha`یِ خودِ دسته می‌جنگید:
+           رفتن به پایین درست بود، ولی برگشتن به بالا توضیح‌هایِ رفته را
+           دوباره پیدا می‌کرد و رویِ هم می‌افتادند (شش متنِ رویِ هم در یک
+           جا). نه آن نشان در سایت هست و نه `cardAura`یی که دنبالش می‌گشت؛
+           هر دو از خودِ این برنامه بودند و دسته به‌تنهایی درست کار می‌کند. */
         root.querySelectorAll<HTMLElement>("[data-parallax-track]").forEach((track) => {
           if (compact && track.dataset.mobile !== "true") return;
           const speed = Number(track.dataset.speed);
@@ -657,6 +683,18 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
             { yPercent: 14, scale: .83, rotation: -1.4 },
           ];
           const rest = (i: number) => REST[i] ?? { yPercent: 14 + i * 2.4, scale: .83, rotation: 0 };
+          /* ⚠️ درازایِ کلِ دسته بر حسبِ «گام» — همان `N` در بسته‌یِ زنده:
+             یک پیش‌درآمدِ ۱٫۲، سپس ۲٫۴ برای هر کارت، و ۱٫۵ و ۰٫۴ برایِ
+             فرجام و مکث. هم نشانه‌یِ گامِ جاری و هم مقصدِ کلیک با همین
+             مقیاس حساب می‌شوند. */
+          const SPAN = 1.2 + 2.4 * total + 1.5 + .4;
+          const chipButtons = chips ? Array.from(chips.querySelectorAll<HTMLButtonElement>("button")) : [];
+          const markChip = (active: number) => {
+            chipButtons.forEach((chip, i) => {
+              if (i === active) chip.setAttribute("data-active", "");
+              else chip.removeAttribute("data-active");
+            });
+          };
 
           storySection.dataset.motion = "on";
           gsap.set([...captions, ...backs, ...(chips ? [chips] : [])], { autoAlpha: 0 });
@@ -665,7 +703,17 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
 
           const deck = gsap.timeline({
             defaults: { ease: "power2.inOut", duration: .6 },
-            scrollTrigger: { trigger: storySection, start: "top top", end: "bottom bottom", scrub: deckCompact ? .5 : .8 },
+            scrollTrigger: {
+              trigger: storySection, start: "top top", end: "bottom bottom", scrub: deckCompact ? .5 : .8,
+              /* ⚠️ نشانه‌یِ نگینِ جاری از پیشرویِ پیمایش می‌آید، نه از
+                 کلیک — همان محاسبه‌یِ سایت، و `-1` یعنی دسته به پایان
+                 رسیده و هیچ نگینی روشن نیست. */
+              onUpdate: (self) => {
+                const progress = self.progress * SPAN;
+                const active = progress > 1.2 + 2.4 * total ? -1 : Math.floor((progress - 1.2 - .3) / 2.4);
+                markChip(active);
+              },
+            },
           });
           deck.from(cards, { yPercent: "+=24", autoAlpha: 0, duration: .8, stagger: .05, ease: "power3.out" }, 0)
             .to(intro, { autoAlpha: 0, y: -30, duration: .5 }, .85);
@@ -712,6 +760,22 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
               }, finale + .1 + (total - 1 - i) * .04);
           });
           deck.to({}, { duration: .4 });
+
+          /* ⚠️ کلیکِ هر نگین پنجره را به میانه‌یِ گامِ خودش می‌برد — همان
+             فرمولِ سایت: آغازِ ماشه به اضافه‌یِ درازایِ آن ضرب در جایِ آن
+             گام بر کلِ درازا. پیش از این نگین‌ها تنها یک حالتِ محلیِ
+             ری‌اکت را عوض می‌کردند و هیچ کاری نمی‌کردند. */
+          chipButtons.forEach((chip, index) => {
+            chip.onclick = () => {
+              const trigger = deck.scrollTrigger;
+              if (!trigger) return;
+              const top = trigger.start + (trigger.end - trigger.start) * ((1.2 + 2.4 * index + 2) / SPAN);
+              window.scrollTo({ top, behavior: "smooth" });
+            };
+          });
+          return () => {
+            chipButtons.forEach((chip) => { chip.onclick = null; });
+          };
           });
         }
 
@@ -748,9 +812,13 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           });
         }
 
+        /* میخِ دسته همین حالا ساخته شده و فضایش برقرار است — نخستین اندازه‌ی
+           درستِ ستاره‌یِ دوم اینجا گرفته می‌شود. */
+        rebuildJourneys();
         root.dataset.motion = "ready";
         return () => {
-          ScrollTrigger.removeEventListener("refreshInit", buildJourney);
+          ScrollTrigger.removeEventListener("refresh", rebuildJourneys);
+          if (followUp) window.cancelAnimationFrame(followUp);
           window.removeEventListener("scroll", trackAnchor);
           orb.style.removeProperty("transform");
           orb2.style.removeProperty("transform");

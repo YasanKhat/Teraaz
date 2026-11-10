@@ -15,6 +15,36 @@ import { ShinyButton } from "@/components/UI/kit/magic-shiny-button";
  * وقتی به صفر برسد همان فرم را با «انصراف» می‌فرستد — مثلِ درگاهِ واقعی که
  * بعد از مهلت، کاربر را با «پرداخت انجام نشد» برمی‌گرداند.
  */
+/** چهار رقم، جدا با خطِ تیره — فقط آرایشی؛ هیچ‌چیز بررسی نمی‌شود. */
+function group(value: string, size: number): string {
+  return value.replace(/\D/g, "").slice(0, 16).match(new RegExp(`.{1,${size}}`, "g"))?.join("-") ?? "";
+}
+
+/** `1234` → `12/34` */
+function slash(value: string): string {
+  const d = value.replace(/\D/g, "").slice(0, 4);
+  return d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
+}
+
+function randomCode(): string {
+  return String(Math.floor(10000 + Math.random() * 90000));
+}
+
+const inputClass =
+  "h-11 w-full rounded-xl border border-border bg-ground/60 px-3 text-sm text-foreground outline-none transition placeholder:text-foreground/40 focus:border-primary focus:bg-card";
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 flex items-baseline justify-between text-xs font-medium text-foreground/70">
+        <span>{label}</span>
+        {hint && <span className="text-[10px] font-normal text-muted-foreground">{hint}</span>}
+      </span>
+      {children}
+    </label>
+  );
+}
+
 export default function SandboxGateway({
   providerRef,
   amount,
@@ -22,6 +52,7 @@ export default function SandboxGateway({
   planTitle,
   deadline,
   state,
+  onSubmit,
 }: {
   providerRef: string;
   amount: string;
@@ -29,11 +60,60 @@ export default function SandboxGateway({
   planTitle: string;
   deadline: string;
   state: "open" | "done" | "expired";
+  /** اختیاری: اگر داده شود، فرستادنِ فرم به جایِ POSTِ مرورگر صدا زده می‌شود
+      (برنامه تک‌صفحه‌ای است و آن مسیر را ندارد). بی‌اش، همان رفتارِ سایت. */
+  onSubmit?: (action: string) => void;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const timeoutRef = useRef<HTMLButtonElement>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [left, setLeft] = useState<number | null>(null);
+  /* ⚠️ این چهارフィールد از سایت نیست — خودِ درگاهِ آزمایشیِ سایت تنها مبلغ،
+     پذیرنده و مهلت را نشان می‌دهد و چیزی برای وارد کردن ندارد. کاربر خواسته
+     صفحه به یک درگاهِ واقعی بماند، پس اینجا با دست اضافه شده: هرچه نوشته
+     شود پذیرفته می‌شود، هیچ‌چیز اعتبارسنجیِ واقعی نمی‌شود و مقدارها هیچ
+     جا نمی‌روند. تنها «کامل بودن» بررسی می‌شود تا حسِ درگاه بماند. */
+  const [card, setCard] = useState("");
+  const [expiry, setExpiry] = useState("");
+  const [cvv, setCvv] = useState("");
+  const [pin, setPin] = useState("");
+  const [captcha, setCaptcha] = useState("");
+  const [captchaCode, setCaptchaCode] = useState(() => randomCode());
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const cardDigits = card.replace(/\D/g, "");
+  const complete =
+    cardDigits.length === 16 &&
+    expiry.replace(/\D/g, "").length === 4 &&
+    cvv.trim().length >= 3 &&
+    pin.trim().length >= 4 &&
+    captcha.trim() === captchaCode;
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    /* اگر کسی `onSubmit` نداده، همان رفتارِ سایت می‌ماند: فرم با یک POSTِ
+       واقعی به `/payment/sandbox/submit` می‌رود. */
+    if (!onSubmit) {
+      window.setTimeout(() => setSubmitting(true), 0);
+      return;
+    }
+    event.preventDefault();
+    const native = event.nativeEvent as SubmitEvent;
+    const submitter = native.submitter as HTMLButtonElement | null;
+    const action = submitter?.value ?? "cancelled";
+
+    if (action === "paid" && !complete) {
+      setFormError("شماره کارت، تاریخ انقضا، CVV2، رمز دوم و کد امنیتی را کامل کن.");
+      return;
+    }
+    setFormError(null);
+    setSubmitting(true);
+    if (action === "paid") {
+      setConnecting(true);
+      await new Promise((done) => window.setTimeout(done, 1100));
+    }
+    onSubmit(action);
+  }
 
   useEffect(() => {
     if (state !== "open") return;
@@ -118,10 +198,96 @@ export default function SandboxGateway({
                اگر همین‌جا و هم‌زمان disabled می‌شدند، مرورگر دکمهٔ disabled را از
                فرم کنار می‌گذاشت و `action=paid` هرگز به سرور نمی‌رسید — سرور هم
                آن را «انصراف» می‌فهمید. (آزمونِ مرورگر دقیقاً همین را گرفت.) */
-            onSubmit={() => window.setTimeout(() => setSubmitting(true), 0)}
+            onSubmit={handleSubmit}
             className="space-y-3"
           >
             <input type="hidden" name="ref" value={providerRef} />
+
+            {state === "open" && (
+              <div className="space-y-3 border-t border-border pt-4 text-right">
+                <Field label="شماره کارت" hint="۱۶ رقم، از چپ">
+                  <input
+                    dir="ltr"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={card}
+                    onChange={(e) => setCard(group(e.target.value, 4))}
+                    placeholder="---- ---- ---- ----"
+                    className={inputClass}
+                    aria-label="شماره کارت"
+                  />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="تاریخ انقضا" hint="ماه / سال">
+                    <input
+                      dir="ltr"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      value={expiry}
+                      onChange={(e) => setExpiry(slash(e.target.value))}
+                      placeholder="--/--"
+                      className={inputClass}
+                      aria-label="تاریخ انقضا"
+                    />
+                  </Field>
+                  <Field label="CVV2" hint="پشتِ کارت">
+                    <input
+                      dir="ltr"
+                      type="password"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      value={cvv}
+                      onChange={(e) => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      placeholder="---"
+                      className={inputClass}
+                      aria-label="CVV2"
+                    />
+                  </Field>
+                </div>
+                <Field label="رمز دوم (رمز اینترنتی)">
+                  <input
+                    dir="ltr"
+                    type="password"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                    placeholder="••••••"
+                    className={inputClass}
+                    aria-label="رمز دوم"
+                  />
+                </Field>
+                <Field label="کد امنیتی" hint="عددهایِ تصویر">
+                  <div className="flex items-center gap-2">
+                    <input
+                      dir="ltr"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      value={captcha}
+                      onChange={(e) => setCaptcha(e.target.value.replace(/\D/g, "").slice(0, 5))}
+                      className={inputClass}
+                      aria-label="کد امنیتی"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setCaptchaCode(randomCode())}
+                      title="تغییرِ تصویر"
+                      aria-label="تغییرِ تصویرِ کد امنیتی"
+                      className="relative h-11 w-24 shrink-0 overflow-hidden rounded-xl border border-border bg-foreground/[0.04] font-mono text-lg tracking-[0.35em] text-foreground/80"
+                    >
+                      <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 rotate-[18deg] bg-foreground/20" />
+                      <span className="absolute inset-x-0 top-1/3 h-px -translate-y-1/2 -rotate-[12deg] bg-foreground/15" />
+                      <span style={{ transform: "rotate(-2deg)" }}>{captchaCode}</span>
+                    </button>
+                  </div>
+                </Field>
+                {formError && (
+                  <p role="alert" className="rounded-xl bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    {formError}
+                  </p>
+                )}
+              </div>
+            )}
 
             {state === "open" ? (
               <>
