@@ -458,6 +458,12 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
             restState = state;
             if (state === "end") { const live = livePoint(root.querySelector<HTMLElement>(`.${styles.coreSlot}`) ?? dock); if (live) toPoint = live; }
             else if (state === "start") { const live = livePoint(seed); if (live) fromPoint = live; }
+            /* ⚠️ سایت در همین گذار نشانِ `data-star-seated` را رویِ صفحه
+               می‌گذارد و برمی‌دارد، و سی‌اس‌اس با آن ستاره‌یِ خودِ هسته را
+               پنهان می‌کند؛ وگرنه دو ستاره رویِ هم می‌مانند و بیننده می‌بیند
+               که ستاره «سرِ جایش ننشسته». پیش از این برنامه این نشان را هرگز
+               نمی‌گذاشت (تنها سی‌اس‌اسش رونویسی شده بود). */
+            root.toggleAttribute("data-star-seated", state === "end");
           }
           const anchor = atStart ? fromPoint : atEnd ? toPoint : null;
           const nextPosition = anchor ? "absolute" : "fixed";
@@ -586,7 +592,10 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           gsap.set(glow, { opacity: 0 });
           journey2 = gsap.timeline({ paused: true });
           journey2.to(pos2, { x: to2.x + b.left, duration: span, ease: "sine.inOut" }, 0);
-          journey2.to(inner2, { scale: dockWidth2 / 360, rotationX: 48, duration: 300, ease: "sine.inOut" }, span - 300);
+          /* ⚠️ در سایت مدتِ این کج‌شدن «کمینه‌یِ ۳۰۰ و درازایِ مسیر» است، نه
+             ۳۰۰ِ ثابت؛ اگر مسیر کوتاه‌تر باشد، ستاره پیش از رسیدن کج می‌شد. */
+          const tilt2 = Math.min(300, span);
+          journey2.to(inner2, { scale: dockWidth2 / 360, rotationX: 48, duration: tilt2, ease: "sine.inOut" }, span - tilt2);
           journey2.to(glow, { opacity: 1, duration: 45, ease: "sine.in" }, span - 45);
           journey2.fromTo(root.querySelector(`.${styles.dockAura}`), { scale: .88 }, { scale: 1, duration: 140, ease: "sine.out" }, span - 140);
           start2 = Math.max(0, from2Doc - window.innerHeight * .62);
