@@ -1,3 +1,5 @@
+import Header from '@/components/UI/Header'
+import Footer from '@/components/UI/Footer'
 import PlanCards from '@/components/UI/plus/PlanCards'
 import PlusScrollPage from '@/components/UI/plus/scroll/PlusScrollPage'
 import { PLUS_COMPARE, PLUS_CYCLE, PLUS_RULES, PLUS_RULES_HEADING, PLUS_SUPPORT } from '@/components/UI/plus/scroll/plus-content'
@@ -140,5 +142,24 @@ export default function Plus() {
     </div>
   )
 
-  return <PlusScrollPage cycle={PLUS_CYCLE} plans={plans} compare={PLUS_COMPARE} />
+  /* ⚠️ سربرگ و پاورقی اینجا به خودِ صفحه داده می‌شوند، نه به پوسته.
+     کامپوننتِ واقعیِ سایت با همین امضا ساخته می‌شود —
+     `function({cycle, plans, header, footer, …})` — و `header` را درونِ
+     `chromeTop` و `footer` را پس از `main.content` می‌گذارد، هر دو *درونِ*
+     `div.page`. اچ‌تی‌ام‌الِ زندهٔ `/plus` هم همین است: پیش از `div.flex-1`
+     هیچ سربرگی نیست و بالایِ محتوا فقط همان ۸۰ پیکسلِ `chromeTop` است.
+
+     تا پیش از این فراخوان چیزی نمی‌فرستاد، برای همین `chromeTop` تهی
+     (۰ پیکسل) می‌ماند و بالایِ محتوا فقط پوسته بود — یعنی محتوا ۸۰ پیکسل
+     بالاتر از سایت می‌نشست. ستاره در پرواز تا ۱۵ پیکسل راست‌تر دیده می‌شد،
+     چون جابه‌جاییِ عمودیِ صفحه، پیشرویِ سفر را همان‌قدر جابه‌جا می‌کند. */
+  return (
+    <PlusScrollPage
+      cycle={PLUS_CYCLE}
+      plans={plans}
+      compare={PLUS_COMPARE}
+      header={<Header />}
+      footer={<Footer />}
+    />
+  )
 }

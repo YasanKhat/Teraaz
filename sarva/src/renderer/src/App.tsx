@@ -134,6 +134,13 @@ export default function App() {
   const isGalaxy = path === '/game'
   /** پنل و مدیریت پوستهٔ خودشان را دارند و هدر/پاورقیِ سایت را نمی‌خواهند. */
   const isPanel = path === '/panel' || path.startsWith('/panel/')
+  /** ⚠️ پلاس هم پوستهٔ خودش را دارد — و برخلافِ پنل، از *داخلِ* خودِ صفحه.
+      کامپوننتِ واقعی `header` و `footer` را می‌گیرد و آن‌ها را درونِ
+      `div.page` می‌گذارد. اچ‌تی‌ام‌الِ زندهٔ `/plus` هیچ سربرگی پیش از
+      `div.flex-1` ندارد؛ اگر پوسته اینجا هم یکی بسازد، بالایِ محتوا دو
+      سربرگ می‌نشیند و محتوا ۸۰ پیکسل از سایت پایین‌تر می‌رود (و ستاره در
+      پرواز کج می‌شود). */
+  const isPlus = path === '/plus'
 
   // نخستین مدیر: اگر هیچ حسابی نیست، یکی ساخته می‌شود تا پنلِ مدیریت از همان
   // راه‌اندازیِ اول در دسترس باشد (همان نقشی که seed-admin.mjs روی سرور داشت).
@@ -176,8 +183,8 @@ export default function App() {
           {/* بالاترین چیزِ صفحه، بالاتر از هدر و در جریانِ عادیِ صفحه — نه
               شناور رویش. در حالتِ تمام‌صفحهٔ بازی کنار می‌رود، چون آنجا
               هیچ‌چیز جز بازی نباید باشد. */}
-          {chrome !== 'fullscreen' && <AnnouncementBar />}
-          {chrome !== 'fullscreen' && <Header compact={chrome === 'compact'} />}
+          {chrome !== 'fullscreen' && !isPlus && <AnnouncementBar />}
+          {chrome !== 'fullscreen' && !isPlus && <Header compact={chrome === 'compact'} />}
 
           <main className="flex-1">
             {/* خطای یک صفحه نباید کلِ برنامه را سفید کند؛ هر مسیر را جدا می‌گیریم. */}
@@ -187,7 +194,7 @@ export default function App() {
           </main>
 
           {/* پاورقیِ بزرگ نباید با بازیِ در جریان رقابت کند. */}
-          {chrome === 'off' && <Footer />}
+          {chrome === 'off' && !isPlus && <Footer />}
           {chrome !== 'fullscreen' && !isGalaxy && (
             <GeometricPattern className="fixed z-10 h-screen text-gold" opacity={0.06} />
           )}
