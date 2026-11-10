@@ -58,27 +58,41 @@ export default function TicketReplyForm({
     if (busy) return;
     setBusy(true);
     setErrors([]);
+    /* ⚠️ بدنه در `try…catch…finally` است. اگر اینترنت قطع شود یا سرور
+       خطای ۵۰۰ بدهد، promise پرتاب می‌کند و خطِ `setBusy(false)` هیچ‌گاه
+       اجرا نمی‌شد: دکمه برای همیشه رویِ «در حال ارسال…» قفل می‌ماند. */
+    try {
+      const result = await replyToTicket({ ticketId, message: body });
+      if (!result.ok) {
+        setErrors(result.errors);
+        return;
+      }
 
-    const result = await replyToTicket({ ticketId, message: body });
-    if (!result.ok) {
-      setErrors(result.errors);
+      setBody("");
+      router.refresh();
+    } catch {
+      setErrors(["ارتباط با سرور برقرار نشد. دوباره تلاش کن."]);
+    } finally {
       setBusy(false);
-      return;
     }
-
-    setBody("");
-    setBusy(false);
-    router.refresh();
   }
 
   async function finish() {
     if (busy) return;
     setBusy(true);
-    const result = await closeTicket(ticketId);
-    if (!result.ok) setErrors(result.errors);
-    setBusy(false);
-    setConfirmClose(false);
-    router.refresh();
+    /* ⚠️ بدنه در `try…catch…finally` است. اگر اینترنت قطع شود یا سرور
+       خطای ۵۰۰ بدهد، promise پرتاب می‌کند و خطِ `setBusy(false)` هیچ‌گاه
+       اجرا نمی‌شد: دکمه برای همیشه رویِ «در حال ارسال…» قفل می‌ماند. */
+    try {
+      const result = await closeTicket(ticketId);
+      if (!result.ok) setErrors(result.errors);
+      setConfirmClose(false);
+      router.refresh();
+    } catch {
+      setErrors(["ارتباط با سرور برقرار نشد. دوباره تلاش کن."]);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (

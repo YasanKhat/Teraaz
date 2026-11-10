@@ -253,9 +253,15 @@
     0 0 0 1px color-mix(in oklch, var(--primary) 25%, transparent);
 }
 
+/* ⚠️ دو گرادینت با هم باشند، نه یکی به‌جایِ دیگری. پیش از این تنها پس‌زمینه‌یِ
+   ثابتِ «انتخاب‌شده» می‌آمد و گرادینتِ دنبال‌کننده‌یِ موس (`var(--x)` و
+   `var(--y)`) رویِ کاشیِ برگزیده از کار می‌افتاد. شبیهِ حالتِ `::after` که
+   همان دو لایه را روی هم می‌گذارد. */
 .tile[data-on="true"]::before {
   opacity: 1;
-  background: radial-gradient(120% 90% at 100% 0%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 60%);
+  background:
+    radial-gradient(14rem circle at var(--x) var(--y), color-mix(in oklch, var(--primary) 16%, transparent), transparent 70%),
+    radial-gradient(120% 90% at 100% 0%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 60%);
 }
 
 .ring {

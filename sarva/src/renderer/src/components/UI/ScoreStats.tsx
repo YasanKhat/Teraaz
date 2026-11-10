@@ -1,5 +1,5 @@
 "use client";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { toFa } from "@/components/UI/CircularProgress";
 
 function ScoreStats({ score, total }: { score: number; total: number }) {

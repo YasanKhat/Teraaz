@@ -6,7 +6,7 @@ import {
   useTransform,
   animate,
   useReducedMotion,
-} from "framer-motion";
+} from "motion/react";
 
 export const toFa = (n: number | string): string =>
   String(n).replace(/[0-9]/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[+d]);

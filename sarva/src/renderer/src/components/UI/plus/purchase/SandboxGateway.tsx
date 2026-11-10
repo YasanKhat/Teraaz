@@ -31,7 +31,7 @@ function randomCode(): string {
 }
 
 const inputClass =
-  "h-11 w-full rounded-xl border border-border bg-ground/60 px-3 text-sm text-foreground outline-none transition placeholder:text-foreground/40 focus:border-primary focus:bg-card";
+  "h-11 w-full rounded-xl border border-border bg-background/60 px-3 text-sm text-foreground outline-none transition placeholder:text-foreground/40 focus:border-primary focus:bg-card";
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -79,7 +79,14 @@ export default function SandboxGateway({
   const [cvv, setCvv] = useState("");
   const [pin, setPin] = useState("");
   const [captcha, setCaptcha] = useState("");
-  const [captchaCode, setCaptchaCode] = useState(() => randomCode());
+  /* ⚠️ کدِ تصادفی در همان رندرِ نخست ساخته نمی‌شود. `Math.random` در کارساز
+     عددی دیگر می‌سازد و در کلاینت عددی دیگر؛ با `useState(() => …)` این دو
+     با هم نمی‌خواند و React خطایِ Hydration می‌دهد. مقدارِ آغازین ثابت است و
+     کدِ واقعی پس از نشستن ساخته می‌شود. */
+  const [captchaCode, setCaptchaCode] = useState("12345");
+  useEffect(() => {
+    setCaptchaCode(randomCode());
+  }, []);
   const [formError, setFormError] = useState<string | null>(null);
 
   const cardDigits = card.replace(/\D/g, "");
@@ -91,6 +98,20 @@ export default function SandboxGateway({
     captcha.trim() === captchaCode;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    const native = event.nativeEvent as SubmitEvent;
+    const submitter = native.submitter as HTMLButtonElement | null;
+    const action = submitter?.value ?? "cancelled";
+
+    /* ⚠️ بررسیِ «کامل بودن» پیش از هر رفتارِ دیگری است. پیش از این تنها در
+       مسیرِ `onSubmit` می‌آمد، یعنی در حالتِ سروری (جایی که `onSubmit` نیست)
+       فرم با فیلدهایِ تهی هم می‌رفت و پرداخت انجام می‌شد. */
+    if (action === "paid" && !complete) {
+      event.preventDefault();
+      setFormError("شماره کارت، تاریخ انقضا، CVV2، رمز دوم و کد امنیتی را کامل کن.");
+      return;
+    }
+    setFormError(null);
+
     /* اگر کسی `onSubmit` نداده، همان رفتارِ سایت می‌ماند: فرم با یک POSTِ
        واقعی به `/payment/sandbox/submit` می‌رود. */
     if (!onSubmit) {
@@ -98,15 +119,6 @@ export default function SandboxGateway({
       return;
     }
     event.preventDefault();
-    const native = event.nativeEvent as SubmitEvent;
-    const submitter = native.submitter as HTMLButtonElement | null;
-    const action = submitter?.value ?? "cancelled";
-
-    if (action === "paid" && !complete) {
-      setFormError("شماره کارت، تاریخ انقضا، CVV2، رمز دوم و کد امنیتی را کامل کن.");
-      return;
-    }
-    setFormError(null);
     setSubmitting(true);
     if (action === "paid") {
       setConnecting(true);
@@ -298,7 +310,7 @@ export default function SandboxGateway({
                   disabled={submitting}
                   className="w-full border-primary/50 py-3 disabled:opacity-70"
                 >
-                  {submitting ? "در حال انجام…" : `پرداخت ${amount}`}
+                  {connecting ? "در حال اتصال به بانک…" : submitting ? "در حال انجام…" : `پرداخت ${amount}`}
                 </ShinyButton>
 
                 <div className="grid grid-cols-2 gap-2">

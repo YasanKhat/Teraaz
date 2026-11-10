@@ -1,5 +1,5 @@
 "use client";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 
 function getResultMessage(result: number) {
   if (result >= 100) {

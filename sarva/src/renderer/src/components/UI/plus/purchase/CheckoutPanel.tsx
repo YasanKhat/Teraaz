@@ -96,37 +96,43 @@ export default function CheckoutPanel({
     setBusy(true);
     setError(null);
 
-    /* ⚠️ مبلغ و عنوان همراهِ سفارش می‌روند چون سرورِ این برنامه جدولِ
-       پلن‌ها را ندارد و صفحه‌یِ درگاه باید همان مبلغی را نشان دهد که کاربر
-       اینجا انتخاب کرده. در سایتِ اصلی سرور این‌ها را خودش از
-       `plus_plan_versions` می‌خواند و این کلیدها را نادیده می‌گیرد. */
-    const created = await apiPost<{ order: PlusOrderSummary }>("/api/v1/plus/checkout", {
-      planCode: selected.code,
-      planTitle: selected.title,
-      amountRials: selected.amountRials,
-      durationDays: selected.durationDays,
-      idempotencyKey: keyFor(selected.code),
-    });
-    if (!created.ok) {
-      setError(created.errors.join("\n"));
-      setBusy(false);
-      return;
-    }
+    /* ⚠️ بدنه در `try…catch…finally` است. اگر شبکه قطع شود یا سرور خطای ۵۰۰
+       بدهد، promise پرتاب می‌کند و دکمه‌یِ پرداخت برای همیشه در حالتِ «در
+       حال انجام…» قفل می‌ماند. */
+    try {
+      /* ⚠️ مبلغ و عنوان همراهِ سفارش می‌روند چون سرورِ این برنامه جدولِ
+         پلن‌ها را ندارد و صفحه‌یِ درگاه باید همان مبلغی را نشان دهد که کاربر
+         اینجا انتخاب کرده. در سایتِ اصلی سرور این‌ها را خودش از
+         `plus_plan_versions` می‌خواند و این کلیدها را نادیده می‌گیرد. */
+      const created = await apiPost<{ order: PlusOrderSummary }>("/api/v1/plus/checkout", {
+        planCode: selected.code,
+        planTitle: selected.title,
+        amountRials: selected.amountRials,
+        durationDays: selected.durationDays,
+        idempotencyKey: keyFor(selected.code),
+      });
+      if (!created.ok) {
+        setError(created.errors.join("\n"));
+        return;
+      }
 
-    const started = await apiPost<{ redirectUrl: string }>(
-      `/api/v1/plus/orders/${created.data.order.id}/pay`,
-    );
-    if (!started.ok) {
-      setError(started.errors.join("\n"));
+      const started = await apiPost<{ redirectUrl: string }>(
+        `/api/v1/plus/orders/${created.data.order.id}/pay`,
+      );
+      if (!started.ok) {
+        setError(started.errors.join("\n"));
+        // قیمت یا پلن ممکن است همین حالا عوض شده باشد؛ صفحه از سرور تازه شود.
+        router.refresh();
+        return;
+      }
+      /* ⚠️ `assign` و نه `replace`: کاربر باید بتواند با back از درگاه برگردد.
+         برگشتنش سفارشِ دومی نمی‌سازد — همان سفارشِ باز برگردانده می‌شود. */
+      window.location.assign(started.data.redirectUrl);
+    } catch {
+      setError("ارتباط با سرور برقرار نشد. دوباره تلاش کن.");
+    } finally {
       setBusy(false);
-      // قیمت یا پلن ممکن است همین حالا عوض شده باشد؛ صفحه از سرور تازه شود.
-      router.refresh();
-      return;
     }
-
-    /* ⚠️ `assign` و نه `replace`: کاربر باید بتواند با back از درگاه برگردد.
-       برگشتنش سفارشِ دومی نمی‌سازد — همان سفارشِ باز برگردانده می‌شود. */
-    window.location.assign(started.data.redirectUrl);
   }
 
   if (!selected) return null;
@@ -396,7 +402,19 @@ function MemberCard({
   }
 
   return (
-    <div ref={stage} className={css.stage} onPointerMove={move} onPointerLeave={leave}>
+    /* ⚠️ انیمیشنِ ورود رویِ خودِ `stage` است، نه رویِ یک لفافه‌یِ میانجی.
+       عنصری که `rotateX` دارد یک Backdrop Rootِ تازه می‌سازد؛ پیش از این
+       لفافه‌یِ میانجی، لوگو و کره‌ها را بیرونِ خود می‌گذاشت و شیشه دیگر
+       لوگویِ پشتِ سرش را تار نمی‌دید. */
+    <motion.div
+      ref={stage}
+      className={css.stage}
+      onPointerMove={move}
+      onPointerLeave={leave}
+      initial={{ y: 40, rotateX: 25 }}
+      animate={{ y: 0, rotateX: 0 }}
+      transition={{ duration: 0.9, ease: [0.2, 0.8, 0.2, 1] }}
+    >
       <span aria-hidden className={css.orb} />
       <span aria-hidden className={css.orb} />
       <motion.div
@@ -409,12 +427,7 @@ function MemberCard({
         <MainLogo />
       </motion.div>
 
-      <motion.div
-        initial={{ y: 40, rotateX: 25 }}
-        animate={{ y: 0, rotateX: 0 }}
-        transition={{ duration: 0.9, ease: [0.2, 0.8, 0.2, 1] }}
-      >
-        <div className={css.glass}>
+      <div className={css.glass}>
           <span key={planKey} aria-hidden className={css.sweep} />
 
           <div className="flex h-full flex-col justify-between p-5 sm:p-6">
@@ -469,7 +482,6 @@ function MemberCard({
             </div>
           </div>
         </div>
-      </motion.div>
-    </div>
+    </motion.div>
   );
 }

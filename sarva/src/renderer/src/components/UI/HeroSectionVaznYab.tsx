@@ -1,5 +1,5 @@
 "use client";
-import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { motion, useReducedMotion, type Variants } from "motion/react";
 
 function HeroSectionVaznYab() {
   const shouldReduceMotion = useReducedMotion();

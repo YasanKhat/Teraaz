@@ -1,72 +1,91 @@
+/* سی‌اس‌اسِ این ماژول مستقیماً از بسته‌هایِ سی‌اس‌اسِ خودِ سایتِ زندهٔ
+   sarvaedu.ir استخراج شده است — بازنویسی نشده. مقدارها همان‌هایی است
+   که سایت به کار می‌برد؛ تنها پیشوندِ هش‌دارِ کلاس‌ها برداشته شده. */
+
 .frame {
-  --beam-a: var(--primary);
-  --beam-b: var(--gold);
-  position: relative;
-  isolation: isolate;
-  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
-  background: var(--card);
-  box-shadow: 0 14px 40px #0000000d;
+  --beam-a:var(--primary);
+  --beam-b:var(--gold);
+  isolation:isolate;
+  border:1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
+  background:var(--card);
+  position:relative;
+  box-shadow:0 14px 40px #0000000d;
 }
 
 .frame[data-tone="1"] {
-  --beam-a: var(--gold);
-  --beam-b: var(--turquoise-light);
+  --beam-a:var(--gold);
+  --beam-b:var(--turquoise-light);
 }
 
 .frame[data-tone="2"] {
-  --beam-a: var(--turquoise-light);
-  --beam-b: var(--gold-light);
+  --beam-a:var(--turquoise-light);
+  --beam-b:var(--gold-light);
 }
 
 .border {
-  position: absolute;
-  inset: -1px;
-  padding: 1.5px;
-  border-radius: inherit;
-  overflow: hidden;
-  pointer-events: none;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  container-type: size;
+  border-radius:inherit;
+  pointer-events:none;
+  padding:1.5px;
+  position:absolute;
+  inset:-1px;
+  overflow:hidden;
+  -webkit-mask-image:linear-gradient(#fff 0 0),linear-gradient(#fff 0 0);
+  mask-image:linear-gradient(#fff 0 0),linear-gradient(#fff 0 0);
+  -webkit-mask-position:0 0,0 0;
+  mask-position:0 0,0 0;
+  -webkit-mask-size:auto,auto;
+  mask-size:auto,auto;
+  -webkit-mask-repeat:repeat,repeat;
+  mask-repeat:repeat,repeat;
+  -webkit-mask-clip:content-box,border-box;
+  mask-clip:content-box,border-box;
+  -webkit-mask-origin:content-box,border-box;
+  mask-origin:content-box,border-box;
+  -webkit-mask-composite:xor;
+  mask-composite:exclude;
+  -webkit-mask-source-type:auto,auto;
+  mask-mode:match-source,match-source;
+  container-type:size;
 }
 
-.border::before {
-  content: "";
-  position: absolute;
-  /* Cover the diagonal at every angle, including narrow/tall cards, without
-     rasterising a square three times the card's width. */
-  width: calc(100cqw + 100cqh);
-  aspect-ratio: 1;
-  left: 50%;
-  top: 50%;
-  translate: -50% -50%;
-  background: conic-gradient(from 30deg, transparent 5%, var(--beam-a) 20%, transparent 36%, transparent 52%, var(--beam-b) 70%, transparent 87%);
-  animation: borderOrbit 14s linear infinite;
-  animation-play-state: paused;
+.border:before {
+  content:"";
+  aspect-ratio:1;
+  background:conic-gradient(from 30deg, transparent 5%, var(--beam-a) 20%, transparent 36%, transparent 52%, var(--beam-b) 70%, transparent 87%);
+  width:calc(100cqw + 100cqh);
+  animation:14s linear infinite paused borderOrbit;
+  position:absolute;
+  top:50%;
+  left:50%;
+  translate:-50% -50%;
 }
 
-.frame[data-tone="1"] .border::before {
-  animation-delay: -5s;
-  animation-duration: 17s;
+.frame[data-tone="1"] .border:before {
+  animation-duration:17s;
+  animation-delay:-5s;
 }
 
-.frame[data-tone="2"] .border::before {
-  animation-delay: -9s;
-  animation-duration: 19s;
+.frame[data-tone="2"] .border:before {
+  animation-duration:19s;
+  animation-delay:-9s;
 }
 
-.frame[data-animate="true"] .border::before {
-  animation-play-state: running;
+.frame[data-animate=true] .border:before {
+  animation-play-state:running;
 }
 
-@keyframes borderOrbit {
-  to {
-    transform: rotate(1turn);
+:global(html[data-scrolling]) .frame .border:before {
+  animation-play-state:paused;
+}
+
+@media(prefers-reduced-motion:reduce) {
+  .border:before {
+    animation:none;
   }
+
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .border::before {
-    animation: none;
-  }
-}
+
+/* کلیدفریم‌هایِ برگرفته از خودِ سایت */
+
+@keyframes borderOrbit{to{transform:rotate(1turn)}}

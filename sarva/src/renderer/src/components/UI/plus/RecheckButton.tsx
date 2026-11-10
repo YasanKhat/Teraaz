@@ -39,27 +39,33 @@ export default function RecheckButton({
     if (busy) return;
     setBusy(true);
     setMessage(null);
+    /* ⚠️ بدنه در `try…catch…finally` است. اگر اینترنت قطع شود یا سرور
+       خطای ۵۰۰ بدهد، promise پرتاب می‌کند و خطِ `setBusy(false)` هیچ‌گاه
+       اجرا نمی‌شد: دکمه برای همیشه رویِ «در حال ارسال…» قفل می‌ماند. */
+    try {
+      const response = await apiPost<{ result: { state: PaymentState; message: string | null } }>(
+        `/api/v1/plus/orders/${orderId}/recheck`,
+      );
 
-    const response = await apiPost<{ result: { state: PaymentState; message: string | null } }>(
-      `/api/v1/plus/orders/${orderId}/recheck`,
-    );
+      if (!response.ok) {
+        setMessage(response.errors.join("\n"));
+        return;
+      }
 
-    if (!response.ok) {
-      setMessage(response.errors.join("\n"));
+      if (response.data.result.state === "verified") {
+        refreshCurrentUser();
+        onVerified?.();
+      }
+
+      // صفحه از سرور دوباره خوانده می‌شود؛ وضعیتِ نمایش‌داده‌شده هیچ‌وقت از
+      // پاسخِ این درخواست ساخته نمی‌شود.
+      router.refresh();
+      setMessage(response.data.result.message ?? null);
+    } catch {
+      setMessage("ارتباط با سرور برقرار نشد. دوباره تلاش کن.");
+    } finally {
       setBusy(false);
-      return;
     }
-
-    if (response.data.result.state === "verified") {
-      refreshCurrentUser();
-      onVerified?.();
-    }
-
-    // صفحه از سرور دوباره خوانده می‌شود؛ وضعیتِ نمایش‌داده‌شده هیچ‌وقت از
-    // پاسخِ این درخواست ساخته نمی‌شود.
-    router.refresh();
-    setMessage(response.data.result.message ?? null);
-    setBusy(false);
   }
 
   return (

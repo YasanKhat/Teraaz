@@ -1,7 +1,7 @@
 "use client";
 
 import { Link } from "@/app/router";
-import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { motion, useReducedMotion, type Variants } from "motion/react";
 import WaveCanvas from "@/components/UI/WaveCanvas";
 
 const EASE = [0.22, 1, 0.36, 1] as const;

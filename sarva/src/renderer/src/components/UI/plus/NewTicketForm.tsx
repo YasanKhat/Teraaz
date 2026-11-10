@@ -48,27 +48,33 @@ export default function NewTicketForm({
     if (busy) return;
     setBusy(true);
     setErrors([]);
+    /* ⚠️ بدنه در `try…catch…finally` است. اگر اینترنت قطع شود یا سرور
+       خطای ۵۰۰ بدهد، promise پرتاب می‌کند و خطِ `setBusy(false)` هیچ‌گاه
+       اجرا نمی‌شد: دکمه برای همیشه رویِ «در حال ارسال…» قفل می‌ماند. */
+    try {
+      const result = await createTicket({
+        category,
+        subject,
+        message,
+        orderId: orderId || undefined,
+      });
 
-    const result = await createTicket({
-      category,
-      subject,
-      message,
-      orderId: orderId || undefined,
-    });
+      if (!result.ok) {
+        setErrors(result.errors);
+        return;
+      }
 
-    if (!result.ok) {
-      setErrors(result.errors);
+      setSubject("");
+      setMessage("");
+      setOrderId("");
+      setOpen(false);
+      router.refresh();
+      router.push(`/panel/support/${result.data.id}`);
+    } catch {
+      setErrors(["ارتباط با سرور برقرار نشد. دوباره تلاش کن."]);
+    } finally {
       setBusy(false);
-      return;
     }
-
-    setSubject("");
-    setMessage("");
-    setOrderId("");
-    setOpen(false);
-    setBusy(false);
-    router.refresh();
-    router.push(`/panel/support/${result.data.id}`);
   }
 
   if (!open) {

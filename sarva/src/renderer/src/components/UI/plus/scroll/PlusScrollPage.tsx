@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type CSSProperties, type RefObject, type ReactNode } from "react";
-import { AnimatePresence, animate, motion, useInView, useMotionValue, useTransform } from "framer-motion";
+import { AnimatePresence, animate, motion, useInView, useMotionValue, useTransform } from "motion/react";
 import { ArrowDown, BookOpen } from "lucide-react";
 import MainLogo from "@/components/svgs/mainLogo";
 import { GeometricPattern } from "@/components/persian-patterns";
 import SarvaStar, { SARVA_STAR_PATH } from "@/components/UI/SarvaStar";
-import { buildJourneyPoints, journeyViewportY } from "./journey-path";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { journeyViewportY } from "./journey-path";
 import {
   PLUS_COST,
   PLUS_ORBIT_LABELS,
@@ -77,9 +79,17 @@ const EASE: [number, number, number, number] = [.16, 1, .3, 1];
  * کوچک‌تر شدنِ عدد بستگی دارد.
  */
 function Odometer({ value }: { value: number }) {
-  const [shown, setShown] = useState(value);
-  const [direction, setDirection] = useState(1);
-  if (shown !== value) { setDirection(value > shown ? 1 : -1); setShown(value); }
+  /* ⚠️ جهت باید در همان رندری حساب شود که عدد در آن عوض شده. با `useState`
+     نخستین فریمِ پس از تغییر هنوز جهتِ پیشین را می‌دید (چون `setDirection`
+     تنها برای رندرِ بعدی اثر می‌کرد) و هنگامِ پیمایشِ رو به بالا، نخستین
+     پرشِ رقم وارونه می‌شد — گذشته از یک رندرِ اضافه. */
+  const prevRef = useRef(value);
+  const directionRef = useRef(1);
+  if (prevRef.current !== value) {
+    directionRef.current = value > prevRef.current ? 1 : -1;
+    prevRef.current = value;
+  }
+  const direction = directionRef.current;
   return (
     <span className={styles.boardOdometer} aria-hidden="true">
       <AnimatePresence mode="popLayout" initial={false} custom={direction}>
@@ -104,15 +114,15 @@ function Odometer({ value }: { value: number }) {
  * آمده باشد. اگر بلوک هنوز زیرِ صفحه است، عدد صفر می‌ماند تا وقتی برسد.
  */
 function CostCounter({ value, run }: { value: number; run: boolean }) {
-  const counter = useMotionValue(value);
+  /* ⚠️ آغازِ شمارش باید صفر باشد، نه خودِ مقدار. پیش از این مقدارِ آغازین
+     همان `value` بود و چون شرطِ `counter.get() === value` از همان نخست برقرار
+     بود، انیمیشن هیچ‌گاه اجرا نمی‌شد و مبلغِ کتاب بی‌هیچ شمارشی یک‌باره
+     «۱٬۱۰۰٬۰۰۰» می‌شد. */
+  const counter = useMotionValue(0);
   const text = useTransform(counter, (v) => NUM.format(1000 * Math.round(v / 1000)));
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
-    const el = ref.current;
-    if (el && el.getBoundingClientRect().top > window.innerHeight) counter.set(0);
-  }, [counter]);
-  useEffect(() => {
-    if (!run || counter.get() === value) return;
+    if (!run) return;
     const controls = animate(counter, value, { duration: 1.5, ease: EASE });
     return () => controls.stop();
   }, [run, counter, value]);
@@ -131,13 +141,27 @@ function useRowAwareness(ref: RefObject<HTMLElement | null>, count: number) {
     const root = ref.current;
     if (!root || typeof IntersectionObserver === "undefined") return;
     const rows = Array.from(root.querySelectorAll<HTMLElement>("[data-row]"));
-    const observer = new IntersectionObserver(() => {
-      const line = .65 * window.innerHeight;
-      const next = rows.map((row) => row.getBoundingClientRect().top < line);
+    /* ⚠️ تنها در لحظه‌یِ برخورد لبه با خط (threshold پیش‌فرض) یک بار صدا زده
+       می‌شد؛ اگر در همان لحظه `top` چند دهم پیکسل از خط بزرگ‌تر می‌بود، آن
+       ردیف تا بیرون رفتنِ کامل تاریک می‌ماند. اینجا چند آستانه می‌پاییم و
+       چهار پیکسل تلورانس می‌دهیم، و هر دو رویدادِ پیمایش و تغییرِ اندازه هم
+       دیده می‌شوند. */
+    const update = () => {
+      const line = .65 * window.innerHeight + 4;
+      const next = rows.map((row) => row.getBoundingClientRect().top <= line);
       setOn((prev) => (prev.length === next.length && prev.every((v, i) => v === next[i]) ? prev : next));
-    }, { rootMargin: "0px 0px -35% 0px" });
+    };
+    const observer = new IntersectionObserver(update, { rootMargin: "0px 0px -35% 0px", threshold: [0, .01, .25, .5, .75, 1] });
     rows.forEach((row) => observer.observe(row));
-    return () => { observer.disconnect(); setOn(Array(Math.max(count, 0)).fill(true)); };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update, { passive: true });
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      setOn(Array(Math.max(count, 0)).fill(true));
+    };
   }, [ref, count]);
   return on;
 }
@@ -382,9 +406,12 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
   useEffect(() => {
     let disposed = false;
     let teardown = () => {};
-    // Keep the initial HTML readable; defer the animation library until hydration.
-    async function setup() {
-      const [{ gsap }, { ScrollTrigger }] = await Promise.all([import("gsap"), import("gsap/ScrollTrigger")]);
+    /* ⚠️ کتابخانه‌یِ پویانمایی دیگر «تنبل» بار نمی‌شود. با `await import`،
+       نخستین نما بی‌هیچ نشانی رسم می‌شد (نه `data-motion="ready"` بود و نه
+       دسته بسته بود) و چند دهم ثانیه بعد، هم‌زمان با رسیدنِ بسته، صفحه یک‌باره
+       می‌پرید: کارت‌ها از باز به دسته می‌رفتند و ستاره از جایش می‌جهید. بارِ
+       ایستا یعنی در همان نخستین فریمِ پس از Hydration همه‌چیز سرِ جایش است. */
+    function setup() {
       if (disposed) return;
       const root = rootRef.current;
       const orb = orbRef.current;
@@ -403,292 +430,37 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
       if (!root || !orb || !inner || !seed || !dock || !emerge || !orb2 || !inner2) return;
       gsap.registerPlugin(ScrollTrigger);
       const mm = gsap.matchMedia();
-      /* دسته‌ی کارت‌ها نقطه‌ی شکستِ خودش را دارد و آن را با سفر سهیم نیست؛
-         برای همین `matchMedia` ی جدایی می‌گیرد (پایین‌تر، سرِ خودِ دسته). */
-      const deckMm = gsap.matchMedia();
+      /* ⚠️ همه‌یِ شرط‌ها در یک `matchMedia` ی یکتا است — سفر، دسته و
+         بادبزنِ پلان‌ها. پیش از این دسته `matchMedia` ی جداگانه‌یِ خود را
+         می‌ساخت و آن را درونِ کال‌بکِ این یکی می‌نهاد؛ با هر گذر از مرزِ
+         ۶۹۹ یا ۶۳۹ کال‌بک دوباره اجرا می‌شد و یک `matchMedia` ی تازه روی
+         همان کارت‌ها می‌ساخت بی‌آن‌که پیشین بسته شود؛ تریگرهایِ دسته روی
+         هم انباشته می‌شدند و کارت‌ها با هر تغییرِ اندازه چندباره می‌چرخیدند. */
       /* ⚠️ شرطِ سوم (`oneColumn`) از نسخه‌یِ زنده آمده و در برنامه نبود:
          کارت‌هایِ پلان تنها وقتی «بادبزن» می‌شوند که ستون‌ها بیش از یکی
-         باشند (`max-width: 639px` یعنی یک ستون). */
-      mm.add({ motion: "(prefers-reduced-motion: no-preference)", compact: "(max-width: 699px)", oneColumn: "(max-width: 639px)" }, (context) => {
+         باشند. مرزِ آن در بسته‌یِ زنده `639px` است، ولی شبکه‌یِ پلان‌ها در
+         Tailwind تا `1023px` دوستونه است (`sm:grid-cols-2 lg:grid-cols-3`)؛
+         با مرزِ ۶۳۹، در پهنا‌یِ ۶۴۰ تا ۱۰۲۳ کارتِ ردیفِ دوم به میانِ ردیفِ
+         نخست کشیده و کج می‌نشست. مرز اینجا با همان نقطه‌یِ سه‌ستونه شدن یکی
+         شده است (`max-width: 1023px` یعنی یک ستون). */
+      mm.add({ motion: "(prefers-reduced-motion: no-preference)", compact: "(max-width: 699px)", oneColumn: "(max-width: 1023px)", deckCompact: "(max-width: 899px) and (orientation: portrait)", deckWide: "(min-width: 900px), (orientation: landscape)" }, (context) => {
         if (!context.conditions?.motion) return;
         const compact = Boolean(context.conditions.compact);
         const oneColumn = Boolean(context.conditions.oneColumn);
-        const glow = root.querySelectorAll("[data-dock-glow]");
-        let journey: ReturnType<typeof gsap.timeline> | undefined;
-        let startScroll = 0;
-        let endScroll = 1;
-        let fromDocumentY = 0;
-        let toDocumentY = 1;
-        let latestScroll = window.scrollY;
-        let measured = false;
-        let boundsLeft = 0;
-        const playhead = { progress: 0 };
-        const position = { x: 0 };
-        /* دو سرِ مسیر به مختصاتِ خودِ صفحه. سایت هنگامِ آغاز و پایان، ستاره
-           را `absolute` می‌کند و همین نقطه‌ها را به‌کار می‌برد؛ تنها در
-           میانه‌ی راه است که `fixed` می‌شود و مختصات نسبت به دید حساب
-           می‌شود. بی‌این جابه‌جایی، ستاره به‌جای نشستن سرِ جایش، با هر
-           پیمایش از بالای صفحه دورتر می‌رفت. */
-        let fromPoint = { x: 0, y: 0 };
-        let toPoint = { x: 0, y: 0 };
-        let lastTransform = "";
-        /* ⚠️ اندازه‌گیریِ زنده برایِ لحظه‌یِ نشستن. مبدأ و مقصد در زمانِ ساخت
-           اندازه گرفته می‌شوند؛ اگر پس از آن چیزی در صفحه جابه‌جا شود (فونتی
-           که دیر می‌رسد، نگاره‌ای که بار می‌شود، پایه‌یِ چسبانِ دسته که اضافه
-           می‌گردد)، آن یادداشت کهنه می‌شود و ستاره درست کنارِ — نه درونِ —
-           سوراخ می‌نشیند؛ آن هم به اندازه‌ای که هر بار فرق می‌کند. اینجا در
-           همان لحظه‌ای که ستاره به ته می‌رسد، هدف دوباره اندازه گرفته
-           می‌شود تا هرچه بالا دست جابه‌جا شده باشد بی‌اثر شود. خواندنِ طرح
-           گران است، پس تنها هنگامِ گذار به حالتِ نشستن انجام می‌شود، نه در
-           هر نما. */
-        const livePoint = (el: HTMLElement | null) => {
-          if (!el) return null;
-          const r = el.getBoundingClientRect();
-          const b = root.getBoundingClientRect();
-          return { x: r.left + r.width / 2 - b.left, y: r.top + r.height / 2 - b.top };
-        };
-        // Scrub owns one complete transform write on its existing GSAP frame.
-        // A second requestAnimationFrame would halve the star's update cadence.
-        let restState = "";
-        const renderPosition = () => {
-          const atStart = playhead.progress <= 0 && latestScroll <= startScroll;
-          const atEnd = playhead.progress >= 1 && latestScroll >= endScroll;
-          const state = atStart ? "start" : atEnd ? "end" : "";
-          if (state !== restState) {
-            restState = state;
-            if (state === "end") { const live = livePoint(root.querySelector<HTMLElement>(`.${styles.coreSlot}`) ?? dock); if (live) toPoint = live; }
-            else if (state === "start") { const live = livePoint(seed); if (live) fromPoint = live; }
-            /* ⚠️ سایت در همین گذار نشانِ `data-star-seated` را رویِ صفحه
-               می‌گذارد و برمی‌دارد، و سی‌اس‌اس با آن ستاره‌یِ خودِ هسته را
-               پنهان می‌کند؛ وگرنه دو ستاره رویِ هم می‌مانند و بیننده می‌بیند
-               که ستاره «سرِ جایش ننشسته». پیش از این برنامه این نشان را هرگز
-               نمی‌گذاشت (تنها سی‌اس‌اسش رونویسی شده بود). */
-            root.toggleAttribute("data-star-seated", state === "end");
-          }
-          const anchor = atStart ? fromPoint : atEnd ? toPoint : null;
-          const nextPosition = anchor ? "absolute" : "fixed";
-          if (orb.style.position !== nextPosition) orb.style.position = nextPosition;
-          const x = anchor ? anchor.x + boundsLeft : position.x;
-          const y = anchor ? anchor.y : journeyViewportY({ progress: playhead.progress, scroll: latestScroll,
-            start: startScroll, end: endScroll, fromY: fromDocumentY, toY: toDocumentY });
-          const transform = `translate3d(${x.toFixed(3)}px,${y.toFixed(3)}px,0) translate(-50%,-50%)`;
-          if (transform !== lastTransform) { orb.style.transform = transform; lastTransform = transform; }
-        };
-        const buildJourney = () => {
-          journey?.kill();
-          const bounds = root.getBoundingClientRect();
-          const seedBounds = seed.getBoundingClientRect();
-          const dockBounds = dock.getBoundingClientRect();
-          const dockWidth = dock.parentElement!.getBoundingClientRect().width;
-          const center = (r: DOMRect) => ({ x: r.left + r.width / 2 - bounds.left, y: r.top + r.height / 2 - bounds.top });
-          /* ⚠️ مقصدِ ستاره‌یِ نخست «هسته‌یِ چرخ» است، نه لنگرگاهِ پایینِ صفحه.
-             در سایت دو ستاره کاملاً مستقل‌اند: یکی از نگینِ قهرمان می‌آید و
-             همان بالا، رویِ چرخِ «چطور کار می‌کند» می‌نشیند؛ دیگری از نگینِ
-             تخته‌ی هزینه برمی‌خیزد و در لنگرگاه فرود می‌آید. پیش از این هر دو
-             به لنگرگاه می‌رفتند و ستاره‌یِ نخست سراسرِ صفحه را می‌پیمود. */
-          const coreBounds = (root.querySelector<HTMLElement>(`.${styles.coreSlot}`) ?? dock).getBoundingClientRect();
-          const from = center(seedBounds);
-          const to = center(coreBounds);
-          boundsLeft = bounds.left;
-          fromPoint = from;
-          toPoint = to;
-          /* مسیر در رایانه خطیِ راست است و تنها در تلفن دورِ متنِ چرخ
-             می‌چرخد — همان که سایت می‌سازد، بی‌هیچ خمی از پیشِ خود. */
-          const copyBounds = root.querySelector<HTMLElement>(`.${styles.wheelCopy}`)?.getBoundingClientRect();
-          const copyTop = copyBounds ? copyBounds.top - bounds.top : 0;
-          const copyBottom = copyBounds ? copyBounds.bottom - bounds.top : 0;
-          const ordered: { x: number; y: number }[] = compact
-            ? [from, { x: 12, y: copyTop - 24 }, { x: 12, y: copyBottom + 24 }, to]
-            : [from, to];
-          const legEase = compact ? "sine.inOut" : "power1.in";
-          const distance = to.y - from.y;
-          fromDocumentY = bounds.top + window.scrollY + from.y;
-          toDocumentY = bounds.top + window.scrollY + to.y;
-          position.x = from.x + bounds.left;
-          gsap.set(orb, { opacity: 1 });
-          // Render the jewel at its largest size and only scale down, preserving
-          // sharp edges when it lands (including high-DPI and zoomed displays).
-          gsap.set(inner, { scale: seedBounds.width / 156, rotation: 0, rotationX: 0 });
-          gsap.set(glow, { opacity: 0 });
-          gsap.set(seed, { opacity: 0 });
-          journey = gsap.timeline({ paused: true });
-          for (let i = 1; i < ordered.length; i++) {
-            const previous = ordered[i - 1];
-            const point = ordered[i];
-            journey.to(position, { x: point.x + bounds.left, duration: point.y - previous.y, ease: legEase }, previous.y - from.y);
-          }
+        const deckCompact = Boolean(context.conditions?.deckCompact);
 
-          /* ستاره‌ی نخست: درشت از تخمه بیرون می‌آید، در میانه ریز می‌شود تا
-             راه برود، و سرِ جایش در محوطه باز به اندازه‌ی همان هدف برمی‌گردد.
-             برخلافِ ستاره‌ی دوم کج‌شدنِ سه‌بعدی ندارد. */
-          const shrink = Math.min(260, .35 * distance);
-          journey.to(inner, { scale: (compact ? 22 : 45.6) / 156, duration: shrink, ease: "sine.out" }, 0);
-          journey.to(inner, { scale: coreBounds.width / 156, rotation: 0, duration: shrink, ease: "sine.inOut" }, distance - shrink);
-          startScroll = Math.max(0, fromDocumentY - window.innerHeight * .77);
-          endScroll = Math.max(startScroll + 1, toDocumentY - window.innerHeight * .5);
-          if (pathRef.current) pathRef.current.setAttribute("d", ordered.map((p, i) => `${i ? "L" : "M"} ${p.x} ${p.y}`).join(" "));
-          latestScroll = window.scrollY;
-          if (!measured) playhead.progress = Math.max(0, Math.min(1, (window.scrollY - startScroll) / (endScroll - startScroll)));
-          measured = true;
-          journey.progress(playhead.progress);
-          renderPosition();
-        };
-        buildJourney();
-        // The small proxy lets refresh replace the measured timeline without attaching
-        // multiple scrub controllers to the star. No DOM reads happen during scrolling.
-        const scrub = gsap.fromTo(playhead, { progress: 0 }, {
-          progress: 1, ease: "none", paused: true, immediateRender: false,
-          onUpdate: () => { journey?.progress(playhead.progress); renderPosition(); },
-        });
-        ScrollTrigger.create({
-          animation: scrub, start: () => startScroll, end: () => endScroll,
-          scrub: compact ? 1 : 1.25, invalidateOnRefresh: true, markers, id: "plus-journey",
-        });
-        /* ── ستاره‌ی دوم ─────────────────────────────────────────────────
-           دو ستاره کاملاً از هم مستقل‌اند: یکی از تخمه‌ی بالای صفحه می‌آید و
-           دیگری از نگینِ «رشته»‌ی تخته‌ی هزینه — با مقیاسِ خودش و یک کج‌شدنِ
-           سه‌بعدی هنگامِ فرود (rotationX ۴۸). پیش‌تر این دو یکی شده بودند و
-           یک ستاره سراسرِ صفحه را می‌پیمود. */
-        const playhead2 = { progress: 0 };
-        const pos2 = { x: 0 };
-        let journey2: ReturnType<typeof gsap.timeline> | undefined;
-        let start2 = 0, end2 = 1, from2Doc = 0, to2Doc = 1, measured2 = false;
-        let from2 = { x: 0, y: 0 }, to2 = { x: 0, y: 0 };
-        let restState2 = "";
-        const renderStar2 = () => {
-          const atStart = playhead2.progress <= 0 && latestScroll <= start2;
-          const atEnd = playhead2.progress >= 1 && latestScroll >= end2;
-          const state = atStart ? "start" : atEnd ? "end" : "";
-          if (state !== restState2) {
-            restState2 = state;
-            if (state === "end") { const live = livePoint(dock); if (live) to2 = live; }
-            else if (state === "start") { const live = livePoint(emerge); if (live) from2 = live; }
-          }
-          const anchor = atStart ? from2 : atEnd ? to2 : null;
-          const nextPosition = anchor ? "absolute" : "fixed";
-          if (orb2.style.position !== nextPosition) orb2.style.position = nextPosition;
-          const x = anchor ? anchor.x + boundsLeft : pos2.x;
-          const y = anchor ? anchor.y : journeyViewportY({ progress: playhead2.progress, scroll: latestScroll,
-            start: start2, end: end2, fromY: from2Doc, toY: to2Doc });
-          const transform = `translate3d(${x.toFixed(3)}px,${y.toFixed(3)}px,0) translate(-50%,-50%)`;
-          if (orb2.style.transform !== transform) orb2.style.transform = transform;
-        };
-        const buildStar2 = () => {
-          journey2?.kill();
-          const b = root.getBoundingClientRect();
-          const eb = emerge.getBoundingClientRect();
-          const db = dock.getBoundingClientRect();
-          const dockWidth2 = dock.parentElement!.getBoundingClientRect().width;
-          from2 = { x: eb.left + eb.width / 2 - b.left, y: eb.top + eb.height / 2 - b.top };
-          to2 = { x: db.left + db.width / 2 - b.left, y: db.top + db.height / 2 - b.top };
-          from2Doc = b.top + window.scrollY + from2.y;
-          to2Doc = b.top + window.scrollY + to2.y;
-          pos2.x = from2.x + b.left;
-          const span = Math.max(1, to2Doc - from2Doc);
-          gsap.set(orb2, { opacity: 1 });
-          gsap.set(inner2, { scale: eb.width / 156, rotation: 0, rotationX: 0 });
-          /* هاله‌ی لنگرگاه و درخشش به ستاره‌یِ دوم تعلق دارند، نه به نخستین؛
-             در سایت این دو در پایانِ سفرِ دوم جان می‌گیرند. */
-          gsap.set(glow, { opacity: 0 });
-          journey2 = gsap.timeline({ paused: true });
-          journey2.to(pos2, { x: to2.x + b.left, duration: span, ease: "sine.inOut" }, 0);
-          /* ⚠️ در سایت مدتِ این کج‌شدن «کمینه‌یِ ۳۰۰ و درازایِ مسیر» است، نه
-             ۳۰۰ِ ثابت؛ اگر مسیر کوتاه‌تر باشد، ستاره پیش از رسیدن کج می‌شد. */
-          const tilt2 = Math.min(300, span);
-          journey2.to(inner2, { scale: dockWidth2 / 360, rotationX: 48, duration: tilt2, ease: "sine.inOut" }, span - tilt2);
-          journey2.to(glow, { opacity: 1, duration: 45, ease: "sine.in" }, span - 45);
-          journey2.fromTo(root.querySelector(`.${styles.dockAura}`), { scale: .88 }, { scale: 1, duration: 140, ease: "sine.out" }, span - 140);
-          start2 = Math.max(0, from2Doc - window.innerHeight * .62);
-          end2 = Math.max(start2 + 1, to2Doc - window.innerHeight * .5);
-          if (!measured2) { playhead2.progress = Math.max(0, Math.min(1, (window.scrollY - start2) / (end2 - start2))); measured2 = true; }
-          journey2.progress(playhead2.progress);
-          renderStar2();
-        };
-        buildStar2();
-        const scrub2 = gsap.fromTo(playhead2, { progress: 0 }, {
-          progress: 1, ease: "none", paused: true, immediateRender: false,
-          onUpdate: () => { journey2?.progress(playhead2.progress); renderStar2(); },
-        });
-        ScrollTrigger.create({
-          animation: scrub2, start: () => start2, end: () => end2,
-          scrub: compact ? 1 : 1.25, invalidateOnRefresh: true, markers, id: "plus-journey-2",
-        });
-
-        const trackAnchor = () => {
-          latestScroll = window.scrollY;
-          // Between the anchors, scrub alone owns the viewport position.
-          if (latestScroll < startScroll || latestScroll > endScroll) renderPosition();
-          if (latestScroll < start2 || latestScroll > end2) renderStar2();
-        };
-        window.addEventListener("scroll", trackAnchor, { passive: true });
-        /* ⚠️ بازسازی رویِ رویدادِ «refresh» است (پس از تازه‌شدن)، نه
-           «refreshInit» (پیش از آن) — و تفاوتش فقط در ستاره‌یِ دوم نیست،
-           بلکه همان یکی است که دیده می‌شود.
-
-           نگینِ آغازِ ستاره‌یِ دوم درونِ بخشِ میخ‌کوبِ دسته‌یِ کارت‌ها
-           نشسته. ScrollTrigger در آغازِ هر تازه‌شدن، فضاهایِ میخ را
-           برمی‌دارد تا اندازه‌یِ طبیعیِ عنصرها را بخواند؛ یعنی هرچه در
-           `refreshInit` اندازه گرفته شود، بی‌آن فضا دیده می‌شود. آن فضا
-           اینجا نزدیکِ ۳۲۵۰ پیکسل است — درست به اندازه‌ای که ستاره‌یِ دوم
-           در جایِ غلط می‌نشست و به‌جایِ لنگرگاهِ پایینِ صفحه، همان بالا
-           فرود می‌آمد. پس از تازه‌شدن، فضاها برقرارند و اندازه درست است. */
-        let geometrySignature = "";
-        let followUp = 0;
-        const rebuildJourneys = () => {
-          buildJourney();
-          buildStar2();
-          /* اگر جایگاه‌ها عوض شده باشند، یک تازه‌شدنِ دیگر لازم است تا
-             کران‌هایِ خودِ این دو ماشه هم با مقدارِ تازه حساب شود. بارِ
-             دوم مقدارها همان می‌مانند، پس زنجیره همان‌جا می‌ایستد. */
-          const signature = `${startScroll}|${endScroll}|${start2}|${end2}`;
-          if (signature !== geometrySignature) {
-            geometrySignature = signature;
-            if (!followUp) {
-              followUp = window.requestAnimationFrame(() => {
-                followUp = 0;
-                ScrollTrigger.refresh();
-              });
-            }
-          }
-        };
-        ScrollTrigger.addEventListener("refresh", rebuildJourneys);
-        /* ⚠️ اینجا تا پیش از این یک انیمیشنِ ورود برایِ `[data-reason-card]`
-           بود که آن نشان تنها رویِ همین توضیح‌هایِ دسته نشسته بود — و چون
-           با `opacity` کار می‌کرد، با `autoAlpha`یِ خودِ دسته می‌جنگید:
-           رفتن به پایین درست بود، ولی برگشتن به بالا توضیح‌هایِ رفته را
-           دوباره پیدا می‌کرد و رویِ هم می‌افتادند (شش متنِ رویِ هم در یک
-           جا). نه آن نشان در سایت هست و نه `cardAura`یی که دنبالش می‌گشت؛
-           هر دو از خودِ این برنامه بودند و دسته به‌تنهایی درست کار می‌کند. */
-        root.querySelectorAll<HTMLElement>("[data-parallax-track]").forEach((track) => {
-          if (compact && track.dataset.mobile !== "true") return;
-          const speed = Number(track.dataset.speed);
-          const travel = () => (1 - speed) * Math.min(window.innerHeight, 1000) * (compact ? .32 : .65);
-          gsap.fromTo(track.firstElementChild, { y: () => -travel(), x: compact ? 0 : -5 }, {
-            y: travel, x: compact ? 0 : 5, ease: "none",
-            scrollTrigger: { trigger: track, start: "top bottom", end: "bottom top", scrub: compact ? .7 : 1.15, invalidateOnRefresh: true },
-          });
-        });
-        const parallaxScene = root.querySelector<HTMLElement>("[data-learning-parallax]");
-        if (parallaxScene) {
-          // One trigger and one timeline for the entire dense field. Hidden mobile
-          // capsules get no tween; there are no perpetual loops or layout reads.
-          const field = gsap.timeline({ scrollTrigger: { trigger: parallaxScene, start: "top bottom", end: "bottom top", scrub: 1.2, invalidateOnRefresh: true } });
-          parallaxScene.querySelectorAll<HTMLElement>("[data-learning-capsule]").forEach((track) => {
-            if (compact && track.dataset.mobile !== "true") return;
-            const travel = () => (1 - Number(track.dataset.speed)) * (compact ? 420 : 760);
-            field.fromTo(track.firstElementChild, { y: () => -travel() }, { y: travel, duration: 1, ease: "none" }, 0);
-          });
-        }
-        root.querySelectorAll<HTMLElement>("[data-cycle-step]").forEach((step) => {
-          gsap.from(step, { x: 12, opacity: .4, duration: .5, ease: "power2.out", scrollTrigger: { trigger: step, start: "top 88%", once: true } });
-        });
-        gsap.to(root.querySelector(`.${styles.wheelRing}`), { rotation: 70, ease: "none", scrollTrigger: { trigger: root.querySelector(`.${styles.wheel}`), start: "top bottom", end: "bottom top", scrub: .6 } });
         /* ── کارت‌هایِ سه‌بعدیِ مقایسه ───────────────────────────────────
            شش کارت رویِ هم دسته‌اند. با پیمایش، هربار کارتِ رویی بالا
            می‌آید و در دو مرحله می‌چرخد (`rotationX` کوتاه، سپس
            `rotationY: ۱۸۰`) و کارتِ پیشین به کنار می‌رود؛ در پایان همه
            بادبزن می‌شوند. زاویه‌ها، جابه‌جایی‌ها و زمان‌بندی عیناً از
            نسخه‌یِ زنده گرفته شده‌اند. */
+        /* ⚠️ پاک‌سازیِ دسته در این متغیر نگه داشته می‌شود، نه با `return`.
+           پیش از این این `return` بیرون‌زنِ کال‌بکِ `deckMm.add` بود؛ وقتی آن
+           لفافه برداشته شد، همان `return` از کلِ کال‌بکِ `mm.add` بیرون زد و
+           هرچه پس از آن بود — سفرِ هر دو ستاره، بادبزنِ پلان‌ها و خودِ نشانِ
+           `data-motion="ready"` — هرگز ساخته نشد. */
+        let deckCleanup: (() => void) | undefined;
         const storySection = root.querySelector<HTMLElement>(`.${styles.story}`);
         const stage = storySection?.querySelector<HTMLElement>(`.${styles.storyStage}`);
         const intro = storySection?.querySelector<HTMLElement>(`.${styles.storyIntro}`);
@@ -699,8 +471,6 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
              `(min-width: 900px), (orientation: landscape)`. پیش از این هر دو
              از ۶۹۹ پیروی می‌کردند و در پهنا‌یِ میانه (مثل ۸۲۰) کارت ۵۸٪ به
              چپ می‌رفت، در حالی که سایت آن را میان می‌نشاند. */
-          deckMm.add({ motion: "(prefers-reduced-motion: no-preference)", deckCompact: "(max-width: 899px) and (orientation: portrait)", deckWide: "(min-width: 900px), (orientation: landscape)" }, (deckContext) => {
-          const deckCompact = Boolean(deckContext.conditions?.deckCompact);
           storySection.style.setProperty("--len", "640");
           const captions = Array.from(storySection.querySelectorAll<HTMLElement>(`.${styles.storyCaption}`));
           const cards = Array.from(storySection.querySelectorAll<HTMLElement>(`.${styles.storyCard}`));
@@ -811,12 +581,296 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
               window.scrollTo({ top, behavior: "smooth" });
             };
           });
-          return () => {
+          deckCleanup = () => {
             chipButtons.forEach((chip) => { chip.onclick = null; });
           };
-          });
         }
 
+        const glow = root.querySelectorAll("[data-dock-glow]");
+        let journey: ReturnType<typeof gsap.timeline> | undefined;
+        let startScroll = 0;
+        let endScroll = 1;
+        let fromDocumentY = 0;
+        let toDocumentY = 1;
+        let latestScroll = window.scrollY;
+        let measured = false;
+        let boundsLeft = 0;
+        const playhead = { progress: 0 };
+        const position = { x: 0 };
+        /* دو سرِ مسیر به مختصاتِ خودِ صفحه. سایت هنگامِ آغاز و پایان، ستاره
+           را `absolute` می‌کند و همین نقطه‌ها را به‌کار می‌برد؛ تنها در
+           میانه‌ی راه است که `fixed` می‌شود و مختصات نسبت به دید حساب
+           می‌شود. بی‌این جابه‌جایی، ستاره به‌جای نشستن سرِ جایش، با هر
+           پیمایش از بالای صفحه دورتر می‌رفت. */
+        let fromPoint = { x: 0, y: 0 };
+        let toPoint = { x: 0, y: 0 };
+        let lastTransform = "";
+        /* ⚠️ اندازه‌گیریِ زنده برایِ لحظه‌یِ نشستن. مبدأ و مقصد در زمانِ ساخت
+           اندازه گرفته می‌شوند؛ اگر پس از آن چیزی در صفحه جابه‌جا شود (فونتی
+           که دیر می‌رسد، نگاره‌ای که بار می‌شود، پایه‌یِ چسبانِ دسته که اضافه
+           می‌گردد)، آن یادداشت کهنه می‌شود و ستاره درست کنارِ — نه درونِ —
+           سوراخ می‌نشیند؛ آن هم به اندازه‌ای که هر بار فرق می‌کند. اینجا در
+           همان لحظه‌ای که ستاره به ته می‌رسد، هدف دوباره اندازه گرفته
+           می‌شود تا هرچه بالا دست جابه‌جا شده باشد بی‌اثر شود. خواندنِ طرح
+           گران است، پس تنها هنگامِ گذار به حالتِ نشستن انجام می‌شود، نه در
+           هر نما. */
+        const livePoint = (el: HTMLElement | null) => {
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          const b = root.getBoundingClientRect();
+          return { x: r.left + r.width / 2 - b.left, y: r.top + r.height / 2 - b.top };
+        };
+        // Scrub owns one complete transform write on its existing GSAP frame.
+        // A second requestAnimationFrame would halve the star's update cadence.
+        let restState = "";
+        const renderPosition = () => {
+          const atStart = playhead.progress <= 0 && latestScroll <= startScroll;
+          const atEnd = playhead.progress >= 1 && latestScroll >= endScroll;
+          const state = atStart ? "start" : atEnd ? "end" : "";
+          if (state !== restState) {
+            restState = state;
+            if (state === "end") { const live = livePoint(root.querySelector<HTMLElement>(`.${styles.coreSlot}`) ?? dock); if (live) toPoint = live; }
+            else if (state === "start") { const live = livePoint(seed); if (live) fromPoint = live; }
+            /* ⚠️ سایت در همین گذار نشانِ `data-star-seated` را رویِ صفحه
+               می‌گذارد و برمی‌دارد، و سی‌اس‌اس با آن ستاره‌یِ خودِ هسته را
+               پنهان می‌کند؛ وگرنه دو ستاره رویِ هم می‌مانند و بیننده می‌بیند
+               که ستاره «سرِ جایش ننشسته». پیش از این برنامه این نشان را هرگز
+               نمی‌گذاشت (تنها سی‌اس‌اسش رونویسی شده بود). */
+            root.toggleAttribute("data-star-seated", state === "end");
+          }
+          const anchor = atStart ? fromPoint : atEnd ? toPoint : null;
+          const nextPosition = anchor ? "absolute" : "fixed";
+          if (orb.style.position !== nextPosition) orb.style.position = nextPosition;
+          const x = anchor ? anchor.x : position.x;
+          const y = anchor ? anchor.y : journeyViewportY({ progress: playhead.progress, scroll: latestScroll,
+            start: startScroll, end: endScroll, fromY: fromDocumentY, toY: toDocumentY });
+          const transform = `translate3d(${x.toFixed(3)}px,${y.toFixed(3)}px,0) translate(-50%,-50%)`;
+          if (transform !== lastTransform) { orb.style.transform = transform; lastTransform = transform; }
+        };
+        const buildJourney = () => {
+          journey?.kill();
+          const bounds = root.getBoundingClientRect();
+          const seedBounds = seed.getBoundingClientRect();
+          const dockBounds = dock.getBoundingClientRect();
+          const dockWidth = dock.parentElement!.getBoundingClientRect().width;
+          const center = (r: DOMRect) => ({ x: r.left + r.width / 2 - bounds.left, y: r.top + r.height / 2 - bounds.top });
+          /* ⚠️ مقصدِ ستاره‌یِ نخست «هسته‌یِ چرخ» است، نه لنگرگاهِ پایینِ صفحه.
+             در سایت دو ستاره کاملاً مستقل‌اند: یکی از نگینِ قهرمان می‌آید و
+             همان بالا، رویِ چرخِ «چطور کار می‌کند» می‌نشیند؛ دیگری از نگینِ
+             تخته‌ی هزینه برمی‌خیزد و در لنگرگاه فرود می‌آید. پیش از این هر دو
+             به لنگرگاه می‌رفتند و ستاره‌یِ نخست سراسرِ صفحه را می‌پیمود. */
+          const coreBounds = (root.querySelector<HTMLElement>(`.${styles.coreSlot}`) ?? dock).getBoundingClientRect();
+          const from = center(seedBounds);
+          const to = center(coreBounds);
+          boundsLeft = bounds.left;
+          fromPoint = from;
+          toPoint = to;
+          /* مسیر در رایانه خطیِ راست است و تنها در تلفن دورِ متنِ چرخ
+             می‌چرخد — همان که سایت می‌سازد، بی‌هیچ خمی از پیشِ خود. */
+          const copyBounds = root.querySelector<HTMLElement>(`.${styles.wheelCopy}`)?.getBoundingClientRect();
+          const copyTop = copyBounds ? copyBounds.top - bounds.top : 0;
+          const copyBottom = copyBounds ? copyBounds.bottom - bounds.top : 0;
+          const ordered: { x: number; y: number }[] = compact
+            ? [from, { x: 12, y: copyTop - 24 }, { x: 12, y: copyBottom + 24 }, to]
+            : [from, to];
+          const legEase = compact ? "sine.inOut" : "power1.in";
+          const distance = to.y - from.y;
+          fromDocumentY = bounds.top + window.scrollY + from.y;
+          toDocumentY = bounds.top + window.scrollY + to.y;
+          position.x = from.x + bounds.left;
+          gsap.set(orb, { opacity: 1 });
+          // Render the jewel at its largest size and only scale down, preserving
+          // sharp edges when it lands (including high-DPI and zoomed displays).
+          gsap.set(inner, { scale: seedBounds.width / 156, rotation: 0, rotationX: 0 });
+          gsap.set(glow, { opacity: 0 });
+          gsap.set(seed, { opacity: 0 });
+          journey = gsap.timeline({ paused: true });
+          for (let i = 1; i < ordered.length; i++) {
+            const previous = ordered[i - 1];
+            const point = ordered[i];
+            journey.to(position, { x: point.x + bounds.left, duration: point.y - previous.y, ease: legEase }, previous.y - from.y);
+          }
+
+          /* ستاره‌ی نخست: درشت از تخمه بیرون می‌آید، در میانه ریز می‌شود تا
+             راه برود، و سرِ جایش در محوطه باز به اندازه‌ی همان هدف برمی‌گردد.
+             برخلافِ ستاره‌ی دوم کج‌شدنِ سه‌بعدی ندارد. */
+          const shrink = Math.min(260, .35 * distance);
+          journey.to(inner, { scale: (compact ? 22 : 45.6) / 156, duration: shrink, ease: "sine.out" }, 0);
+          journey.to(inner, { scale: coreBounds.width / 156, rotation: 0, duration: shrink, ease: "sine.inOut" }, distance - shrink);
+          startScroll = Math.max(0, fromDocumentY - window.innerHeight * .77);
+          endScroll = Math.max(startScroll + 1, toDocumentY - window.innerHeight * .5);
+          if (pathRef.current) pathRef.current.setAttribute("d", ordered.map((p, i) => `${i ? "L" : "M"} ${p.x} ${p.y}`).join(" "));
+          latestScroll = window.scrollY;
+          if (!measured) playhead.progress = Math.max(0, Math.min(1, (window.scrollY - startScroll) / (endScroll - startScroll)));
+          measured = true;
+          journey.progress(playhead.progress);
+          renderPosition();
+        };
+        buildJourney();
+        // The small proxy lets refresh replace the measured timeline without attaching
+        // multiple scrub controllers to the star. No DOM reads happen during scrolling.
+        const scrub = gsap.fromTo(playhead, { progress: 0 }, {
+          progress: 1, ease: "none", paused: true, immediateRender: false,
+          onUpdate: () => { journey?.progress(playhead.progress); renderPosition(); },
+        });
+        ScrollTrigger.create({
+          animation: scrub, start: () => startScroll, end: () => endScroll,
+          scrub: compact ? 1 : 1.25, invalidateOnRefresh: true, markers, id: "plus-journey",
+        });
+        /* ── ستاره‌ی دوم ─────────────────────────────────────────────────
+           دو ستاره کاملاً از هم مستقل‌اند: یکی از تخمه‌ی بالای صفحه می‌آید و
+           دیگری از نگینِ «رشته»‌ی تخته‌ی هزینه — با مقیاسِ خودش و یک کج‌شدنِ
+           سه‌بعدی هنگامِ فرود (rotationX ۴۸). پیش‌تر این دو یکی شده بودند و
+           یک ستاره سراسرِ صفحه را می‌پیمود. */
+        const playhead2 = { progress: 0 };
+        const pos2 = { x: 0 };
+        let journey2: ReturnType<typeof gsap.timeline> | undefined;
+        let start2 = 0, end2 = 1, from2Doc = 0, to2Doc = 1, measured2 = false;
+        let from2 = { x: 0, y: 0 }, to2 = { x: 0, y: 0 };
+        let restState2 = "";
+        const renderStar2 = () => {
+          const atStart = playhead2.progress <= 0 && latestScroll <= start2;
+          const atEnd = playhead2.progress >= 1 && latestScroll >= end2;
+          const state = atStart ? "start" : atEnd ? "end" : "";
+          if (state !== restState2) {
+            restState2 = state;
+            if (state === "end") { const live = livePoint(dock); if (live) to2 = live; }
+            else if (state === "start") { const live = livePoint(emerge); if (live) from2 = live; }
+          }
+          const anchor = atStart ? from2 : atEnd ? to2 : null;
+          const nextPosition = anchor ? "absolute" : "fixed";
+          if (orb2.style.position !== nextPosition) orb2.style.position = nextPosition;
+          const x = anchor ? anchor.x : pos2.x;
+          const y = anchor ? anchor.y : journeyViewportY({ progress: playhead2.progress, scroll: latestScroll,
+            start: start2, end: end2, fromY: from2Doc, toY: to2Doc });
+          const transform = `translate3d(${x.toFixed(3)}px,${y.toFixed(3)}px,0) translate(-50%,-50%)`;
+          if (orb2.style.transform !== transform) orb2.style.transform = transform;
+        };
+        const buildStar2 = () => {
+          journey2?.kill();
+          const b = root.getBoundingClientRect();
+          const eb = emerge.getBoundingClientRect();
+          const db = dock.getBoundingClientRect();
+          const dockWidth2 = dock.parentElement!.getBoundingClientRect().width;
+          from2 = { x: eb.left + eb.width / 2 - b.left, y: eb.top + eb.height / 2 - b.top };
+          to2 = { x: db.left + db.width / 2 - b.left, y: db.top + db.height / 2 - b.top };
+          from2Doc = b.top + window.scrollY + from2.y;
+          to2Doc = b.top + window.scrollY + to2.y;
+          pos2.x = from2.x + b.left;
+          const span = Math.max(1, to2Doc - from2Doc);
+          gsap.set(orb2, { opacity: 1 });
+          gsap.set(inner2, { scale: eb.width / 156, rotation: 0, rotationX: 0 });
+          /* هاله‌ی لنگرگاه و درخشش به ستاره‌یِ دوم تعلق دارند، نه به نخستین؛
+             در سایت این دو در پایانِ سفرِ دوم جان می‌گیرند. */
+          gsap.set(glow, { opacity: 0 });
+          journey2 = gsap.timeline({ paused: true });
+          journey2.to(pos2, { x: to2.x + b.left, duration: span, ease: "sine.inOut" }, 0);
+          /* ⚠️ در سایت مدتِ این کج‌شدن «کمینه‌یِ ۳۰۰ و درازایِ مسیر» است، نه
+             ۳۰۰ِ ثابت؛ اگر مسیر کوتاه‌تر باشد، ستاره پیش از رسیدن کج می‌شد. */
+          const tilt2 = Math.min(300, span);
+          journey2.to(inner2, { scale: dockWidth2 / 360, rotationX: 48, duration: tilt2, ease: "sine.inOut" }, span - tilt2);
+          journey2.to(glow, { opacity: 1, duration: 45, ease: "sine.in" }, span - 45);
+          journey2.fromTo(root.querySelector(`.${styles.dockAura}`), { scale: .88 }, { scale: 1, duration: 140, ease: "sine.out" }, span - 140);
+          start2 = Math.max(0, from2Doc - window.innerHeight * .62);
+          end2 = Math.max(start2 + 1, to2Doc - window.innerHeight * .5);
+          if (!measured2) { playhead2.progress = Math.max(0, Math.min(1, (window.scrollY - start2) / (end2 - start2))); measured2 = true; }
+          journey2.progress(playhead2.progress);
+          renderStar2();
+        };
+        buildStar2();
+        const scrub2 = gsap.fromTo(playhead2, { progress: 0 }, {
+          progress: 1, ease: "none", paused: true, immediateRender: false,
+          onUpdate: () => { journey2?.progress(playhead2.progress); renderStar2(); },
+        });
+        ScrollTrigger.create({
+          animation: scrub2, start: () => start2, end: () => end2,
+          scrub: compact ? 1 : 1.25, invalidateOnRefresh: true, markers, id: "plus-journey-2",
+        });
+
+        const trackAnchor = () => {
+          latestScroll = window.scrollY;
+          // Between the anchors, scrub alone owns the viewport position.
+          if (latestScroll < startScroll || latestScroll > endScroll) renderPosition();
+          if (latestScroll < start2 || latestScroll > end2) renderStar2();
+        };
+        window.addEventListener("scroll", trackAnchor, { passive: true });
+        /* ⚠️ نشانِ «در حال پیمایش» رویِ `<html>` — همان که سایت در شنونده‌یِ
+           پیمایشِ خود می‌گذارد و سی‌اس‌اسِ کارتِ پلان با آن چرخشِ کادر را
+           می‌خواباند (`html[data-scrolling] .frame .border:before`). برنامه
+           این نشان را تنها در جاهایِ دیگرِ خود می‌گذاشت، برای همین آن قانون
+           در این صفحه هیچ‌گاه اثر نمی‌کرد و کادر حینِ پیمایش هم می‌چرخید. */
+        let scrollFlag = 0;
+        const markScrolling = () => {
+          if (!scrollFlag) document.documentElement.dataset.scrolling = "";
+          clearTimeout(scrollFlag);
+          scrollFlag = window.setTimeout(() => {
+            scrollFlag = 0;
+            delete document.documentElement.dataset.scrolling;
+          }, 200);
+        };
+        window.addEventListener("scroll", markScrolling, { passive: true });
+        /* ⚠️ بازسازی رویِ رویدادِ «refresh» است (پس از تازه‌شدن)، نه
+           «refreshInit» (پیش از آن) — و تفاوتش فقط در ستاره‌یِ دوم نیست،
+           بلکه همان یکی است که دیده می‌شود.
+
+           نگینِ آغازِ ستاره‌یِ دوم درونِ بخشِ میخ‌کوبِ دسته‌یِ کارت‌ها
+           نشسته. ScrollTrigger در آغازِ هر تازه‌شدن، فضاهایِ میخ را
+           برمی‌دارد تا اندازه‌یِ طبیعیِ عنصرها را بخواند؛ یعنی هرچه در
+           `refreshInit` اندازه گرفته شود، بی‌آن فضا دیده می‌شود. آن فضا
+           اینجا نزدیکِ ۳۲۵۰ پیکسل است — درست به اندازه‌ای که ستاره‌یِ دوم
+           در جایِ غلط می‌نشست و به‌جایِ لنگرگاهِ پایینِ صفحه، همان بالا
+           فرود می‌آمد. پس از تازه‌شدن، فضاها برقرارند و اندازه درست است. */
+        let geometrySignature = "";
+        let followUp = 0;
+        const rebuildJourneys = () => {
+          buildJourney();
+          buildStar2();
+          /* اگر جایگاه‌ها عوض شده باشند، یک تازه‌شدنِ دیگر لازم است تا
+             کران‌هایِ خودِ این دو ماشه هم با مقدارِ تازه حساب شود. بارِ
+             دوم مقدارها همان می‌مانند، پس زنجیره همان‌جا می‌ایستد. */
+          const signature = `${startScroll}|${endScroll}|${start2}|${end2}`;
+          if (signature !== geometrySignature) {
+            geometrySignature = signature;
+            if (!followUp) {
+              followUp = window.requestAnimationFrame(() => {
+                followUp = 0;
+                ScrollTrigger.refresh();
+              });
+            }
+          }
+        };
+        ScrollTrigger.addEventListener("refresh", rebuildJourneys);
+        /* ⚠️ اینجا تا پیش از این یک انیمیشنِ ورود برایِ `[data-reason-card]`
+           بود که آن نشان تنها رویِ همین توضیح‌هایِ دسته نشسته بود — و چون
+           با `opacity` کار می‌کرد، با `autoAlpha`یِ خودِ دسته می‌جنگید:
+           رفتن به پایین درست بود، ولی برگشتن به بالا توضیح‌هایِ رفته را
+           دوباره پیدا می‌کرد و رویِ هم می‌افتادند (شش متنِ رویِ هم در یک
+           جا). نه آن نشان در سایت هست و نه `cardAura`یی که دنبالش می‌گشت؛
+           هر دو از خودِ این برنامه بودند و دسته به‌تنهایی درست کار می‌کند. */
+        root.querySelectorAll<HTMLElement>("[data-parallax-track]").forEach((track) => {
+          if (compact && track.dataset.mobile !== "true") return;
+          const speed = Number(track.dataset.speed);
+          const travel = () => (1 - speed) * Math.min(window.innerHeight, 1000) * (compact ? .32 : .65);
+          gsap.fromTo(track.firstElementChild, { y: () => -travel(), x: compact ? 0 : -5 }, {
+            y: travel, x: compact ? 0 : 5, ease: "none",
+            scrollTrigger: { trigger: track, start: "top bottom", end: "bottom top", scrub: compact ? .7 : 1.15, invalidateOnRefresh: true },
+          });
+        });
+        const parallaxScene = root.querySelector<HTMLElement>("[data-learning-parallax]");
+        if (parallaxScene) {
+          // One trigger and one timeline for the entire dense field. Hidden mobile
+          // capsules get no tween; there are no perpetual loops or layout reads.
+          const field = gsap.timeline({ scrollTrigger: { trigger: parallaxScene, start: "top bottom", end: "bottom top", scrub: 1.2, invalidateOnRefresh: true } });
+          parallaxScene.querySelectorAll<HTMLElement>("[data-learning-capsule]").forEach((track) => {
+            if (compact && track.dataset.mobile !== "true") return;
+            const travel = () => (1 - Number(track.dataset.speed)) * (compact ? 420 : 760);
+            field.fromTo(track.firstElementChild, { y: () => -travel() }, { y: travel, duration: 1, ease: "none" }, 0);
+          });
+        }
+        root.querySelectorAll<HTMLElement>("[data-cycle-step]").forEach((step) => {
+          gsap.from(step, { x: 12, opacity: .4, duration: .5, ease: "power2.out", scrollTrigger: { trigger: step, start: "top 88%", once: true } });
+        });
+        gsap.to(root.querySelector(`.${styles.wheelRing}`), { rotation: 70, ease: "none", scrollTrigger: { trigger: root.querySelector(`.${styles.wheel}`), start: "top bottom", end: "bottom top", scrub: .6 } });
         /* ── کارت‌هایِ پلان ───────────────────────────────────────────────
            سه کارت از جایِ خودشان به سویِ میانِ شبکه می‌آیند: هر کارت از
            فاصله‌اش تا میانِ شبکه شروع می‌کند، به اندازه‌یِ `(i-mid)*6`
@@ -855,8 +909,12 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
         rebuildJourneys();
         root.dataset.motion = "ready";
         return () => {
+          deckCleanup?.();
           ScrollTrigger.removeEventListener("refresh", rebuildJourneys);
           if (followUp) window.cancelAnimationFrame(followUp);
+          window.clearTimeout(scrollFlag);
+          delete document.documentElement.dataset.scrolling;
+          window.removeEventListener("scroll", markScrolling);
           window.removeEventListener("scroll", trackAnchor);
           orb.style.removeProperty("transform");
           orb2.style.removeProperty("transform");
@@ -904,13 +962,13 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
       window.addEventListener("load", scheduleRefresh);
       teardown = () => {
         cancelAnimationFrame(frame); observer.disconnect();
-        window.removeEventListener("load", scheduleRefresh); mm.revert(); deckMm.revert();
+        window.removeEventListener("load", scheduleRefresh); mm.revert();
       };
     }
     // No animation-library download or observers until motion is actually wanted.
     const preference = window.matchMedia("(prefers-reduced-motion: no-preference)");
     let started = false;
-    const start = () => { if (!started && preference.matches) { started = true; void setup(); } };
+    const start = () => { if (!started && preference.matches) { started = true; setup(); } };
     preference.addEventListener("change", start);
     start();
     return () => { disposed = true; preference.removeEventListener("change", start); teardown(); };
@@ -969,7 +1027,10 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
             <div className={styles.wheelRing}><i /><i /><i /></div>
             {/* سایت ستاره را درونِ یک لایه‌یِ `coreSlot` می‌گذارد؛ این لایه
                جایِ نشستنِ ستاره است (`orbHolder` به سمتِ آن می‌رود). */}
-            <div className={styles.wheelCore}><div className={styles.coreSlot}><SarvaStar size={68} /></div></div>
+            <div className={styles.wheelCore}>
+              <div className={styles.coreSlot}><Jewel /></div>
+              <span>چرخه‌ی یادگیری</span>
+            </div>
             {PLUS_ORBIT_LABELS.map(label => <span key={label} className={styles.orbitLabel}>{label}</span>)}
           </div>
         </section>
@@ -993,10 +1054,11 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
       </main>
       {footer}
       {showPath && <svg className={styles.pathSvg} aria-hidden><path ref={pathRef} className={styles.pathLine} /></svg>}
-      <div className={styles.stage} aria-hidden>
-        <div ref={orbRef} className={styles.orbHolder}><div ref={orbInnerRef} className={styles.orb}><Jewel className={styles.orbStar} /></div></div>
-        <div ref={orb2Ref} className={styles.orbHolder}><div ref={orb2InnerRef} className={styles.orb}><Jewel className={styles.orbStar} /></div></div>
-      </div>
+      {/* ⚠️ لفافه‌یِ `stage` اینجا کلاسی نداشت (`styles.stage` در سی‌اس‌اسِ
+          ماژول تعریف نشده) و سایت هم چنین لفافه‌ای ندارد: دو ستاره خود
+          فرزندِ مستقیمِ صفحه‌اند. */}
+      <div ref={orbRef} className={styles.orbHolder} aria-hidden><div ref={orbInnerRef} className={styles.orb}><Jewel className={styles.orbStar} /></div></div>
+      <div ref={orb2Ref} className={styles.orbHolder} aria-hidden><div ref={orb2InnerRef} className={styles.orb}><Jewel className={styles.orbStar} /></div></div>
     </div>
   );
 }

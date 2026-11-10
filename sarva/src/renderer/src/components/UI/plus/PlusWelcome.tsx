@@ -36,8 +36,16 @@ export default function PlusWelcome({
     // درخواست شکست بخورد بدترین حالت این است که در بارگذاری بعدی دوباره
     // دیده شود — که از یک کارتِ گیرکرده بهتر است.
     setHidden(true);
-    await dismissPlusWelcome(notificationId);
-    router.refresh();
+    /* ⚠️ بدنه در `try…catch…finally` است. اگر اینترنت قطع شود یا سرور خطای
+       ۵۰۰ بدهد، promise پرتاب می‌کند و دکمه برای همیشه در حالتِ «در حال
+       انجام…» قفل می‌ماند. */
+    try {
+      await dismissPlusWelcome(notificationId);
+      router.refresh();
+    } catch {
+      // پنهان کردن پیش از درخواست بوده، پس شکست تنها به معنایِ دوباره
+      // دیده شدنِ کارت است — نه گیر کردنِ چیزی.
+    }
   }
 
   return (
