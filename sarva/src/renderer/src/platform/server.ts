@@ -611,37 +611,150 @@ post('/api/v1/rang-ara/answers', ({ body, userId }) => {
 
 /* ═════════════════════════════════════════════════════════════ سروا پلاس */
 
+/* ⚠️ جزییاتِ پلن (مبلغ، عنوان، مدت) همراهِ سفارش می‌آید و اینجا فقط نوشته
+   می‌شود. در سایتِ اصلی سرور این‌ها را خودش از `plus_plan_versions`
+   می‌خواند و به کلاینت اعتماد نمی‌کند؛ اینجا چنین جدولی نیست و مبلغ‌ها
+   anyway فقط برایِ نمایش‌اند — هیچ پولی جابه‌جا نمی‌شود. */
 post('/api/v1/plus/checkout', ({ body, userId }) => {
   if (!userId) return fail('برای خرید باید وارد شوید.')
-  const b = (body ?? {}) as { planId?: string }
+  const b = (body ?? {}) as {
+    planCode?: string
+    planTitle?: string
+    amountRials?: number
+    durationDays?: number
+  }
+  const durationDays = Number(b.durationDays)
   const order = db.insert('plus_orders', {
     id: db.uid(),
     userId,
-    planId: String(b.planId ?? 'default'),
+    planCode: String(b.planCode ?? 'plus_1m'),
+    planId: String(b.planCode ?? 'default'),
+    planTitle: String(b.planTitle ?? 'سروا پلاس'),
+    amount: Number(b.amountRials ?? 0),
+    durationDays: Number.isFinite(durationDays) && durationDays > 0 ? durationDays : null,
     status: 'pending',
-    amount: 0,
     createdAt: db.nowIso()
   })
   return ok({ order, orderId: order.id })
 })
+
+/** نشانیِ درگاهِ شبیه‌سازی‌شده.
+
+    ⚠️ مسیر با `#/` شروع می‌شود تا `window.location.assign` آن را به عنوانِ
+    یک تغییرِ هش بفهمد و صفحه دوباره بار نشود — وگرنه نشست، انیمیشن‌ها و
+    خودِ سفارش در یک بارگذاریِ تازه می‌پرید. */
+const sandboxUrl = (orderId: string) => `#/payment/sandbox?order=${encodeURIComponent(orderId)}`
 
 post('/api/v1/plus/orders/:orderId/pay', ({ params, userId }) => {
   if (!userId) return fail('برای پرداخت باید وارد شوید.')
   const order = db.findOne<{ id: string; status: string }>('plus_orders', (r) => r.id === params.orderId)
   if (!order) return fail('این سفارش پیدا نشد.')
 
-  // 💚 در این نسخه خرید رایگان و بی‌درنگ است: درگاهی در کار نیست که منتظر
-  // تأییدش بمانیم، پس همان لحظه‌ای که کاربر «پرداخت» را می‌زند دسترسی
-  // فعال می‌شود. بقیهٔ مسیرِ سایت دست‌نخورده است.
-  db.update('plus_orders', order.id, { status: 'paid', paidAt: db.nowIso() })
-  auth.grantPlus(userId, null)
-  return ok({ status: 'paid', active: true })
+  /* ⚠️ اینجا فقط «رفتن به درگاه» است و دسترسی *داده نمی‌شود*. تا پیش از این
+     همین‌جا `grantPlus` را صدا می‌زد، یعنی کسی که رویِ درگاه «انصراف» یا
+     «پرداخت ناموفق» می‌زد هم پلاس می‌گرفت. دسترسی را
+     `sandbox-submit` با `action=paid` می‌دهد. */
+  db.update('plus_orders', order.id, { status: 'pending', startedAt: db.nowIso() })
+  return ok({ status: 'pending', redirectUrl: sandboxUrl(order.id), attemptId: db.uid() })
+})
+
+/* ═══════════════════════════════════ درگاهِ شبیه‌سازی‌شده (پرداختِ آزمایشی) */
+
+/** مهلتِ درگاه — همان ۱۵ دقیقه‌ای که `SANDBOX_SESSION_MINUTES` در
+    `lib/plus/payments/test-provider.ts` تعیین می‌کند. آن پرونده `node:crypto`
+    می‌خواهد و در مرورگر بالا نمی‌آید، برای همین مقدار اینجا تکرار شده. */
+const SANDBOX_MINUTES = 15
+
+type SandboxOrder = {
+  id: string
+  userId: string
+  planCode: string
+  planTitle: string
+  amount: number
+  durationDays: number | null
+  status: string
+  startedAt?: string
+  createdAt: string
+}
+
+/** شماره‌یِ سفارشی که رویِ رسید و صفحه‌یِ بانک دیده می‌شود. */
+function orderNumber(orderId: string): string {
+  return orderId.replace(/-/g, '').slice(0, 10).toUpperCase()
+}
+
+/** ارجاعِ درگاه، هم‌شکلِ ارجاعی که `TestPaymentProvider` می‌سازد. */
+function providerRef(orderId: string): string {
+  return `test_${orderId.replace(/-/g, '').slice(0, 32)}`
+}
+
+get('/api/v1/plus/orders/:orderId/sandbox', ({ params, userId }) => {
+  if (!userId) return fail('برای دیدنِ این صفحه باید وارد شوید.')
+  const order = db.findOne<SandboxOrder>('plus_orders', (r) => r.id === params.orderId)
+  if (!order) return fail('این سفارش پیدا نشد.')
+  if (order.userId !== userId) return fail('این سفارش مالِ تو نیست.')
+
+  const startedAt = new Date(order.startedAt ?? order.createdAt).getTime()
+  const deadline = new Date(startedAt + SANDBOX_MINUTES * 60_000).toISOString()
+  const state: 'open' | 'done' | 'expired' =
+    order.status === 'paid' ? 'done' : Date.now() > startedAt + SANDBOX_MINUTES * 60_000 ? 'expired' : 'open'
+
+  return ok({
+    orderId: order.id,
+    planCode: order.planCode ?? 'plus_1m',
+    providerRef: providerRef(order.id),
+    amountRials: Number(order.amount ?? 0),
+    orderNumber: orderNumber(order.id),
+    planTitle: order.planTitle ?? 'سروا پلاس',
+    deadline,
+    state
+  })
+})
+
+/** نتیجه‌یِ دکمه‌ای که کاربر رویِ صفحه‌یِ بانک زده.
+
+    `lost` یعنی بانک پول را گرفته ولی کاربر هرگز برنگشته — سفارش «پرداخت‌شده»
+    می‌ماند تا `recheck` آن را پیدا کند، درست همان‌طور که در سایت می‌ماند. */
+post('/api/v1/plus/orders/:orderId/sandbox-submit', ({ params, body, userId }) => {
+  if (!userId) return fail('برای پرداخت باید وارد شوید.')
+  const order = db.findOne<SandboxOrder>('plus_orders', (r) => r.id === params.orderId)
+  if (!order) return fail('این سفارش پیدا نشد.')
+  if (order.userId !== userId) return fail('این سفارش مالِ تو نیست.')
+
+  const action = String(((body ?? {}) as { action?: string }).action ?? 'cancelled')
+
+  if (action === 'paid' || action === 'lost') {
+    if (order.status !== 'paid') {
+      db.update('plus_orders', order.id, { status: 'paid', paidAt: db.nowIso() })
+      auth.grantPlus(userId, order.durationDays ?? null)
+    }
+    return ok({ status: 'paid', outcome: action })
+  }
+
+  db.update('plus_orders', order.id, {
+    status: action === 'failed' ? 'failed' : 'cancelled',
+    closedAt: db.nowIso()
+  })
+  return ok({ status: action === 'failed' ? 'failed' : 'cancelled', outcome: action })
 })
 
 post('/api/v1/plus/orders/:orderId/recheck', ({ params, userId }) => {
   const order = db.findOne<{ id: string; status: string }>('plus_orders', (r) => r.id === params.orderId)
   if (!order) return fail('این سفارش پیدا نشد.')
-  return ok({ status: order.status, active: order.status === 'paid' })
+  const active = order.status === 'paid'
+  /* ⚠️ `result` همان شکلی است که `RecheckButton` (و نسخه‌یِ سایت) از سرور
+     می‌خواند: `{ result: { state, message } }`. تا پیش از این اینجا فقط
+     `{ status, active }` برمی‌گشت و آن کامپوننت با خواندنِ
+     `data.result.state` خطا می‌گرفت. */
+  return ok({
+    status: order.status,
+    active,
+    result: {
+      state: active ? 'verified' : 'pending',
+      message: active
+        ? 'پرداخت تأیید شد و اشتراکت فعال است.'
+        : 'هنوز پرداختی از بانک نرسیده. چند لحظهٔ دیگر دوباره امتحان کن.'
+    }
+  })
 })
 
 get('/api/v1/notifications', ({ userId }) => {

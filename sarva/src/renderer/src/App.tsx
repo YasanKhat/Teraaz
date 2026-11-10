@@ -31,6 +31,7 @@ import ShabEmtehan from '@/pages/ShabEmtehan'
 import Club from '@/pages/Club'
 import Plus from '@/pages/Plus'
 const Checkout = lazy(() => import('@/pages/Checkout'))
+const PaymentRoute = lazy(() => import('@/pages/PaymentRoute'))
 import Panel from '@/pages/Panel'
 import PanelRoute from '@/pages/PanelRoute'
 import Auth from '@/pages/Auth'
@@ -120,6 +121,10 @@ function render(path: string): JSX.Element {
       return <Plus />
     case 'checkout':
       return <Checkout />
+    /* درگاهِ شبیه‌سازی‌شده و صفحه‌یِ نتیجه: `#/payment/sandbox?order=…` و
+       `#/payment/result?order=…&outcome=…`. */
+    case 'payment':
+      return <PaymentRoute sub={seg[1] ?? ''} />
     case 'admin':
       return <Admin />
 

@@ -96,8 +96,15 @@ export default function CheckoutPanel({
     setBusy(true);
     setError(null);
 
+    /* ⚠️ مبلغ و عنوان همراهِ سفارش می‌روند چون سرورِ این برنامه جدولِ
+       پلن‌ها را ندارد و صفحه‌یِ درگاه باید همان مبلغی را نشان دهد که کاربر
+       اینجا انتخاب کرده. در سایتِ اصلی سرور این‌ها را خودش از
+       `plus_plan_versions` می‌خواند و این کلیدها را نادیده می‌گیرد. */
     const created = await apiPost<{ order: PlusOrderSummary }>("/api/v1/plus/checkout", {
       planCode: selected.code,
+      planTitle: selected.title,
+      amountRials: selected.amountRials,
+      durationDays: selected.durationDays,
       idempotencyKey: keyFor(selected.code),
     });
     if (!created.ok) {

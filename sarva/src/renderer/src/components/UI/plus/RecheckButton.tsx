@@ -22,9 +22,14 @@ import type { PaymentState } from "@/lib/plus/types";
 export default function RecheckButton({
   orderId,
   label = "بررسی دوبارهٔ وضعیت",
+  onVerified,
 }: {
   orderId: string;
   label?: string;
+  /** اختیاری: وقتی بانک پرداخت را تأیید کرده باشد صدا زده می‌شود تا صفحه
+      بتواند به نمایِ موفقیت برود. سایت این را لازم ندارد — آنجا همین
+      پیامِ متنی کافی است — و برایِ `null` ماندنش هم امن است. */
+  onVerified?: () => void;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -47,6 +52,7 @@ export default function RecheckButton({
 
     if (response.data.result.state === "verified") {
       refreshCurrentUser();
+      onVerified?.();
     }
 
     // صفحه از سرور دوباره خوانده می‌شود؛ وضعیتِ نمایش‌داده‌شده هیچ‌وقت از
