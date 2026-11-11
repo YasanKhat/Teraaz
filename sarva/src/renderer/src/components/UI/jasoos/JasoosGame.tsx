@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, MotionConfig } from "motion/react";
 import { Clock3, Fingerprint, Heart, RotateCcw, SlidersHorizontal, Trophy, SearchX } from "lucide-react";
 import { pickJasoosLevels } from "@/lib/jasoos-data";
@@ -11,7 +11,12 @@ import { apiPost } from "@/lib/api/client";
 import SchoolMap from "./SchoolMap";
 import ShootingScene from "./ShootingScene";
 import JasoosSettingsModal, { JasoosSettings } from "./JasoosSettingsModal";
-import JasoosIntro from "./JasoosIntro";
+import HuntHero from "./HuntHero";
+import GameSetup from "@/components/UI/games/GameSetup";
+import LessonPicker from "@/components/UI/games/LessonPicker";
+import { lessonsOf, levelsForLessons } from "@/lib/jasoos-bank";
+import { GRADE_META, LESSON_TITLES, LESSONS_PER_BOOK } from "@/lib/doroos/catalog";
+import type { GradeKey } from "@/lib/doroos/types";
 import styles from "./jasoos.module.css";
 import { useSetReportTarget } from "@/lib/reports/target";
 import { useRoundGuard } from "@/lib/games/round-guard";
@@ -49,6 +54,11 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
   const [screen, setScreen] = useState<Screen>("intro");
   const [settings, setSettings] = useState<JasoosSettings | null>(null);
   const [runLevels, setRunLevels] = useState<JasoosLevel[]>([]);
+  // گزینشِ پایه و درس — همان جدولی که سایت پیش از شروع نشان می‌دهد.
+  const [grade, setGrade] = useState<GradeKey>("dahom");
+  // آغازِ سایت: هیچ درسی برگزیده نیست، نوار «یک یا چند درس انتخاب کن.» می‌گوید
+  // و دکمه‌یِ شروع خاموش است تا دست‌کم یک درس برگزیده شود.
+  const [pickedLessons, setPickedLessons] = useState<Set<number>>(new Set());
   const [levelIndex, setLevelIndex] = useState(0);
   const [clearedCount, setClearedCount] = useState(0);
   const [lives, setLives] = useState(START_LIVES);
@@ -255,7 +265,7 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
     }
     restoredOwnerRef.current = user ? user.id : "guest";
     setSettings(chosen);
-    setRunLevels(pickJasoosLevels(allLevels, chosen.questionCount));
+    setRunLevels(pickJasoosLevels(pickedLevels, chosen.questionCount));
     setLevelIndex(0);
     setClearedCount(0);
     setLives(START_LIVES);
@@ -266,6 +276,49 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
     );
     setScreen("map");
   };
+
+  /** درس‌هایی که در این پایه پرونده دارند. سایت درس‌های خالی را نشان نمی‌دهد،
+   *  و شماره‌ها را هم با همان پرشِ خودش (بدون ۴، بدون ۱۵) می‌آورد. */
+  const lessonOptions = useMemo(
+    () =>
+      lessonsOf(grade).map((l) => ({
+        lesson: l.lesson,
+        title: LESSON_TITLES[grade][l.lesson] ?? `درس ${l.lesson}`,
+        count: l.count,
+      })),
+    [grade],
+  );
+
+  /** تعویضِ پایه گزینش را پاک می‌کند: شمارِ پرونده‌یِ هر درس از پایه‌ای به
+   *  پایه‌یِ دیگر عوض می‌شود، و گذاشتنِ برگزیده‌یِ پایه‌یِ پیشین روی درسِ
+   *  هم‌نام، پرونده‌هایی را می‌آورد که کاربر برنداشته. */
+  const changeGrade = (key: string) => {
+    setGrade(key as GradeKey);
+    setPickedLessons(new Set());
+  };
+
+  const toggleLesson = (lesson: number) => {
+    setPickedLessons((prev) => {
+      const next = new Set(prev);
+      if (next.has(lesson)) next.delete(lesson);
+      else next.add(lesson);
+      return next;
+    });
+  };
+
+  /** «انتخاب همه» همه را برمی‌گزیند؛ اگر از پیش همه بودند، برمی‌دارد. */
+  const toggleAllLessons = () => {
+    const all = lessonOptions.map((l) => l.lesson);
+    setPickedLessons((prev) =>
+      prev.size === all.length ? new Set() : new Set(all),
+    );
+  };
+
+  /** پرونده‌های درس‌های برگزیده، همان که نوارِ پایانی خلاصه می‌کند. */
+  const pickedLevels = useMemo(
+    () => levelsForLessons(grade, [...pickedLessons]),
+    [grade, pickedLessons],
+  );
 
   const restart = () => {
     if (guest.blocked) {
@@ -353,17 +406,52 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
       )}
 
       <AnimatePresence mode="wait">
+        {/* سایت بی‌مقدمه سراغِ «پایه و درس» می‌رود؛ صفحهٔ آشناییِ ما جایش را
+            به همان می‌دهد. تنظیماتِ شمار/زمان درست پس از آن می‌آید، چون
+            شمارِ پرونده به درس‌های برگزیده بسته است. */}
         {screen === "intro" && (
           <motion.div onAnimationComplete={focusScreen} key="intro" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <JasoosIntro onStart={() => {
-              if (guest.blocked) { setGuestPrompt(true); return; }
-              setScreen("settings");
-            }} />
+            <GameSetup
+              title="جاسوسِ نقش‌ها"
+              lede="چند مظنون، یک جاسوس. نقشی را بزن که در متن نیست."
+              hero={<HuntHero />}
+              summary={
+                pickedLessons.size === 0
+                  ? "یک یا چند درس انتخاب کن."
+                  : `${pickedLessons.size.toLocaleString("fa-IR")} درس · ${pickedLevels.length.toLocaleString("fa-IR")} پرونده`
+              }
+              startLabel="شروع شکار"
+              canStart={pickedLessons.size > 0}
+              startTour="start"
+              onStart={() => {
+                if (guest.blocked) { setGuestPrompt(true); return; }
+                // سایت پس از گزینشِ درس راست به شکار می‌رود؛ تنظیماتِ
+                // شمار/زمانِ ما یک گامِ افزوده است و در میانه نمی‌آید.
+                beginRun({
+                  questionCount: pickedLevels.length,
+                  timeLimitMinutes: null,
+                });
+              }}
+            >
+              <LessonPicker
+                grades={GRADE_META}
+                grade={grade}
+                onGrade={changeGrade}
+                lessons={lessonOptions}
+                selected={pickedLessons}
+                onToggle={toggleLesson}
+                onToggleAll={toggleAllLessons}
+              />
+            </GameSetup>
           </motion.div>
         )}
         {screen === "settings" && (
           <motion.div onAnimationComplete={focusScreen} key="settings" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-            <JasoosSettingsModal maxQuestions={allLevels.length} onStart={beginRun} onBack={() => setScreen("intro")} />
+            <JasoosSettingsModal
+              maxQuestions={pickedLevels.length}
+              onStart={beginRun}
+              onBack={() => setScreen("intro")}
+            />
           </motion.div>
         )}
         {screen === "map" && (
