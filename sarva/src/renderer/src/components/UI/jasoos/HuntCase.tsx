@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Crosshair } from "lucide-react";
+import { animate } from "motion/react";
 import HuntAgent from "./HuntAgent";
 import { sfx } from "@/lib/jasoos-sfx";
 import "./hunt.css";
@@ -49,6 +50,20 @@ function markEvidence(
   });
 }
 
+/** بیت را در جایِ خود جا می‌دهد: قلم را می‌کاهد تا از قاب بیرون نزند. */
+function fitText(el: HTMLElement) {
+  el.style.fontSize = "";
+  let size = parseFloat(getComputedStyle(el).fontSize);
+  for (
+    let i = 0;
+    i < 8 && (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1);
+    i++
+  ) {
+    size *= 0.94;
+    el.style.fontSize = `${size}px`;
+  }
+}
+
 const SKYLINE_D =
   "M0 60V34h18V22h14v12h10V12h16v48zM70 60V30h22V18h8v12h14v30zM130 60V24h12V8h18v16h10v36zM186 60V36h26V20h12v40zM236 60V14h20v10h12v36zM284 60V28h18V16h14v44zM330 60V22h14v10h16V6h14v54zM380 60V30h20v30z";
 const HOLE_D =
@@ -85,7 +100,12 @@ export default function HuntCase({
   const timers = useRef<number[]>([]);
 
   const stageRef = useRef<HTMLDivElement>(null);
+  const facadeRef = useRef<HTMLDivElement>(null);
+  const verseRef = useRef<HTMLDivElement>(null);
+  const windowRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const pointerType = useRef<string>("mouse");
+  const geo = useRef<{ w: number; h: number; heads: { x: number; y: number }[] } | null>(null);
+  const [tracer, setTracer] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
 
   useEffect(() => {
     const t = timers.current;
@@ -110,7 +130,20 @@ export default function HuntCase({
       setShotAt(i);
       setPhase("shot");
       setTouchArmed(false);
+      setTracer(null);
       sfx("shot");
+
+      // ردِّ گلوله از پایینِ قاب تا سرِ آن مظنون، و لرزشِ لوله
+      const g = measure();
+      const head = g?.heads[i];
+      if (g && head) setTracer({ x1: g.w / 2, y1: g.h + 8, x2: head.x, y2: head.y });
+      if (stageRef.current) {
+        animate(
+          stageRef.current,
+          { x: [0, -7, 5, -2, 0], y: [0, 6, -3, 1, 0] },
+          { duration: 0.34, ease: "easeOut" },
+        );
+      }
 
       after(110, () => {
         setOutcome(hit ? "hit" : "miss");
@@ -148,12 +181,57 @@ export default function HuntCase({
     return () => window.removeEventListener("keydown", onKey);
   }, [phase, level, fire]);
 
+  /** جایِ قاب و سرِ هر مظنون را می‌سنجد — همان محاسبه‌یِ سایت. */
+  const measure = () => {
+    const stage = stageRef.current;
+    if (!stage) return null;
+    const box = stage.getBoundingClientRect();
+    const heads = windowRefs.current.map((btn) => {
+      const pane = btn?.querySelector(`.${H}pane`)?.getBoundingClientRect();
+      if (!pane) return { x: 0, y: 0 };
+      const l = 0.86 * pane.height;
+      const top = pane.bottom + 0.03 * pane.height - l;
+      return { x: pane.left + pane.width / 2 - box.left, y: top + (54 / 130) * l - box.top };
+    });
+    geo.current = { w: box.width, h: box.height, heads };
+    return geo.current;
+  };
+
+  /** چشم‌هایِ مظنون‌ها نشانه را دنبال می‌کنند (--ex / --ey رویِ هر پنجره). */
+  const trackEyes = (x: number, y: number) => {
+    const g = geo.current;
+    if (!g) return;
+    g.heads.forEach((head, i) => {
+      const dx = x - head.x;
+      const dy = y - head.y;
+      const r = Math.hypot(dx, dy) || 1;
+      const k = Math.min(1, r / 220);
+      const el = windowRefs.current[i];
+      el?.style.setProperty("--ex", `${((dx / r) * 2.2 * k).toFixed(2)}px`);
+      el?.style.setProperty("--ey", `${((dy / r) * 1.6 * k).toFixed(2)}px`);
+    });
+  };
+
   const onStageMove = (e: React.PointerEvent) => {
     if (e.pointerType === "touch") return;
+    const g = measure() ?? geo.current;
     const box = stageRef.current?.getBoundingClientRect();
-    if (!box) return;
-    setAim({ x: e.clientX - box.left, y: e.clientY - box.top });
+    if (!g || !box) return;
+    const x = e.clientX - box.left;
+    const y = e.clientY - box.top;
+    setAim({ x, y });
+    trackEyes(x, y);
   };
+
+  // بیت در جایِ خود جا شود، و با تغییرِ اندازه دوباره
+  useEffect(() => {
+    const el = verseRef.current;
+    if (!el) return;
+    fitText(el);
+    const ro = new ResizeObserver(() => fitText(el));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [level.id, phase === "reveal"]);
 
   const aiming = phase === "shot" || (phase === "hunt" && (touchArmed || locked !== null));
   const revealed = phase === "reveal";
@@ -178,7 +256,7 @@ export default function HuntCase({
         <span className={H + "moon"} aria-hidden="true" />
 
         <div className={H + "intel"} data-tour="jasoos-verse">
-          <div className={H + "verse"} data-prose={level.contentType !== "poem" || undefined}>
+          <div ref={verseRef} className={H + "verse"} data-prose={level.contentType !== "poem" || undefined}>
             {marked.map((line, i) => (
               <p key={i}>
                 {line.map((seg, j) =>
@@ -195,7 +273,7 @@ export default function HuntCase({
           </div>
         </div>
 
-        <div className={H + "facade"}>
+        <div ref={facadeRef} className={H + "facade"}>
           <svg className={H + "skyline"} viewBox="0 0 400 60" preserveAspectRatio="none" aria-hidden="true">
             <path d={SKYLINE_D} />
           </svg>
@@ -211,6 +289,9 @@ export default function HuntCase({
                 <button
                   key={i}
                   type="button"
+                  ref={(el) => {
+                    windowRefs.current[i] = el;
+                  }}
                   className={H + "window"}
                   style={{ ["--i" as string]: i }}
                   data-state={st}
@@ -313,8 +394,20 @@ export default function HuntCase({
           </span>
         </span>
 
-        <svg className={H + "tracer"} aria-hidden="true" />
-        <span className={H + "flash"} aria-hidden="true" />
+        <svg className={H + "tracer"} aria-hidden="true">
+          {tracer && (
+            <line
+              x1={tracer.x1}
+              y1={tracer.y1}
+              x2={tracer.x2}
+              y2={tracer.y2}
+              style={{
+                ["--len" as string]: Math.hypot(tracer.x2 - tracer.x1, tracer.y2 - tracer.y1),
+              }}
+            />
+          )}
+        </svg>
+        <span className={H + "flash"} aria-hidden="true" data-on={phase === "shot" || undefined} />
       </div>
 
       <div className={H + "console"} data-tour="jasoos-console">

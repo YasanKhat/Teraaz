@@ -1,8 +1,19 @@
 "use client";
 
+import Tour, { type TourStep } from "@/components/UI/kit/Tour";
 import "./lesson-picker.css";
 
 const G = "lesson-picker-module__g8CuTa__";
+
+/** آموزشِ صفحه‌یِ تنظیمات — همان سه گامِ سایت، روی لنگرهایِ grade/lessons/start. */
+export const SETUP_TOUR: TourStep[] = [
+  { target: '[data-tour="grade"]', text: "پایه‌ات را انتخاب کن." },
+  {
+    target: '[data-tour="lessons"]',
+    text: "درسی که می‌خواهی را بزن. چند درس را هم می‌شود با هم انتخاب کرد.",
+  },
+  { target: '[data-tour="start"]', text: "حالا بازی را شروع کن." },
+];
 
 /** یک کارتِ درس: شماره‌اش، نامش و این‌که چند پرونده دارد. */
 export type LessonOption = {
@@ -43,6 +54,7 @@ export default function LessonPicker({
 
   return (
     <div className={G + "root"}>
+      <Tour id="lesson-picker" steps={SETUP_TOUR} />
       <div className={G + "grades"} role="radiogroup" aria-label="پایه" data-tour="grade">
         {grades.map((g) => {
           const on = g.key === grade;

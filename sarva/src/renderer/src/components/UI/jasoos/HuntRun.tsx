@@ -13,6 +13,42 @@ type Result = { level: HuntLevel; hit: boolean; spy: HuntSuspect };
 
 const CHANCES = 3;
 
+/** سطح‌هایِ پایان — همان جدول و همان آستانه‌هایِ سایت (برپایه‌یِ درصدِ درست). */
+const TIERS = [
+  { from: 0, to: 40, label: "نیاز به تمرین", tier: "low" },
+  { from: 40, to: 60, label: "متوسط", tier: "fair" },
+  { from: 60, to: 80, label: "خوب", tier: "good" },
+  { from: 80, to: 100, label: "عالی", tier: "great" },
+] as const;
+
+const END_COPY: Record<string, { title?: string; lines: string[] }> = {
+  perfect: {
+    title: "همه شکار شدند",
+    lines: ["هیچ جاسوسی در نرفت.", "همهٔ نقش‌ها را درست تشخیص دادی."],
+  },
+  great: {
+    title: "مأموریت موفق",
+    lines: ["فقط چند جاسوس در رفت.", "نقش‌ها را خوب می‌شناسی."],
+  },
+  good: {
+    title: "پایان مأموریت",
+    lines: ["بیشتر جاسوس‌ها شکار شدند.", "جاسوس‌هایی که در رفتند پایین ببین."],
+  },
+  fair: {
+    title: "پایان مأموریت",
+    lines: [
+      "جاسوس‌هایی که در رفتند مرور کن.",
+      "نقش‌هایی که جا ماندند را دوباره تمرین کن.",
+    ],
+  },
+  low: {
+    lines: [
+      "نقش‌های این درس را یک بار دیگر مرور کن.",
+      "جاسوس‌هایی که در رفتند پایین ببین.",
+    ],
+  },
+};
+
 /** آموزشِ نخستین — همان چهار گامِ سایت، هر کدام روی یک لنگرِ data-tour. */
 const JASOOS_TOUR: TourStep[] = [
   { target: '[data-tour="jasoos-verse"]', text: "اول متن را بخوان." },
@@ -77,6 +113,11 @@ export default function HuntRun({
 
   const escaped = useMemo(() => results.filter((r) => !r.hit), [results]);
   const hunted = results.length - escaped.length;
+  const pct = results.length ? (hunted / results.length) * 100 : 0;
+  /** سایت برایِ ۱۰۰٪ «perfect» می‌آورد وگرنه «great»؛ بقیه از جدول. */
+  const tier = pct >= 100 ? "perfect" : (TIERS.find((t) => pct < t.to)?.tier ?? "low");
+  const tierLabel = TIERS.find((t) => pct < t.to)?.label ?? "عالی";
+  const copy = END_COPY[tier];
 
   return (
     <div className={H + "game"} dir="rtl" aria-label="جاسوسِ نقش‌ها" tabIndex={-1}>
@@ -141,34 +182,28 @@ export default function HuntRun({
           {chances <= 0 && escaped.length > 0 && (
             <p className={H + "endTitle"}>فرصت‌ها تمام شد</p>
           )}
-          {escaped.length === 0 ? (
-            <>
-              <h3 id="jasoos-escaped" className="game-title text-lg">
-                همه شکار شدند
-              </h3>
-              <p>هیچ جاسوسی در نرفت. همهٔ نقش‌ها را درست تشخیص دادی.</p>
-            </>
-          ) : (
-            <>
-              <h3 id="jasoos-escaped" className="game-title text-lg">
-                جاسوس‌هایی که در رفتند
-              </h3>
-              <ul className={H + "escaped"}>
-                {escaped.map(({ level: l, spy }) => (
-                  <li key={l.id}>
-                    <div className={H + "escapedHead"}>
-                      جاسوس: <span>{spy.role}</span>
-                    </div>
-                    <p className={H + "escapedVerse"}>{l.verseLines.filter(Boolean).join(" / ")}</p>
-                    <p>{spy.evidence}</p>
-                  </li>
-                ))}
-              </ul>
-            </>
+          <h3 id="jasoos-escaped" className="game-title text-lg">
+            {copy.title ?? "پایان مأموریت"}
+          </h3>
+          {copy.lines.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+          {escaped.length > 0 && (
+            <ul className={H + "escaped"}>
+              {escaped.map(({ level: l, spy }) => (
+                <li key={l.id}>
+                  <div className={H + "escapedHead"}>
+                    جاسوس: <span>{spy.role}</span>
+                  </div>
+                  <p className={H + "escapedVerse"}>{l.verseLines.filter(Boolean).join(" / ")}</p>
+                  <p>{spy.evidence}</p>
+                </li>
+              ))}
+            </ul>
           )}
           <div className={H + "endScore"}>
             {results.length.toLocaleString("fa-IR")} پرونده ·{" "}
-            {Math.round((hunted / Math.max(1, results.length)) * 100).toLocaleString("fa-IR")} درصد شکار
+            {Math.round(pct).toLocaleString("fa-IR")} درصد شکار · {tierLabel}
           </div>
           <div className={H + "endActions"}>
             <button type="button" className={H + "next"} onClick={onAgain}>
