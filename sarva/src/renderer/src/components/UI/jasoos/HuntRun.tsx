@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import HuntCase, { type HuntLevel, type HuntSuspect } from "./HuntCase";
 import Tour, { type TourStep } from "@/components/UI/kit/Tour";
-import GameResult, { type Bar, type Mark } from "@/components/UI/games/GameResult";
-import { Volume2, VolumeX } from "lucide-react";
+import GameResult, { resultButton, resultTone, type Bar, type Mark } from "@/components/UI/games/GameResult";
+import { RotateCcw, SlidersHorizontal, Volume2, VolumeX } from "lucide-react";
 import { setSfxOn, sfxIsOn, sfx, subscribeSfx } from "@/lib/jasoos-sfx";
 import "./hunt.css";
 
@@ -14,41 +14,8 @@ type Result = { level: HuntLevel; hit: boolean; spy: HuntSuspect };
 
 const CHANCES = 3;
 
-/** سطح‌هایِ پایان — همان جدول و همان آستانه‌هایِ سایت (برپایه‌یِ درصدِ درست). */
-const TIERS = [
-  { from: 0, to: 40, label: "نیاز به تمرین", tier: "low" },
-  { from: 40, to: 60, label: "متوسط", tier: "fair" },
-  { from: 60, to: 80, label: "خوب", tier: "good" },
-  { from: 80, to: 100, label: "عالی", tier: "great" },
-] as const;
 
-const END_COPY: Record<string, { title?: string; lines: string[] }> = {
-  perfect: {
-    title: "همه شکار شدند",
-    lines: ["هیچ جاسوسی در نرفت.", "همهٔ نقش‌ها را درست تشخیص دادی."],
-  },
-  great: {
-    title: "مأموریت موفق",
-    lines: ["فقط چند جاسوس در رفت.", "نقش‌ها را خوب می‌شناسی."],
-  },
-  good: {
-    title: "پایان مأموریت",
-    lines: ["بیشتر جاسوس‌ها شکار شدند.", "جاسوس‌هایی که در رفتند پایین ببین."],
-  },
-  fair: {
-    title: "پایان مأموریت",
-    lines: [
-      "جاسوس‌هایی که در رفتند مرور کن.",
-      "نقش‌هایی که جا ماندند را دوباره تمرین کن.",
-    ],
-  },
-  low: {
-    lines: [
-      "نقش‌های این درس را یک بار دیگر مرور کن.",
-      "جاسوس‌هایی که در رفتند پایین ببین.",
-    ],
-  },
-};
+
 
 /** آموزشِ نخستین — همان چهار گامِ سایت، هر کدام روی یک لنگرِ data-tour. */
 const JASOOS_TOUR: TourStep[] = [
@@ -135,11 +102,13 @@ export default function HuntRun({
   const escaped = useMemo(() => results.filter((r) => !r.hit), [results]);
   const hunted = results.length - escaped.length;
   const pct = results.length ? (hunted / results.length) * 100 : 0;
-  /** سایت برایِ ۱۰۰٪ «perfect» می‌آورد وگرنه «great»؛ بقیه از جدول. */
-  const tier = pct >= 100 ? "perfect" : (TIERS.find((t) => pct < t.to)?.tier ?? "low");
-  const tierLabel = TIERS.find((t) => pct < t.to)?.label ?? "عالی";
-  const copy = END_COPY[tier];
-  /** نشانِ هر پرونده: درست، نادرست، یا بی‌پاسخ (اگر دور پیش‌تر تمام شده باشد). */
+  /** همان `resultTone`ِ سایت: خط با تخمِ «۵ × درست + شمارِ پرونده‌ها» برگزیده می‌شود،
+      و وقتی فرصت‌ها تمام شده تیتر بی‌درنگ «فرصت‌ها تمام شد» می‌شود. */
+  const tone = (() => {
+    const base = resultTone(pct, 5 * hunted + levels.length);
+    return chances <= 0 ? { ...base, title: "فرصت‌ها تمام شد" } : base;
+  })();
+  /** نشانِ هر پرونده: درست، نادرست، یا بی‌پاسخ (دور پیش‌تر تمام شده باشد). */
   const marks: Mark[] = levels.map(
     (l) => results.find((r) => r.level.id === l.id)?.hit ? "ok" : results.some((r) => r.level.id === l.id) ? "bad" : "skip",
   );
@@ -152,9 +121,7 @@ export default function HuntRun({
       if (r.hit) acc[role].ok += 1;
       return acc;
     }, {}),
-  ).map(([label, v]) => ({ label, ok: v.ok, total: v.total }));
-  const weakest = bars.slice().sort((a, b) => (b.total - b.ok) - (a.total - a.ok))[0];
-  const weakestLabel = weakest && weakest.total - weakest.ok > 0 ? weakest.label : undefined;
+  ).map(([label, v]) => ({ key: label, label, ok: v.ok, total: v.total }));
 
   return (
     <div className={H + "game"} dir="rtl" aria-label="جاسوسِ نقش‌ها" tabIndex={-1}>
@@ -217,20 +184,29 @@ export default function HuntRun({
       {finished && (
         <>
           <GameResult
-            percent={pct}
-            tier={tier}
-            title={copy.title ?? (chances <= 0 ? "فرصت‌ها تمام شد" : "پایان مأموریت")}
-            line={copy.lines[0] ?? ""}
-            ringLabel={`${Math.round(pct).toLocaleString("fa-IR")} درصد شکار`}
-            hunted={hunted}
-            escaped={escaped.length}
-            chancesLeft={chances}
-            chances={CHANCES}
+            pct={pct}
+            ringLabel="درصد شکار"
+            tone={tone}
+            stats={[
+              { label: "شکار شد", value: hunted, mark: "ok" },
+              { label: "در رفت", value: escaped.length, mark: "bad" },
+              { label: "فرصت باقی‌مانده", value: Math.max(0, chances), unit: `از ${CHANCES.toLocaleString("fa-IR")}` },
+            ]}
             marks={marks}
-            bars={bars}
-            weakest={weakestLabel}
-            onAgain={onAgain}
-            onChange={onChangeLessons}
+            marksTitle="پرونده‌ها"
+            breakdowns={[{ key: "role", tab: "نقش", title: "به تفکیک نقشِ جاسوس", weakWord: "نقشِ", rows: bars }]}
+            actions={
+              <>
+                <button type="button" className={resultButton.primary} onClick={onAgain}>
+                  <RotateCcw aria-hidden="true" className="size-4" />
+                  یک دست دیگر
+                </button>
+                <button type="button" className={resultButton.ghost} onClick={onChangeLessons}>
+                  <SlidersHorizontal aria-hidden="true" className="size-4" />
+                  تغییر درس
+                </button>
+              </>
+            }
           />
           {escaped.length > 0 && (
             <section className={H + "end"} aria-labelledby="jasoos-escaped">
