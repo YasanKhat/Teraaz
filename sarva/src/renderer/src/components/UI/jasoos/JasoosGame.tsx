@@ -36,12 +36,13 @@ export default function JasoosGame() {
   /** پرونده‌یِ رویِ میز — برایِ گزارشِ اشکال و ذخیره‌یِ پاسخ. */
   const [current, setCurrent] = useState<HuntLevel | null>(null);
   const [guestPrompt, setGuestPrompt] = useState(false);
-  const access: AccessState = guest.blocked
-    ? { kind: "quota", perDay: true }
-    : { kind: "plus" };
 
   const { user } = useCurrentUser();
   const guest = useGuestRounds("jasoos");
+
+  const access: AccessState = guest.blocked
+    ? { kind: "quota", perDay: true }
+    : { kind: "plus" };
 
   useRoundGuard(screen === "play");
   useSetReportTarget(
