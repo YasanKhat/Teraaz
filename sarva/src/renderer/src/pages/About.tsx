@@ -409,9 +409,7 @@ function Page() {
               <motion.div variants={boxVariants}>
                 <Link
                   className="glass relative z-20 rounded-2xl p-6 flex flex-col items-center text-center hover:scale-[1.02] transition-transform h-full"
-                  href={
-                    "https://www.instagram.com/jafarimatin13?igsh=NjhsMjlqNWN3NDAw"
-                  }
+                  href={"https://www.instagram.com/matinjafaridev"}
                 >
                   <div className="w-12 h-12 rounded-xl text-primary bg-primary/10 flex items-center justify-center mb-4">
                     <svg
@@ -430,7 +428,7 @@ function Page() {
                     اینستاگرام
                   </h3>
                   <p className="text-sm text-muted-foreground dir-ltr">
-                    jafarimatin@
+                    matinjafaridev@
                   </p>
                 </Link>
               </motion.div>
@@ -438,7 +436,7 @@ function Page() {
               <motion.div variants={boxVariants}>
                 <Link
                   className="glass relative z-20 rounded-2xl p-6 flex flex-col items-center text-center hover:scale-[1.02] transition-transform h-full"
-                  href={"https://t.me/jafarimatin"}
+                  href={"https://t.me/sarva_edu"}
                 >
                   <div className="w-12 text-primary h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                     <svg
@@ -454,10 +452,10 @@ function Page() {
                     </svg>
                   </div>
                   <h3 className="text-base font-semibold text-foreground mb-1">
-                    تلگرام
+                    کانال تلگرام
                   </h3>
                   <p className="text-sm text-muted-foreground dir-ltr">
-                    jafarimatin@
+                    sarva_edu@
                   </p>
                 </Link>
               </motion.div>
@@ -465,7 +463,7 @@ function Page() {
               <motion.div variants={boxVariants}>
                 <Link
                   className="glass relative z-20 rounded-2xl p-6 flex flex-col items-center text-center hover:scale-[1.02] transition-transform h-full"
-                  href={"mailto:matinjafaridev@gmail.com"}
+                  href={"mailto:info@sarvaedu.ir"}
                 >
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center  mb-4">
                     <svg
@@ -488,19 +486,33 @@ function Page() {
                     ایمیل
                   </h3>
                   <p className="text-sm text-muted-foreground dir-ltr">
-                    matinjafaridev@gmail.com
+                    info@sarvaedu.ir
                   </p>
                 </Link>
               </motion.div>
             </motion.div>
 
-            <motion.div variants={fadeUp}>
-              <div
-                dangerouslySetInnerHTML={{
-                  __html: `<a referrerpolicy='origin' target='_blank' href='https://trustseal.enamad.ir/?id=7819726&Code=5bmAaIT1LDb6VNbUNjhcqagEYEAYtIK7'><img referrerpolicy='origin' src='https://trustseal.enamad.ir/logo.aspx?id=7819726&Code=5bmAaIT1LDb6VNbUNjhcqagEYEAYtIK7' alt='' style='cursor:pointer' code='5bmAaIT1LDb6VNbUNjhcqagEYEAYtIK7'></a>`,
-                }}
-              />
-            </motion.div>
+            <div>
+              <motion.a
+                variants={fadeUp}
+                href="https://trustseal.enamad.ir/?id=7819726&Code=5bmAaIT1LDb6VNbUNjhcqagEYEAYtIK7"
+                target="_blank"
+                referrerPolicy="origin"
+                rel="noopener"
+                aria-label="نماد اعتماد الکترونیکی"
+                className="inline-block shrink-0 "
+              >
+                <img
+                  src="https://trustseal.enamad.ir/logo.aspx?id=7819726&Code=5bmAaIT1LDb6VNbUNjhcqagEYEAYtIK7"
+                  alt=""
+                  referrerPolicy="origin"
+                  width={96}
+                  height={96}
+                  style={{ width: 96, height: "auto", cursor: "pointer" }}
+                  {...{ code: "5bmAaIT1LDb6VNbUNjhcqagEYEAYtIK7" }}
+                />
+              </motion.a>
+            </div>
           </motion.div>
         </div>
       </main>
