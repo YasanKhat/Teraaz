@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { useGuestRounds } from "@/lib/guest/use-guest-rounds";
-import GuestLimitModal from "@/components/UI/GuestLimitModal";
+import AccessSheet, { type AccessState } from "./AccessSheet";
 import { apiPost } from "@/lib/api/client";
 import { useSetReportTarget } from "@/lib/reports/target";
 import { useRoundGuard } from "@/lib/games/round-guard";
@@ -36,6 +36,9 @@ export default function JasoosGame() {
   /** پرونده‌یِ رویِ میز — برایِ گزارشِ اشکال و ذخیره‌یِ پاسخ. */
   const [current, setCurrent] = useState<HuntLevel | null>(null);
   const [guestPrompt, setGuestPrompt] = useState(false);
+  const access: AccessState = guest.blocked
+    ? { kind: "quota", perDay: true }
+    : { kind: "plus" };
 
   const { user } = useCurrentUser();
   const guest = useGuestRounds("jasoos");
@@ -126,7 +129,13 @@ export default function JasoosGame() {
     return (
       <>
         {guestPrompt && (
-          <GuestLimitModal section="jasoos" onDismiss={() => setGuestPrompt(false)} />
+          <AccessSheet
+            sectionTitle="جاسوسِ نقش‌ها"
+            sectionPlus="دسترسیِ بی‌پایان به همهٔ پرونده‌ها"
+            perks={["همهٔ پرونده‌های هر سه پایه", "بدون محدودیتِ روزانه", "گزارشِ پیشرفت"]}
+            state={access}
+            onClose={() => setGuestPrompt(false)}
+          />
         )}
         <HuntRun
           levels={runLevels}
@@ -143,7 +152,13 @@ export default function JasoosGame() {
   return (
     <>
       {guestPrompt && (
-        <GuestLimitModal section="jasoos" onDismiss={() => setGuestPrompt(false)} />
+        <AccessSheet
+          sectionTitle="جاسوسِ نقش‌ها"
+          sectionPlus="دسترسیِ بی‌پایان به همهٔ پرونده‌ها"
+          perks={["همهٔ پرونده‌های هر سه پایه", "بدون محدودیتِ روزانه", "گزارشِ پیشرفت"]}
+          state={access}
+          onClose={() => setGuestPrompt(false)}
+        />
       )}
       <GameSetup
         title="جاسوسِ نقش‌ها"
