@@ -8,8 +8,7 @@ import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { useGuestRounds } from "@/lib/guest/use-guest-rounds";
 import GuestLimitModal from "@/components/UI/GuestLimitModal";
 import { apiPost } from "@/lib/api/client";
-import SchoolMap from "./SchoolMap";
-import ShootingScene from "./ShootingScene";
+import HuntRun from "./HuntRun";
 import JasoosSettingsModal, { JasoosSettings } from "./JasoosSettingsModal";
 import HuntHero from "./HuntHero";
 import GameSetup from "@/components/UI/games/GameSetup";
@@ -21,7 +20,7 @@ import styles from "./jasoos.module.css";
 import { useSetReportTarget } from "@/lib/reports/target";
 import { useRoundGuard } from "@/lib/games/round-guard";
 
-type Screen = "intro" | "settings" | "map" | "scene" | "gameover" | "win";
+type Screen = "intro" | "settings" | "play" | "gameover" | "win";
 type GameOverReason = "lives" | "time";
 
 const START_LIVES = 3;
@@ -94,7 +93,7 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
 
   /* دورِ زنده: روی نقشه یا داخلِ صحنه. «معرفی»، «تنظیمات» و صفحه‌های
      پایان بیرون‌اند. */
-  useRoundGuard(screen === "map" || screen === "scene");
+  useRoundGuard(screen === "play");
 
   useSetReportTarget(
     level
@@ -274,7 +273,7 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
     setTimerEndsAt(
       chosen.timeLimitMinutes ? Date.now() + chosen.timeLimitMinutes * 60000 : null,
     );
-    setScreen("map");
+    setScreen("play");
   };
 
   /** درس‌هایی که در این پایه پرونده دارند. سایت درس‌های خالی را نشان نمی‌دهد،
@@ -360,7 +359,7 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
         guest.recordRound();
         setScreen("win");
       } else {
-        setScreen("map");
+        setScreen("play");
       }
       return;
     }
@@ -383,28 +382,6 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
     <MotionConfig reducedMotion="user">
     <div ref={screenRef} tabIndex={-1} className={styles.game} dir="rtl" aria-label="بازی جاسوس نقش‌ها">
       {guestPrompt && <GuestLimitModal section="jasoos" onDismiss={() => setGuestPrompt(false)} />}
-      {(screen === "map" || screen === "scene") && (
-        <div className={styles.hud} aria-label="وضعیت مأموریت">
-          <div className={styles.hudTitle}><Fingerprint /><span>جاسوسِ نقش‌ها</span></div>
-          <div className={styles.hudProgress}>
-            <span>پرونده {(clearedCount + 1).toLocaleString("fa-IR")} از {runLevels.length.toLocaleString("fa-IR")}</span>
-            <div className={styles.progressTrack} role="progressbar" aria-label="پرونده‌های حل‌شده" aria-valuenow={clearedCount} aria-valuemin={0} aria-valuemax={runLevels.length}>
-              <span style={{ width: (clearedCount / Math.max(1, runLevels.length)) * 100 + "%" }} />
-            </div>
-          </div>
-          <div className={styles.hudStats}>
-            {settings?.timeLimitMinutes && timeLeftDisplay !== null && (
-              <div className={styles.timer} data-urgent={timeLeftDisplay < 30000} aria-label="زمان باقی‌مانده">
-                <Clock3 size={16} /><span dir="ltr">{formatTime(timeLeftDisplay)}</span>
-              </div>
-            )}
-            <div className={styles.lives} role="img" aria-label={lives.toLocaleString("fa-IR") + " جان باقی‌مانده"}>
-              {Array.from({ length: START_LIVES }).map((_, i) => <Heart key={i} aria-hidden="true" fill={i < lives ? "currentColor" : "none"} className={i < lives ? undefined : styles.lostLife} />)}
-            </div>
-          </div>
-        </div>
-      )}
-
       <AnimatePresence mode="wait">
         {/* سایت بی‌مقدمه سراغِ «پایه و درس» می‌رود؛ صفحهٔ آشناییِ ما جایش را
             به همان می‌دهد. تنظیماتِ شمار/زمان درست پس از آن می‌آید، چون
@@ -454,14 +431,13 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
             />
           </motion.div>
         )}
-        {screen === "map" && (
-          <motion.div onAnimationComplete={focusScreen} key="map" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-            <SchoolMap levels={runLevels} clearedCount={clearedCount} onEnter={(i) => { setLevelIndex(i); setScreen("scene"); }} />
-          </motion.div>
-        )}
-        {screen === "scene" && level && (
-          <motion.div onAnimationComplete={focusScreen} key={"scene-" + level.id + "-" + attemptId} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-            <ShootingScene level={level} onResult={handleResult} />
+        {screen === "play" && (
+          <motion.div onAnimationComplete={focusScreen} key={"play-" + attemptId} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+            <HuntRun
+              levels={runLevels}
+              onAgain={restart}
+              onChangeLessons={() => setScreen("intro")}
+            />
           </motion.div>
         )}
         {(screen === "gameover" || screen === "win") && (
