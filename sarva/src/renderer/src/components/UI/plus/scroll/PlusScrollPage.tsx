@@ -594,7 +594,6 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
         let toDocumentY = 1;
         let latestScroll = window.scrollY;
         let measured = false;
-        let boundsLeft = 0;
         const playhead = { progress: 0 };
         const position = { x: 0 };
         /* دو سرِ مسیر به مختصاتِ خودِ صفحه. سایت هنگامِ آغاز و پایان، ستاره
@@ -619,6 +618,23 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           const r = el.getBoundingClientRect();
           const b = root.getBoundingClientRect();
           return { x: r.left + r.width / 2 - b.left, y: r.top + r.height / 2 - b.top };
+        };
+        /* ⚠️ مبدأِ مختصات در دو حالتِ ستاره یکی نیست. در سکون ستاره `absolute`
+           است، پس `translate` از لبه‌یِ ریشه اندازه گرفته می‌شود؛ در حرکت
+           `fixed` است، پس از لبه‌یِ بلوکِ نگه‌دارنده‌اش — که لزوماً لبه‌یِ
+           پنجره نیست. هرگاه این دو لبه یکی نباشند (برایِ نمونه نوارِ پیمایشِ
+           کلاسیک در rtl که ریشه را چند پیکسل می‌راند، یا نیایی که خودش
+           بلوکِ نگه‌دارنده شده باشد)، ستاره **تنها در حالتِ حرکت** به همان
+           اندازه کج می‌رود و دو حالتِ سکون درست می‌مانند — دقیقاً همان نشانی
+           که از بیرون دیده می‌شود. جابه‌جایی باید مابه‌التفاوتِ دو لبه باشد،
+           نه خودِ لبه‌یِ ریشه. */
+        const fixedOriginX = (el: HTMLElement) => {
+          const probe = document.createElement("div");
+          probe.style.cssText = "position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;pointer-events:none";
+          (el.parentElement ?? root).appendChild(probe);
+          const left = probe.getBoundingClientRect().left;
+          probe.remove();
+          return left;
         };
         // Scrub owns one complete transform write on its existing GSAP frame.
         // A second requestAnimationFrame would halve the star's update cadence.
@@ -650,6 +666,7 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
         const buildJourney = () => {
           journey?.kill();
           const bounds = root.getBoundingClientRect();
+          const anchorX = bounds.left - fixedOriginX(orb);
           const seedBounds = seed.getBoundingClientRect();
           const dockBounds = dock.getBoundingClientRect();
           const dockWidth = dock.parentElement!.getBoundingClientRect().width;
@@ -662,7 +679,6 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           const coreBounds = (root.querySelector<HTMLElement>(`.${styles.coreSlot}`) ?? dock).getBoundingClientRect();
           const from = center(seedBounds);
           const to = center(coreBounds);
-          boundsLeft = bounds.left;
           fromPoint = from;
           toPoint = to;
           /* مسیر در رایانه خطیِ راست است و تنها در تلفن دورِ متنِ چرخ
@@ -677,7 +693,7 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           const distance = to.y - from.y;
           fromDocumentY = bounds.top + window.scrollY + from.y;
           toDocumentY = bounds.top + window.scrollY + to.y;
-          position.x = from.x + bounds.left;
+          position.x = from.x + anchorX;
           gsap.set(orb, { opacity: 1 });
           // Render the jewel at its largest size and only scale down, preserving
           // sharp edges when it lands (including high-DPI and zoomed displays).
@@ -688,7 +704,7 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           for (let i = 1; i < ordered.length; i++) {
             const previous = ordered[i - 1];
             const point = ordered[i];
-            journey.to(position, { x: point.x + bounds.left, duration: point.y - previous.y, ease: legEase }, previous.y - from.y);
+            journey.to(position, { x: point.x + anchorX, duration: point.y - previous.y, ease: legEase }, previous.y - from.y);
           }
 
           /* ستاره‌ی نخست: درشت از تخمه بیرون می‌آید، در میانه ریز می‌شود تا
@@ -749,6 +765,7 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
         const buildStar2 = () => {
           journey2?.kill();
           const b = root.getBoundingClientRect();
+          const anchorX2 = b.left - fixedOriginX(orb2);
           const eb = emerge.getBoundingClientRect();
           const db = dock.getBoundingClientRect();
           const dockWidth2 = dock.parentElement!.getBoundingClientRect().width;
@@ -756,7 +773,7 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           to2 = { x: db.left + db.width / 2 - b.left, y: db.top + db.height / 2 - b.top };
           from2Doc = b.top + window.scrollY + from2.y;
           to2Doc = b.top + window.scrollY + to2.y;
-          pos2.x = from2.x + b.left;
+          pos2.x = from2.x + anchorX2;
           const span = Math.max(1, to2Doc - from2Doc);
           gsap.set(orb2, { opacity: 1 });
           gsap.set(inner2, { scale: eb.width / 156, rotation: 0, rotationX: 0 });
@@ -764,7 +781,7 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
              در سایت این دو در پایانِ سفرِ دوم جان می‌گیرند. */
           gsap.set(glow, { opacity: 0 });
           journey2 = gsap.timeline({ paused: true });
-          journey2.to(pos2, { x: to2.x + b.left, duration: span, ease: "sine.inOut" }, 0);
+          journey2.to(pos2, { x: to2.x + anchorX2, duration: span, ease: "sine.inOut" }, 0);
           /* ⚠️ در سایت مدتِ این کج‌شدن «کمینه‌یِ ۳۰۰ و درازایِ مسیر» است، نه
              ۳۰۰ِ ثابت؛ اگر مسیر کوتاه‌تر باشد، ستاره پیش از رسیدن کج می‌شد. */
           const tilt2 = Math.min(300, span);
@@ -1025,10 +1042,20 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
           </div>
           <div className={styles.wheelArt} aria-hidden>
             <div className={styles.wheelRing}><i /><i /><i /></div>
-            {/* سایت ستاره را درونِ یک لایه‌یِ `coreSlot` می‌گذارد؛ این لایه
-               جایِ نشستنِ ستاره است (`orbHolder` به سمتِ آن می‌رود). */}
+            {/* ⚠️ اینجا «ستاره‌یِ واقعی» نیست. سایت در این لایه تنها یک
+               ستاره‌یِ *خطی* (lucide، بی‌هیچ پرکردگی) می‌گذارد: نشانی از
+               این‌که ستاره کجا خواهد نشست. و همین نشان هم با نشستنِ ستاره
+               (`data-star-seated`) پاک می‌شود، تا دو ستاره رویِ هم نماند.
+               پیش از این در این لایه `<Jewel />` بود — همان ستاره‌یِ پُررنگِ
+               خودِ سایت — و بیننده پیش از رسیدن، ستاره‌ای از پیش نشسته
+               می‌دید؛ چیزی که در سایت هرگز دیده نمی‌شود. */}
             <div className={styles.wheelCore}>
-              <div className={styles.coreSlot}><Jewel /></div>
+              <div className={styles.coreSlot}>
+                <svg width="68" height="68" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="m12 3 2.4 5.1 5.6.8-4 4 1 5.6-5-2.7-5 2.7 1-5.6-4-4 5.6-.8L12 3Z" />
+                </svg>
+              </div>
               <span>چرخه‌ی یادگیری</span>
             </div>
             {PLUS_ORBIT_LABELS.map(label => <span key={label} className={styles.orbitLabel}>{label}</span>)}

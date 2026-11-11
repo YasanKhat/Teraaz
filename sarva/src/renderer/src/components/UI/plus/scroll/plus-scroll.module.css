@@ -384,7 +384,6 @@
   opacity:0;
   pointer-events:none;
   will-change:transform;
-  perspective:600px;
   width:156px;
   height:156px;
   position:absolute;
@@ -410,13 +409,12 @@
   display:grid;
 }
 
-/* ⚠️ ستاره‌یِ ثابتِ مرکزِ چرخ تنها زمانی پیداست که انیمیشن اجرا نمی‌شود.
-   در حالتِ عادی ستاره‌یِ پرنده (`orbHolder`) در پایانِ سفر دقیقاً همین‌جا
-   می‌نشیند و می‌ماند؛ اگر این ستاره‌یِ ثابت هم پیدا باشد، بیننده پیش از
-   رسیدن، دو ستاره را می‌بیند و حس می‌کند ستاره روی ستاره‌ای که از پیش
-   نشسته بود فرود آمده است. */
-.page[data-motion=ready] .coreSlot {
-  visibility:hidden;
+/* ⚠️ ستاره‌یِ ثابتِ مرکزِ چرخ همیشه پیداست — درست مانندِ سایت — و تنها در
+   همان لحظه‌ای که ستاره‌یِ پرنده (`orbHolder`) در پایانِ سفر رویش می‌نشیند
+   کم‌رنگ می‌شود؛ وگرنه دو ستاره رویِ هم می‌مانند و بیننده می‌بیند که ستاره
+   «سرِ جایش ننشسته». نشان را `renderPosition` در همان گذار می‌گذارد. */
+.page[data-star-seated] .coreSlot {
+  opacity:0;
 }
 
 .orb {
@@ -852,7 +850,6 @@
   margin-top:calc(var(--cw) * -.64);
   margin-left:calc(var(--cw) / -2);
   will-change:transform;
-  perspective:1100px;
   position:absolute;
   top:55%;
   left:50%;

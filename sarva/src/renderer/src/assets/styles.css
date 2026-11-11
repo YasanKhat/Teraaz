@@ -110,9 +110,9 @@
 
      ⚠️ و اینجا `.dark` ندارد: خودِ --primary در تمِ تیره روشن‌تر می‌شود، پس
      شب هم کمی بازتر می‌شود — همان جهتی که درست است. */
-  --game-night-1: color-mix(in oklch, var(--primary) 30%, oklch(0.32 0 0)); /* سقفِ صحنه */
-  --game-night-2: color-mix(in oklch, var(--primary) 20%, oklch(0.22 0 0)); /* میانه */
-  --game-night-3: color-mix(in oklch, var(--primary) 12%, oklch(0.15 0 0)); /* تهِ صحنه */
+  --game-night-1: color-mix(in oklch, var(--primary) 30%, lab(21.12% 0 0)); /* سقفِ صحنه */
+  --game-night-2: color-mix(in oklch, var(--primary) 20%, lab(9.52% 0 0)); /* میانه */
+  --game-night-3: color-mix(in oklch, var(--primary) 12%, lab(3.04863% 0 0)); /* تهِ صحنه */
   /* متن و سطحِ شناور *روی* شب. کرمِ سایت، نه سفیدِ خام. */
   --game-night-ink: color-mix(in oklch, var(--cream) 92%, var(--primary));
   --game-night-veil: color-mix(in oklch, var(--game-night-3) 72%, transparent);
