@@ -436,14 +436,14 @@ export default function PlusScrollPage({ story = PLUS_STORY, cycle, plans, compa
          ۶۹۹ یا ۶۳۹ کال‌بک دوباره اجرا می‌شد و یک `matchMedia` ی تازه روی
          همان کارت‌ها می‌ساخت بی‌آن‌که پیشین بسته شود؛ تریگرهایِ دسته روی
          هم انباشته می‌شدند و کارت‌ها با هر تغییرِ اندازه چندباره می‌چرخیدند. */
-      /* ⚠️ شرطِ سوم (`oneColumn`) از نسخه‌یِ زنده آمده و در برنامه نبود:
-         کارت‌هایِ پلان تنها وقتی «بادبزن» می‌شوند که ستون‌ها بیش از یکی
-         باشند. مرزِ آن در بسته‌یِ زنده `639px` است، ولی شبکه‌یِ پلان‌ها در
-         Tailwind تا `1023px` دوستونه است (`sm:grid-cols-2 lg:grid-cols-3`)؛
-         با مرزِ ۶۳۹، در پهنا‌یِ ۶۴۰ تا ۱۰۲۳ کارتِ ردیفِ دوم به میانِ ردیفِ
-         نخست کشیده و کج می‌نشست. مرز اینجا با همان نقطه‌یِ سه‌ستونه شدن یکی
-         شده است (`max-width: 1023px` یعنی یک ستون). */
-      mm.add({ motion: "(prefers-reduced-motion: no-preference)", compact: "(max-width: 699px)", oneColumn: "(max-width: 1023px)", deckCompact: "(max-width: 899px) and (orientation: portrait)", deckWide: "(min-width: 900px), (orientation: landscape)" }, (context) => {
+      /* ⚠️ شرطِ سوم (`oneColumn`) از نسخه‌یِ زنده آمده و مرزش همان `639px`
+         است: کارت‌هایِ پلان تنها وقتی «بادبزن» می‌شوند که شبکه بیش از یک
+         ستون داشته باشد. در پهنا‌یِ ۶۴۰ تا ۱۰۲۳ شبکه دوستونه است
+         (`sm:grid-cols-2 lg:grid-cols-3`) و کارتِ ردیفِ دوم هم از میانِ
+         شبکه به جایش پرواز می‌کند — درست همان کاری که سایت می‌کند. صاف
+         کردنِ این حالت (برخاستنِ تک‌کارت به جایِ بادبزن) یعنی دور شدن از
+         سایت؛ رونویسی باید مو‌به‌مو باشد. */
+      mm.add({ motion: "(prefers-reduced-motion: no-preference)", compact: "(max-width: 699px)", oneColumn: "(max-width: 639px)", deckCompact: "(max-width: 899px) and (orientation: portrait)", deckWide: "(min-width: 900px), (orientation: landscape)" }, (context) => {
         if (!context.conditions?.motion) return;
         const compact = Boolean(context.conditions.compact);
         const oneColumn = Boolean(context.conditions.oneColumn);
