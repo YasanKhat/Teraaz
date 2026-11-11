@@ -96,7 +96,11 @@ export default function HuntCase({
   /** نشانه رویِ کدام پنجره قفل شده (موشوار یا لمسی). */
   const [locked, setLocked] = useState<number | null>(null);
   const [touchArmed, setTouchArmed] = useState(false);
-  const [aim, setAim] = useState<{ x: number; y: number } | null>(null);
+  /** موس درونِ صحنه است؟ نشانه تا وقتی موس در صحنه باشد پیداست — رویِ
+   *  سراسرِ نما، نه فقط رویِ پنجره‌ها. (`f` در کامپوننتِ سایت.) */
+  const [inside, setInside] = useState(false);
+  /** واپسین جایِ آزادِ موس؛ هنگامِ رها شدن از یک پنجره نشانه به آن برمی‌گردد. */
+  const aim = useRef({ x: 0, y: 0 });
   const timers = useRef<number[]>([]);
 
   const stageRef = useRef<HTMLDivElement>(null);
@@ -220,6 +224,28 @@ export default function HuntCase({
     });
   };
 
+  /** نشانه رویِ یک پنجره قفل می‌شود یا آزاد می‌شود — همان `ed`ِ سایت.
+   *
+   *  تفاوتِ مهم: سایت هنگامِ رها شدن (`null`) نشانه را به واپسین جایِ آزادِ
+   *  موس برمی‌گرداند، نه اینکه همان‌جا رویِ سرِ مظنون بخکد. */
+  const hover = (i: number | null) => {
+    if (phase !== "hunt" || i === locked) return;
+    setLocked(i);
+    if (i === null) {
+      setTouchArmed(false);
+      mx.set(aim.current.x);
+      my.set(aim.current.y);
+      return;
+    }
+    const head = (measure() ?? geo.current)?.heads[i];
+    if (head) {
+      mx.set(head.x);
+      my.set(head.y);
+      trackEyes(head.x, head.y);
+    }
+    sfx("lock");
+  };
+
   const onStageMove = (e: React.PointerEvent) => {
     if (e.pointerType === "touch") return;
     const g = measure() ?? geo.current;
@@ -227,10 +253,14 @@ export default function HuntCase({
     if (!g || !box) return;
     const x = e.clientX - box.left;
     const y = e.clientY - box.top;
-    setAim({ x, y });
-    mx.set(x);
-    my.set(y);
-    trackEyes(x, y);
+    aim.current = { x, y };
+    /* فقط وقتی رویِ پنجره‌ای قفل نشده‌ایم نشانه موس را دنبال می‌کند؛ وگرنه
+       رویِ همان مظنون می‌ماند تا شلیک یا رها شدن. */
+    if (locked === null && phase === "hunt") {
+      mx.set(x);
+      my.set(y);
+      trackEyes(x, y);
+    }
   };
 
   // بیت در جایِ خود جا شود، و با تغییرِ اندازه دوباره
@@ -243,7 +273,10 @@ export default function HuntCase({
     return () => ro.disconnect();
   }, [level.id, phase === "reveal"]);
 
-  const aiming = phase === "shot" || (phase === "hunt" && (touchArmed || locked !== null));
+  /* همان `ec`ِ سایت: هنگامِ شلیک، یا در مرحله‌یِ شکار وقتی موس درونِ صحنه
+     است *یا* رویِ پنجره‌ای قفل شده‌ایم. شرطِ «درونِ صحنه» همان چیزی است که
+     نشانه را در سراسرِ نما دنبالِ موس می‌برد. */
+  const aiming = phase === "shot" || (phase === "hunt" && (inside || locked !== null));
   const revealed = phase === "reveal";
   const marked = markEvidence(
     level.verseLines.filter(Boolean),
@@ -261,6 +294,12 @@ export default function HuntCase({
         ref={stageRef}
         className={H + "stage"}
         data-aiming={aiming || undefined}
+        onPointerEnter={(e) => {
+          if (e.pointerType === "touch") return;
+          measure();
+          setInside(true);
+        }}
+        onPointerLeave={() => setInside(false)}
         onPointerMove={onStageMove}
       >
         <span className={H + "moon"} aria-hidden="true" />
@@ -317,23 +356,17 @@ export default function HuntCase({
                     pointerType.current = e.pointerType;
                   }}
                   onPointerEnter={(e) => {
-                    if (e.pointerType !== "touch") {
-                      setLocked(i);
-                      const head = (measure() ?? geo.current)?.heads[i];
-                      if (head) {
-                        mx.set(head.x);
-                        my.set(head.y);
-                        trackEyes(head.x, head.y);
-                      }
-                      if (phase === "hunt") sfx("lock");
-                    }
+                    if (e.pointerType !== "touch") hover(i);
                   }}
                   onPointerLeave={(e) => {
-                    if (e.pointerType !== "touch") setLocked(null);
+                    if (e.pointerType !== "touch") hover(null);
+                  }}
+                  onFocus={(e) => {
+                    if (e.currentTarget.matches(":focus-visible")) hover(i);
                   }}
                   onClick={(e) => {
                     // روی لمسی: زدنِ نخست نشانه را می‌گذارد، دومی شلیک می‌کند.
-                    if (e.detail === 0 && pointerType.current === "touch" && locked !== i) {
+                    if (e.detail !== 0 && pointerType.current === "touch" && locked !== i) {
                       setTouchArmed(true);
                       setLocked(i);
                       return;

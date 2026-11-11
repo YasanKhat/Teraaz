@@ -56,9 +56,15 @@ import ErrorBoundary from '@/components/UI/ErrorBoundary'
 const AruzLazy = Aruz as ComponentType
 const About = lazy(() => import('@/pages/About')) as ComponentType
 
-/** صفحه‌هایی که پوسته را جمع می‌کنند تا بازی تمامِ پنجره را داشته باشد. */
+/** صفحه‌هایی که پوسته را جمع می‌کنند.
+ *
+ *  ⚠️ صفحه‌هایِ بازی (`/game/<slug>`) قبلاً `fullscreen` بودند و سربرگ و
+ *  اعلانِ سایت را برمی‌داشتند — با این گمان که پوسته مزاحمِ بازی است. سایت
+ *  چنین کاری نمی‌کند: در `sarvaedu.ir/game/jasoos` و `/game/vazn-yab` سربرگ
+ *  با همان `data-compact="false"`ِ بقیه‌ی صفحه‌ها هست، و دکمه‌ی «فهرست» و
+ *  «ورود» و تغییرِ پالت همان‌جا در دسترس‌اند. حذفش یعنی کاربرِ درونِ بازی
+ *  راهی به منویِ سایت ندارد. پس دیگر جمع نمی‌شود. */
 function chromeModeFor(path: string): 'off' | 'compact' | 'fullscreen' {
-  if (/^\/game\/[^/]+$/.test(path)) return 'fullscreen'
   if (path === '/game' || path.startsWith('/exam/')) return 'compact'
   return 'off'
 }
