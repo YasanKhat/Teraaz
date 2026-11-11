@@ -85,6 +85,13 @@ export function redact(value: unknown, _options?: RedactOptions): unknown {
   return value
 }
 
+/* ⚠️ `redactRecord` پیاده‌سازیِ واقعی است: برخلافِ `redact`ِ بالا که برای
+   بسته ماندنِ گراف فقط مقدار را برمی‌گرداند، این یکی خروجی‌اش «شیء ساده»ی
+   تضمین‌شده است (برای ستون jsonb). `lib/admin/audit.ts` آن را از همین درگاه
+   می‌خواهد و نبودنش کلِ ماژول را با `SyntaxError` از کار می‌انداخت — و هر
+   صفحه‌ای که به آن زنجیره پیوند بخورد (از جمله بازیِ نینجا) خطا می‌داد. */
+export { redactRecord } from "./redact"
+
 export function sanitizeUrl(url: string): string {
   return String(url ?? '').replace(/[?#].*$/, '')
 }

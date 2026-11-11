@@ -23,6 +23,17 @@ import { useRapidAruzLayout } from "./useRapidAruzLayout";
 import { useRapidAruzAudio } from "./useRapidAruzAudio";
 import { useRapidAruzKeyboard } from "./useRapidAruzKeyboard";
 import { useRapidAruzOrientationPause, useRapidAruzPause } from "./useRapidAruzPause";
+import Tour, { useTourActive, type TourStep } from "@/components/UI/kit/Tour";
+
+/* آموزشِ نخستین ورود — متن و ترتیب عیناً از بسته‌یِ زنده‌یِ سایت.
+   گامِ سوّم در سایت با کلاس (`aruzr-controls`) نشانی می‌شود، نه با `data-tour`؛
+   همان را نگه داشته‌ایم تا رونوشت مو‌به‌مو بماند. آرایه باید در سطحِ ماژول
+   بماند: تور شناساییِ گام را با خودِ آبجکت می‌سنجد. */
+const RAPID_TOUR: TourStep[] = [
+  { target: '[data-tour="rapid-preview"]', text: "مصراع چند ثانیه با اعراب نشان داده می‌شود. بخوان و در ذهنت تقطیعش کن. بعد پوشیده می‌شود." },
+  { target: '[data-tour="rapid-unit"]', text: "بعد هجاها یکی‌یکی اینجا می‌آیند. نوار زیرش وقت هر هجاست." },
+  { target: ".aruzr-controls", text: "برای هر هجا کوتاه یا بلند را بزن. یک اشتباه یعنی شروع دوباره از هجای اول." },
+];
 import SpoileredPreview from "./SpoileredPreview";
 import LicenseNote from "./LicenseNote";
 import { AnswerControls, CurrentUnit, Progress, StepTimer, UnitDots } from "./GameController";
@@ -195,6 +206,17 @@ function RapidAruzGameInner({
     onPause: game.pause,
     onResume: game.resume,
   });
+
+  /* ⚠️ تور هم یک «دلیلِ مکث» است، درست مانندِ سایت: تا آموزش رویِ صفحه است
+     بازی مکث می‌کند تا مهلتِ پاسخ از دستِ کاربر نرود — وگرنه او نخستین هجاها
+     را زیرِ کارتِ آموزش از دست می‌دهد. مکث در همان نگه‌دارنده‌یِ دلیل‌ها
+     می‌نشیند که پنهان شدنِ تب و چرخشِ گوشی هم می‌نشینند. */
+  const tourActive = useTourActive();
+  useEffect(() => {
+    if (!gameplay || !tourActive) return;
+    game.pause("tour");
+    return () => game.resume("tour");
+  }, [gameplay, tourActive, game.pause, game.resume]);
 
   // شمارهٔ سوارشدن روی خودِ DOM می‌نشیند تا QA بتواند ببیند عوض‌شدنِ چیدمان
   // بازی را از نو نساخته است. عمداً از راهِ render نمی‌آید.
@@ -374,7 +396,9 @@ function RapidAruzGameInner({
 
         {boardVisible && question ? (
           <div className={`aruzr-board ${immersive ? "" : "aruzr-surface"}`}>
-            <div className="aruzr-preview-region">
+            {/* ⚠️ تور نخستینِ فرزندِ تخته است، درست مانندِ سایت. */}
+            <Tour id="play-aruz-rapid" steps={RAPID_TOUR} />
+            <div className="aruzr-preview-region" data-tour="rapid-preview">
               <SpoileredPreview
                 text={question.previewText}
                 reveal={state.revealProgress}
@@ -413,7 +437,7 @@ function RapidAruzGameInner({
             <div className="aruzr-play-region">
               {/* واحد و مهلتش یک بلوکِ کانونی‌اند: نوار به همان واحد تعلق
                   دارد، نه به دکمه‌ها. */}
-              <div className="aruzr-focus">
+              <div className="aruzr-focus" data-tour="rapid-unit">
               <CurrentUnit
                 display={unit?.display ?? ""}
                 unitKey={`${state.questionEpoch}:${state.unitAttemptId}`}

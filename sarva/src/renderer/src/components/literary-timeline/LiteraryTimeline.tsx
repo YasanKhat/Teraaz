@@ -15,6 +15,7 @@ import { Mascot } from "./Mascot";
 import { PoetStage } from "./PoetStage";
 import { Portrait, portraitFor } from "./Portrait";
 import s from "./timeline.module.css";
+import Tour, { type TourStep } from "@/components/UI/kit/Tour";
 
 type Panel = { kind: "person"; person: Person } | { kind: "era"; era: Era } | { kind: "library" } | { kind: "sources" } | { kind: "compare" } | { kind: "cards" } | null;
 type Feature = "language" | "literary" | "thought";
@@ -26,6 +27,17 @@ const OLD_PASSPORT_KEY = "sarva-literary-timeline-passport-v1";
 type Answers = Record<string, number>;
 const answerKey = (era: string, index: number) => `${era}:${index}`;
 const TOTAL_QUESTIONS = ERAS.reduce((sum, era) => sum + era.quizzes.length, 0);
+
+/* آموزشِ نخستین ورود — متن و ترتیب عیناً از بسته‌یِ زنده‌یِ سایت.
+   آرایه باید در سطحِ ماژول بماند: تور شناساییِ گام را با خودِ آبجکت می‌سنجد
+   و ساختنش درونِ رندر یعنی هر بار از نو گشتن به دنبالِ لنگر. */
+const TIMELINE_TOUR: TourStep[] = [
+  { target: '[data-tour="tl-eras"]', text: "با این نوار بین دوره‌ها جابه‌جا شو." },
+  { target: '[data-tour="tl-stamps"]', text: "هر دوره چند سؤال دارد. همه را درست جواب بدهی، مهر آن دوره را می‌گیری." },
+  { target: '[data-tour="tl-search"]', text: "جست‌وجوی شاعران، نویسندگان و آثار." },
+  { target: '[data-tour="tl-cards"]', text: "کارت‌های مرور، برای حفظ کردن." },
+  { target: '[data-tour="tl-compare"]', text: "سبک‌ها را کنار هم مقایسه کن." },
+];
 /** A chapter's stamp: every question right, or at least one tried. */
 function eraState(era: Era, answers: Answers): "right" | "tried" | "empty" {
   const given = era.quizzes.map((quiz, i) => answers[answerKey(era.id, i)]);
@@ -380,13 +392,15 @@ export default function LiteraryTimeline() {
     </section>
 
     <div className={s.eraDock} style={colorStyle(activeEra.color)}>
-      <div className={s.dockLinks} aria-label="دوره‌ها">{ERAS.map(era => <button key={era.id} onClick={() => jumpTo(era.id)} style={colorStyle(era.color)} aria-current={active === era.id ? "step" : undefined}>{active === era.id && <motion.span layoutId="dock-pill" className={s.dockPill} transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 30 }} />}<i data-stamped={eraState(era, answers) === "right" || undefined} /><span>{era.name}</span></button>)}</div>
-      <select className={s.mobileEraSelect} value={active} onChange={e => jumpTo(e.target.value)} aria-label="رفتن به دوره">{ERAS.map(era => <option key={era.id} value={era.id}>{era.name}</option>)}</select>
+      {/* ⚠️ تور نخستینِ فرزندِ این نوار است، درست مانندِ سایت. */}
+      <Tour id="timeline" steps={TIMELINE_TOUR} />
+      <div className={s.dockLinks} data-tour="tl-eras" aria-label="دوره‌ها">{ERAS.map(era => <button key={era.id} onClick={() => jumpTo(era.id)} style={colorStyle(era.color)} aria-current={active === era.id ? "step" : undefined}>{active === era.id && <motion.span layoutId="dock-pill" className={s.dockPill} transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 30 }} />}<i data-stamped={eraState(era, answers) === "right" || undefined} /><span>{era.name}</span></button>)}</div>
+      <select className={s.mobileEraSelect} data-tour="tl-eras" value={active} onChange={e => jumpTo(e.target.value)} aria-label="رفتن به دوره">{ERAS.map(era => <option key={era.id} value={era.id}>{era.name}</option>)}</select>
       <div className={s.dockTools}>
-        <span className={s.dockStamps} title="پاسخ‌های درست"><Stamp size={15} />{fa(correct)}/{fa(ERAS.length)}</span>
-        <button onClick={() => openPanel({ kind: "library" })} aria-label="جست‌وجو (کلید /)" title="جست‌وجو ( / )"><Search size={17} /></button>
-        <button onClick={() => openPanel({ kind: "cards" })} aria-label="کارت‌های مرور" title="کارت‌های مرور"><WalletCards size={17} /></button>
-        <button onClick={() => openPanel({ kind: "compare" })} aria-label="مقایسهٔ سبک‌ها" title="مقایسهٔ سبک‌ها"><Layers3 size={17} /></button>
+        <span className={s.dockStamps} data-tour="tl-stamps" title="پاسخ‌های درست"><Stamp size={15} />{fa(correct)}/{fa(ERAS.length)}</span>
+        <button data-tour="tl-search" onClick={() => openPanel({ kind: "library" })} aria-label="جست‌وجو (کلید /)" title="جست‌وجو ( / )"><Search size={17} /></button>
+        <button data-tour="tl-cards" onClick={() => openPanel({ kind: "cards" })} aria-label="کارت‌های مرور" title="کارت‌های مرور"><WalletCards size={17} /></button>
+        <button data-tour="tl-compare" onClick={() => openPanel({ kind: "compare" })} aria-label="مقایسهٔ سبک‌ها" title="مقایسهٔ سبک‌ها"><Layers3 size={17} /></button>
       </div>
     </div>
 

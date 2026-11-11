@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { buildNinjaRound } from "@/lib/ninja-data";
+import { buildNinjaRound, NINJA_ROUNDS } from "@/lib/ninja-data";
 import type { NinjaRound } from "@/lib/ninja-data";
+
 import StudyTable from "./StudyTable";
 import SliceField from "./SliceField";
 import NinjaSettingsModal, { NinjaSettings, type NinjaDifficulty } from "./NinjaSettingsModal";
@@ -30,8 +31,19 @@ type StoredState = {
 };
 
 /** rounds از سرور می‌آید: نقش‌هایی که مدیر ساخته، و اگر هنوز نساخته باشد
- *  نقش‌های پیش‌فرضِ lib/ninja-data.ts. */
-function NinjaGame({ rounds }: { rounds: NinjaRound[] }) {
+ *  نقش‌های پیش‌فرضِ lib/ninja-data.ts.
+ *
+ *  ⚠️ این prop از سویِ `GameRoute` هرگز داده نمی‌شد (`<Body />` بی‌هیچ
+ *  آرگومانی رندر می‌شود)، برای همین `rounds` همیشه `undefined` بود و صفحه
+ *  با نخستین `rounds.length` از کار می‌افتاد — بازی اصلاً بالا نمی‌آمد.
+ *  حالا اگر prop نرسد، نقش‌های پیش‌فرض به کار می‌روند.
+ *
+ *  ⚠️ آوردنِ نقش‌ها از پایگاه با `loadNinjaRounds` در اینجا شدنی نیست: آن
+ *  زنجیره به `node:crypto` می‌رسد که در مرورگرِ برنامه بیرون گذاشته شده
+ *  (`externalized for browser compatibility`) و importـش همان نخستین بار
+ *  صفحه را می‌شکند. تا وقتی راهی سمتِ کاربر برای خواندنِ جدول ساخته شود،
+ *  بازی با همان نقش‌های پیش‌فرضِ `lib/ninja-data.ts` می‌چرخد. */
+function NinjaGame({ rounds = NINJA_ROUNDS }: { rounds?: NinjaRound[] }) {
   const [screen, setScreen] = useState<Screen>("intro");
   const [round, setRound] = useState<NinjaRound | null>(null);
   const [lives, setLives] = useState(START_LIVES);

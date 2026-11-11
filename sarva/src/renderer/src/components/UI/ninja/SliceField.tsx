@@ -3,6 +3,17 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Heart } from "lucide-react";
 import type { NinjaRound } from "@/lib/ninja-data";
 import type { NinjaDifficulty } from "./NinjaSettingsModal";
+import Tour, { useTourActive, type TourStep } from "@/components/UI/kit/Tour";
+
+/* آموزشِ نخستین ورود — متن و ترتیب عیناً از بسته‌یِ زنده‌یِ سایت.
+   آرایه باید در سطحِ ماژول بماند: تور شناساییِ گام را با خودِ آبجکت می‌سنجد
+   و ساختنش درونِ رندر یعنی هر بار از نو گشتن به دنبالِ لنگر. */
+const NINJA_TOUR: TourStep[] = [
+  { target: '[data-tour="ninja-goal"]', text: "فقط کلمه‌های همین دسته را ببُر." },
+  { target: '[data-tour="ninja-field"]', text: "کلمه‌ها از پایین بالا می‌پرند. انگشت یا موس را روی کلمه بکش تا برش بخورد." },
+  { target: '[data-tour="ninja-lives"]', text: "برش اشتباه یا جا انداختن یک کلمهٔ درست، یک جان کم می‌کند." },
+  { target: '[data-tour="ninja-time"]', text: "وقتی این نوار تمام شود، دور تمام است." },
+];
 
 // Difficulty tunes two levers: gravity (lower = slower rise/fall, more
 // hang time to react) and how often words are launched. "easy" is
@@ -152,6 +163,9 @@ function SliceField({
   const [debris, setDebris] = useState<Debris[]>([]);
   const [sparks, setSparks] = useState<Spark[]>([]);
   const [popups, setPopups] = useState<Popup[]>([]);
+  /* تا آموزش رویِ صفحه است بازی نمی‌چرخد (پایین‌تر، همان اثرِ اصلی). */
+  const tourActive = useTourActive();
+
   const [timeLeft, setTimeLeft] = useState(1);
   const [combo, setCombo] = useState(0);
   /** یک تک‌فریم قرمز وقتی کلمهٔ اشتباه بریده می‌شود */
@@ -367,6 +381,11 @@ function SliceField({
   }, []);
 
   useEffect(() => {
+    /* ⚠️ درست مانندِ سایت: تا آموزش رویِ صفحه است نه کلمه‌ای پرتاب می‌شود،
+       نه زمان می‌گذرد و نه قابی کشیده می‌شود — وگرنه بازیکن نخستین کلمه‌ها را
+       زیرِ کارتِ آموزش از دست می‌دهد. با بسته شدنِ آموزش این اثر از نو می‌چرخد
+       و دور از آغاز شروع می‌شود، پس چیزی از دست نرفته است. */
+    if (tourActive) return;
     let cancelled = false;
     let spawning = true;
     let spawnCount = 0;
@@ -440,7 +459,7 @@ function SliceField({
       lastTimeRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [round]);
+  }, [round, tourActive]);
 
   const urgent = timeLeft < 0.2;
 
@@ -452,8 +471,11 @@ function SliceField({
       onPointerUp={endDrag}
       onPointerLeave={endDrag}
       onPointerCancel={endDrag}
+      data-tour="ninja-field"
       className="ninja-field relative aspect-[3/4] w-full touch-none select-none overflow-hidden rounded-2xl sm:aspect-video"
     >
+      {/* ⚠️ تور نخستینِ فرزندِ صحنه است، درست مانندِ سایت. */}
+      <Tour id="play-ninja" steps={NINJA_TOUR} />
       {/* ---------- آسمانِ صحنه ---------- */}
       {/* سه لایه روی هم: یک شیبِ عمیقِ شب، دو هالهٔ رنگی که آرام نفس می‌کشند، و
           یک بافتِ نقطه‌ای.
@@ -514,7 +536,7 @@ function SliceField({
       <div key={`flash-${wrongFlash}`} className={wrongFlash ? "ninja-wrong-flash" : ""} />
 
       {/* ---------- نوار زمان ---------- */}
-      <div className="absolute inset-x-0 top-0 z-30 h-1.5 bg-[var(--game-night-veil)]">
+      <div data-tour="ninja-time" className="absolute inset-x-0 top-0 z-30 h-1.5 bg-[var(--game-night-veil)]">
         <div
           className={`h-full transition-[width] duration-100 ease-linear ${urgent ? "ninja-urgent" : ""}`}
           style={{
@@ -545,6 +567,7 @@ function SliceField({
           </span>
         </div>
         <div
+          data-tour="ninja-lives"
           className="flex items-center gap-1 rounded-full border border-[var(--game-night-edge)] bg-[var(--game-night-veil)] px-3 py-1.5 backdrop-blur-sm"
           role="img"
           aria-label={`${lives.toLocaleString("fa-IR")} جان باقی‌مانده`}
@@ -571,7 +594,7 @@ function SliceField({
       <div className="pointer-events-none absolute inset-x-4 top-14 z-20 flex flex-col items-center gap-2 sm:top-16">
         {/* سطحِ شناور روی شب: همان ایدهٔ `.glass`ِ سایت، ولی ساخته از رنگِ
             شب به‌جای رنگِ کاغذ — تا در تمِ روشن یک وصلهٔ سیاه روی صحنه نباشد. */}
-        <span className="rounded-full border border-[var(--game-night-edge)] bg-[var(--game-night-veil)] px-4 py-1.5 text-xs font-bold text-[var(--game-night-ink)] shadow-lg backdrop-blur-sm sm:text-sm">
+        <span data-tour="ninja-goal" className="rounded-full border border-[var(--game-night-edge)] bg-[var(--game-night-veil)] px-4 py-1.5 text-xs font-bold text-[var(--game-night-ink)] shadow-lg backdrop-blur-sm sm:text-sm">
           فقط کلمات دسته‌ی «{round.category}» را برش بزن!
         </span>
         {combo >= 2 && (
