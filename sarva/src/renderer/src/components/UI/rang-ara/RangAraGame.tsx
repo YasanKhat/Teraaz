@@ -29,6 +29,7 @@ import {
   DEMO_WRONG,
   DIALOGUE,
   GRADE_LABELS,
+  LEVELS,
   type ConceptId,
   type GradeKey,
   type HitZone,
@@ -179,11 +180,14 @@ const TUTORIAL = [
 ] as const;
 
 export default function RangAraGame({
-  levels,
+  levels = LEVELS,
   onCue,
 }: {
-  /** بیت‌های منتشرشدهٔ بانک (از سرور). */
-  levels: Level[];
+  /** بیت‌های منتشرشدهٔ بانک. رویِ سایت از سرور می‌آید؛ اینجا پیش‌فرض
+   *  همان بانکِ محلیِ `@/lib/rang-ara/content` (۱۵ بیت) است، چون
+   *  `GameRoute` بازی را بی‌هیچ propی می‌سازد و بی‌پیش‌فرض با
+   *  «levels is not iterable» می‌شکست. */
+  levels?: Level[];
   /** درگاهِ بازخوردِ صوتی/لمسیِ بیشتر. */
   onCue?: (cue: RangAraCue) => void;
 }) {

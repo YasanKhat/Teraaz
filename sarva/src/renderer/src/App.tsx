@@ -198,8 +198,11 @@ export default function App() {
             </ErrorBoundary>
           </main>
 
-          {/* پاورقیِ بزرگ نباید با بازیِ در جریان رقابت کند. */}
-          {chrome === 'off' && !isPlus && <Footer />}
+          {/* پاورقی در چیدمانِ ریشهٔ سایت است و پایِ تک‌تکِ صفحه‌ها می‌آید —
+              حتا پایِ صفحه‌هایِ بازی. تأیید با اچ‌تی‌ام‌الِ زندهٔ /game: آنجا
+              هم پاورقی هست (۱۹ پیوند). `/plus` استثناست چون خودش پاورقیِ
+              مخصوصِ خود را می‌سازد. */}
+          {!isPlus && <Footer />}
           {chrome !== 'fullscreen' && !isGalaxy && (
             <GeometricPattern className="fixed z-10 h-screen text-gold" opacity={0.06} />
           )}
