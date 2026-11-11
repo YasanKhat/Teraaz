@@ -83,6 +83,12 @@
   top: 62%;
   left: 50%;
 }
+@keyframes hunt-module__hXhGKa__hn-drift {
+  0%, 100% { translate: 9rem; }
+  30% { translate: -3rem -0.6rem; }
+  55% { translate: -9rem 0.4rem; }
+  80% { translate: 3rem -0.3rem; }
+}
 .hunt-module__hXhGKa__case {
   flex-direction: column;
   gap: 0.75rem;
@@ -755,6 +761,63 @@
 }
 .hunt-module__hXhGKa__secondary:hover {
   border-color: color-mix(in oklab, var(--foreground) 25%, transparent);
+}
+@keyframes hunt-module__hXhGKa__hn-rise {
+  0% { opacity: 0; transform: translateY(8px); }
+}
+@keyframes hunt-module__hXhGKa__hn-lights {
+  0% { filter: brightness(0.35); }
+  30% { filter: brightness(); }
+  40% { filter: brightness(0.5); }
+  55%, 100% { filter: none; }
+}
+@keyframes hunt-module__hXhGKa__hn-agent-in {
+  0% { transform: translateY(40%); }
+}
+@keyframes hunt-module__hXhGKa__hn-breathe {
+  50% { transform: translateY(1.5%) scaleY(0.985); }
+}
+@keyframes hunt-module__hXhGKa__hn-tremble {
+  0%, 100% { transform: translate(0px); }
+  25% { transform: translate(-1.5px); }
+  75% { transform: translate(1.5px); }
+}
+@keyframes hunt-module__hXhGKa__hn-fall {
+  0% { transform: none; }
+  14% { transform: translateY(-5%) rotate(4deg); }
+  100% { transform: translateY(105%) rotate(-32deg); }
+}
+@keyframes hunt-module__hXhGKa__hn-duck {
+  0% { transform: none; }
+  22% { transform: translateY(52%); }
+  100% { transform: translateY(20%); }
+}
+@keyframes hunt-module__hXhGKa__hn-escape {
+  0% { transform: none; }
+  25% { transform: translate(8%) translateY(-3%); }
+  100% { transform: translate(-150%) rotate(-8deg); }
+}
+@keyframes hunt-module__hXhGKa__hn-lightsout {
+  100% { filter: brightness(0.42) saturate(0.6); }
+}
+@keyframes hunt-module__hXhGKa__hn-hitflash {
+  0% { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+@keyframes hunt-module__hXhGKa__hn-stamp {
+  0% { opacity: 0; scale: 1.8; }
+}
+@keyframes hunt-module__hXhGKa__hn-pop {
+  0% { opacity: 0; scale: 0.4; }
+}
+@keyframes hunt-module__hXhGKa__hn-tracer {
+  0% { stroke-dashoffset: 60px; opacity: 1; }
+  80% { opacity: 1; }
+  100% { stroke-dashoffset: calc(var(--len) * -1px); opacity: 0; }
+}
+@keyframes hunt-module__hXhGKa__hn-flash {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 @supports (color:lab(0% 0 0)) {
