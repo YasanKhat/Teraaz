@@ -25,6 +25,7 @@ import { copyText } from "@/lib/vazn-yab/clipboard";
 import { celebrate } from "@/components/exam/celebrate";
 import { FAMOUS_METERS, type FamousMeter } from "@/data/seeds/meters";
 import FamousMeters from "./FamousMeters";
+import Tour, { type TourStep } from "@/components/UI/kit/Tour";
 
 /**
  * ماژولِ اصلیِ وزن‌یاب — پورتِ کاملِ رفتارِ صفحه‌ی زنده (۲۰۲۶-۱۱-۰۸).
@@ -51,6 +52,16 @@ type Result = {
 const FIELDS = [
   { name: "poem1", label: "مصراع اول", placeholder: "تَوانا بُوَد هر که دانا بُوَد" },
   { name: "poem2", label: "مصراع دوم", placeholder: "ز دانش دل پیر برنا بُوَد" },
+];
+
+/* آموزشِ نخستین ورود — متن و ترتیب عیناً از بسته‌یِ زنده‌یِ سایت.
+   این آرایه باید در سطحِ ماژول بماند: تور شناساییِ گام را با خودِ آبجکت
+   می‌سنجد و ساختنش درونِ رندر یعنی هر بار از نو گشتن به دنبالِ لنگر. */
+const TOUR_STEPS: TourStep[] = [
+  { target: '[data-tour="vy-poem"]', text: "بیت را بنویس؛ هر مصراع در خانهٔ خودش." },
+  { target: '[data-tour="vy-random"]', text: "بیتی نداری؟ این دکمه یک بیت تصادفی می‌آورد." },
+  { target: '[data-tour="vy-submit"]', text: "این را بزن تا وزن و تقطیع بیت را ببینی." },
+  { target: '[data-tour="vy-master"]', text: "در حالت استادی اول خودت وزن را حدس می‌زنی، بعد جواب را می‌بینی." },
 ];
 
 const easeOutExpo = [0.16, 1, 0.3, 1] as const;
@@ -608,6 +619,9 @@ export default function VaznYabScene() {
 
           {/* ── فرم ─────────────────────────────────────────────── */}
           <form onSubmit={onSubmit} noValidate className={` border-t ${sty.rule}`}>
+            {/* ⚠️ تور نخستینِ فرم است، درست مانندِ سایت: خودش را به `document.body`
+                می‌چسباند، پس جایش در درخت بی‌اثر است و تنها برای همان‌سانی است. */}
+            <Tour id="vazn-yab" steps={TOUR_STEPS} />
             <div className=" flex flex-wrap items-center justify-between gap-3 px-5 pt-6 sm:px-8 sm:pt-8">
               <Segmented
                 label="حالت"
