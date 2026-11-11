@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import HuntCase, { type HuntLevel, type HuntSuspect } from "./HuntCase";
 import Tour, { type TourStep } from "@/components/UI/kit/Tour";
+import GameResult, { type Bar, type Mark } from "@/components/UI/games/GameResult";
 import { Volume2, VolumeX } from "lucide-react";
 import { setSfxOn, sfxIsOn, sfx, subscribeSfx } from "@/lib/jasoos-sfx";
 import "./hunt.css";
@@ -138,6 +139,22 @@ export default function HuntRun({
   const tier = pct >= 100 ? "perfect" : (TIERS.find((t) => pct < t.to)?.tier ?? "low");
   const tierLabel = TIERS.find((t) => pct < t.to)?.label ?? "عالی";
   const copy = END_COPY[tier];
+  /** نشانِ هر پرونده: درست، نادرست، یا بی‌پاسخ (اگر دور پیش‌تر تمام شده باشد). */
+  const marks: Mark[] = levels.map(
+    (l) => results.find((r) => r.level.id === l.id)?.hit ? "ok" : results.some((r) => r.level.id === l.id) ? "bad" : "skip",
+  );
+  /** تفکیکِ نقشِ جاسوس: هر نقش چند بار درست تشخیص داده شده. */
+  const bars: Bar[] = Object.entries(
+    results.reduce<Record<string, { ok: number; total: number }>>((acc, r) => {
+      const role = r.spy.role;
+      acc[role] ??= { ok: 0, total: 0 };
+      acc[role].total += 1;
+      if (r.hit) acc[role].ok += 1;
+      return acc;
+    }, {}),
+  ).map(([label, v]) => ({ label, ok: v.ok, total: v.total }));
+  const weakest = bars.slice().sort((a, b) => (b.total - b.ok) - (a.total - a.ok))[0];
+  const weakestLabel = weakest && weakest.total - weakest.ok > 0 ? weakest.label : undefined;
 
   return (
     <div className={H + "game"} dir="rtl" aria-label="جاسوسِ نقش‌ها" tabIndex={-1}>
@@ -198,42 +215,42 @@ export default function HuntRun({
       )}
 
       {finished && (
-        <section className={H + "end"} aria-labelledby="jasoos-escaped">
-          {chances <= 0 && escaped.length > 0 && (
-            <p className={H + "endTitle"}>فرصت‌ها تمام شد</p>
-          )}
-          <h3 id="jasoos-escaped" className="game-title text-lg">
-            {copy.title ?? "پایان مأموریت"}
-          </h3>
-          {copy.lines.map((line) => (
-            <p key={line}>{line}</p>
-          ))}
+        <>
+          <GameResult
+            percent={pct}
+            tier={tier}
+            title={copy.title ?? (chances <= 0 ? "فرصت‌ها تمام شد" : "پایان مأموریت")}
+            line={copy.lines[0] ?? ""}
+            ringLabel={`${Math.round(pct).toLocaleString("fa-IR")} درصد شکار`}
+            hunted={hunted}
+            escaped={escaped.length}
+            chancesLeft={chances}
+            chances={CHANCES}
+            marks={marks}
+            bars={bars}
+            weakest={weakestLabel}
+            onAgain={onAgain}
+            onChange={onChangeLessons}
+          />
           {escaped.length > 0 && (
-            <ul className={H + "escaped"}>
-              {escaped.map(({ level: l, spy }) => (
-                <li key={l.id}>
-                  <div className={H + "escapedHead"}>
-                    جاسوس: <span>{spy.role}</span>
-                  </div>
-                  <p className={H + "escapedVerse"}>{l.verseLines.filter(Boolean).join(" / ")}</p>
-                  <p>{spy.evidence}</p>
-                </li>
-              ))}
-            </ul>
+            <section className={H + "end"} aria-labelledby="jasoos-escaped">
+              <h3 id="jasoos-escaped" className="game-title text-lg">
+                جاسوس‌هایی که در رفتند
+              </h3>
+              <ul className={H + "escaped"}>
+                {escaped.map(({ level: l, spy }) => (
+                  <li key={l.id}>
+                    <div className={H + "escapedHead"}>
+                      جاسوس: <span>{spy.role}</span>
+                    </div>
+                    <p className={H + "escapedVerse"}>{l.verseLines.filter(Boolean).join(" / ")}</p>
+                    <p>{spy.evidence}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
-          <div className={H + "endScore"}>
-            {results.length.toLocaleString("fa-IR")} پرونده ·{" "}
-            {Math.round(pct).toLocaleString("fa-IR")} درصد شکار · {tierLabel}
-          </div>
-          <div className={H + "endActions"}>
-            <button type="button" className={H + "next"} onClick={onAgain}>
-              یک دست دیگر
-            </button>
-            <button type="button" className={H + "secondary"} onClick={onChangeLessons}>
-              تغییر درس
-            </button>
-          </div>
-        </section>
+        </>
       )}
     </div>
   );
