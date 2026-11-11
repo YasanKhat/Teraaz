@@ -1,6 +1,6 @@
 "use client";
 import { motion } from "motion/react";
-import HandsUpFigure from "@/components/UI/jasoos/HandsUpFigure";
+import HuntAgent from "@/components/UI/jasoos/HuntAgent";
 
 /** Symbolic, looping animated previews for each game — a taste of the
  *  gameplay shown on the hub, not the game itself. All are pure motion,
@@ -45,9 +45,10 @@ const SUSPECTS = [
 ];
 
 /** جاسوس: a real bayt above four suspects drawn with the game's own
- *  HandsUpFigure. The reticle scans, locks on the liar (مضاف‌الیه) and
- *  shoots — that figure is hit and topples exactly like an in-game
- *  "shot-correct" (rotate + drop + fade + red), then it loops. */
+ *  HuntAgent — the same agents the real game now draws behind the windows.
+ *  The reticle scans, locks on the liar (مضاف‌الیه) and shoots — that agent
+ *  is hit and topples exactly like an in-game "shot-correct" (rotate + drop
+ *  + fade + red), then it loops. */
 export function JasoosPreview() {
   return (
     <Frame glow="rgba(37,99,235,0.20)">
@@ -102,7 +103,7 @@ export function JasoosPreview() {
                   }
             }
           >
-            <HandsUpFigure />
+            <HuntAgent outfit={i} />
           </motion.div>
           <span
             className="mt-1 block rounded-full bg-card/85 px-2 py-0.5 

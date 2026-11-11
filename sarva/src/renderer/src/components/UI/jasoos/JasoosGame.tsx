@@ -1,283 +1,60 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence, MotionConfig } from "motion/react";
-import { Clock3, Fingerprint, Heart, RotateCcw, SlidersHorizontal, Trophy, SearchX } from "lucide-react";
-import { pickJasoosLevels } from "@/lib/jasoos-data";
-import type { JasoosLevel, Suspect as SuspectType } from "@/lib/jasoos-data";
+
+import { useMemo, useState } from "react";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { useGuestRounds } from "@/lib/guest/use-guest-rounds";
 import GuestLimitModal from "@/components/UI/GuestLimitModal";
 import { apiPost } from "@/lib/api/client";
-import HuntRun from "./HuntRun";
-import JasoosSettingsModal, { JasoosSettings } from "./JasoosSettingsModal";
-import HuntHero from "./HuntHero";
-import GameSetup from "@/components/UI/games/GameSetup";
-import LessonPicker from "@/components/UI/games/LessonPicker";
-import { lessonsOf, levelsForLessons } from "@/lib/jasoos-bank";
-import { GRADE_META, LESSON_TITLES, LESSONS_PER_BOOK } from "@/lib/doroos/catalog";
-import type { GradeKey } from "@/lib/doroos/types";
-import styles from "./jasoos.module.css";
 import { useSetReportTarget } from "@/lib/reports/target";
 import { useRoundGuard } from "@/lib/games/round-guard";
+import GameSetup from "@/components/UI/games/GameSetup";
+import LessonPicker from "@/components/UI/games/LessonPicker";
+import HuntRun from "./HuntRun";
+import HuntHero from "./HuntHero";
+import { lessonsOf, levelsForLessons } from "@/lib/jasoos-bank";
+import { GRADE_META, LESSON_TITLES } from "@/lib/doroos/catalog";
+import type { GradeKey } from "@/lib/doroos/types";
+import type { HuntLevel, HuntSuspect } from "./HuntCase";
 
-type Screen = "intro" | "settings" | "play" | "gameover" | "win";
-type GameOverReason = "lives" | "time";
+/** «جاسوسِ نقش‌ها» — بازسازیِ تختِ `/game/jasoos`.
+ *
+ *  این یک بازیِ دیگر است، نه بازیِ پیشینِ برنامه با ظاهری تازه. آن یکی
+ *  نقشه و در و جان و زمان‌سنج داشت؛ سایت هیچ‌کدام را ندارد. برای همین این
+ *  پرونده از نو نوشته شد و آن مؤلفه‌ها (نقشه، صحنه، مظنون، تفنگ، معرفی،
+ *  تنظیمات) دیگر در اینجا به‌کار نمی‌روند و پاک شدند.
+ *
+ *  گردش، همانِ سایت: پایه و درس → کیسِ پنجره‌ای (یک شلیک، یک پرونده) →
+ *  دی‌بریف → پروندهٔ بعد → کارنامه و «جاسوس‌هایی که در رفتند». */
 
-const START_LIVES = 3;
-const STORAGE_KEY = "jasoos-progress";
+type Screen = "setup" | "play";
 
-function formatTime(ms: number) {
-  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-type StoredState = {
-  ownerId: string;
-  screen: Screen;
-  settings: JasoosSettings | null;
-  runLevelIds: number[];
-  levelIndex: number;
-  clearedCount: number;
-  lives: number;
-  attemptId: number;
-  missedSpy: SuspectType | null;
-  gameOverReason: GameOverReason;
-  timerEndsAt: number | null;
-};
-
-/** levels از سرور می‌آید: پرونده‌های منتشرشدهٔ پنل مدیریت، و اگر هنوز
- *  پرونده‌ای ساخته نشده باشد، هشت پروندهٔ پیش‌فرضِ lib/jasoos-data.ts. */
-function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
-  const [screen, setScreen] = useState<Screen>("intro");
-  const [settings, setSettings] = useState<JasoosSettings | null>(null);
-  const [runLevels, setRunLevels] = useState<JasoosLevel[]>([]);
-  // گزینشِ پایه و درس — همان جدولی که سایت پیش از شروع نشان می‌دهد.
+export default function JasoosGame() {
+  const [screen, setScreen] = useState<Screen>("setup");
   const [grade, setGrade] = useState<GradeKey>("dahom");
-  // آغازِ سایت: هیچ درسی برگزیده نیست، نوار «یک یا چند درس انتخاب کن.» می‌گوید
-  // و دکمه‌یِ شروع خاموش است تا دست‌کم یک درس برگزیده شود.
   const [pickedLessons, setPickedLessons] = useState<Set<number>>(new Set());
-  const [levelIndex, setLevelIndex] = useState(0);
-  const [clearedCount, setClearedCount] = useState(0);
-  const [lives, setLives] = useState(START_LIVES);
-  const [attemptId, setAttemptId] = useState(0);
-  const [missedSpy, setMissedSpy] = useState<SuspectType | null>(null);
-  const [gameOverReason, setGameOverReason] = useState<GameOverReason>("lives");
-  const [timerEndsAt, setTimerEndsAt] = useState<number | null>(null);
-  const [timeLeftDisplay, setTimeLeftDisplay] = useState<number | null>(null);
-  // undefined = still checking auth, null = guest, object = logged in
-  // undefined یعنی «هنوز نمی‌دانیم» و پایین‌تر از null (مهمان) تفکیک می‌شود —
-  // بازیِ ذخیره‌شده تا وقتی معلوم نشده صاحبش کیست بازیابی نمی‌شود.
-  const { user: currentUser, loading: userLoading } = useCurrentUser();
-  // مهمان یک دور بازی می‌کند؛ دورِ دوم مدالِ ورود می‌آید.
-  const guest = useGuestRounds("jasoos");
+  const [runLevels, setRunLevels] = useState<HuntLevel[]>([]);
+  /** پرونده‌یِ رویِ میز — برایِ گزارشِ اشکال و ذخیره‌یِ پاسخ. */
+  const [current, setCurrent] = useState<HuntLevel | null>(null);
   const [guestPrompt, setGuestPrompt] = useState(false);
-  const user = userLoading ? undefined : currentUser;
-  const [restoredFromStorage, setRestoredFromStorage] = useState(false);
 
-  // who the restored (localStorage) session belongs to: "guest" | user id | null
-  const restoredOwnerRef = useRef<string | null>(null);
-  const screenRef = useRef<HTMLDivElement>(null);
+  const { user } = useCurrentUser();
+  const guest = useGuestRounds("jasoos");
 
-  const focusScreen = () => {
-    const node = screenRef.current;
-    if (!node) return;
-    node.focus({ preventScroll: true });
-    if (node.getBoundingClientRect().top < 0) {
-      node.scrollIntoView({ block: "start", behavior: "instant" });
-    }
-  };
-
-  const level = runLevels[levelIndex];
-
-  /* دورِ زنده: روی نقشه یا داخلِ صحنه. «معرفی»، «تنظیمات» و صفحه‌های
-     پایان بیرون‌اند. */
   useRoundGuard(screen === "play");
-
   useSetReportTarget(
-    level
+    current
       ? {
           area: "jasoos",
-          targetId: String(level.id),
-          snapshot: [level.title, ...(level.verseLines ?? [])]
+          targetId: String(current.id),
+          snapshot: [current.title, ...(current.verseLines ?? [])]
             .filter(Boolean)
             .join("\n"),
-          targetRef: { category: level.category ?? null },
+          targetRef: { category: current.category ?? null },
         }
       : null,
   );
 
-  // try to resume a saved session first, before we even know the user
-  useEffect(() => {
-    // یک بار و فقط یک بار. allLevels در وابستگی‌ها هست چون داخل استفاده
-    // می‌شود، و همین گارد جلوی اجرای دوباره را می‌گیرد.
-    if (restoredFromStorage) return;
-
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed: StoredState = JSON.parse(saved);
-        if (
-          parsed.screen &&
-          parsed.screen !== "intro" &&
-          typeof parsed.ownerId === "string"
-        ) {
-          // پرونده‌ای که مدیر بین دو نشست حذف یا پنهانش کرده، دیگر در
-          // allLevels نیست و از بازیِ بازیابی‌شده هم می‌افتد.
-          const levels = parsed.runLevelIds
-            .map((id) => allLevels.find((l) => l.id === id))
-            .filter((l): l is JasoosLevel => !!l);
-          if (levels.length) {
-            restoredOwnerRef.current = parsed.ownerId;
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setScreen(parsed.screen);
-            setSettings(parsed.settings);
-            setRunLevels(levels);
-            setLevelIndex(parsed.levelIndex ?? 0);
-            setClearedCount(parsed.clearedCount ?? 0);
-            setLives(parsed.lives ?? START_LIVES);
-            setAttemptId(parsed.attemptId ?? 0);
-            setMissedSpy(parsed.missedSpy ?? null);
-            setGameOverReason(parsed.gameOverReason ?? "lives");
-            setTimerEndsAt(parsed.timerEndsAt ?? null);
-          } else {
-            localStorage.removeItem(STORAGE_KEY);
-          }
-        } else {
-          localStorage.removeItem(STORAGE_KEY);
-        }
-      } catch {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-    }
-    setRestoredFromStorage(true);
-  }, [allLevels, restoredFromStorage]);
-
-
-  // if the restored session belongs to a different user than the one now
-  // signed in, don't trust it — reset to a clean intro screen
-  useEffect(() => {
-    if (!restoredFromStorage || user === undefined) return;
-    if (restoredOwnerRef.current === null) return;
-
-    const currentOwner = user ? user.id : "guest";
-    if (currentOwner !== restoredOwnerRef.current) {
-      restoredOwnerRef.current = null;
-      localStorage.removeItem(STORAGE_KEY);
-      setScreen("intro");
-      setSettings(null);
-      setRunLevels([]);
-      setLevelIndex(0);
-      setClearedCount(0);
-      setLives(START_LIVES);
-      setAttemptId(0);
-      setMissedSpy(null);
-      setTimerEndsAt(null);
-    }
-  }, [user, restoredFromStorage]);
-
-  // persist on every relevant change so a refresh mid-game resumes exactly
-  // where the player left off (including the timer, via an absolute
-  // end-timestamp rather than a countdown that would reset to nothing)
-  useEffect(() => {
-    if (!restoredFromStorage) return;
-    if (screen === "intro" || screen === "settings") {
-      localStorage.removeItem(STORAGE_KEY);
-      return;
-    }
-    const ownerId = restoredOwnerRef.current ?? (user ? user.id : "guest");
-    const data: StoredState = {
-      ownerId,
-      screen,
-      settings,
-      runLevelIds: runLevels.map((l) => l.id),
-      levelIndex,
-      clearedCount,
-      lives,
-      attemptId,
-      missedSpy,
-      gameOverReason,
-      timerEndsAt,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, [
-    restoredFromStorage,
-    screen,
-    settings,
-    runLevels,
-    levelIndex,
-    clearedCount,
-    lives,
-    attemptId,
-    missedSpy,
-    gameOverReason,
-    timerEndsAt,
-    user,
-  ]);
-
-  const goToGameOver = (reason: GameOverReason, spy: SuspectType | null) => {
-    setGameOverReason(reason);
-    setMissedSpy(spy);
-    setTimerEndsAt(null);
-    // باخت هم یک دورِ کامل است؛ وگرنه مهمان با باختنِ عمدی بی‌نهایت بازی
-    // می‌کرد و سیاست بی‌اثر می‌شد.
-    guest.recordRound();
-    setScreen("gameover");
-  };
-
-  // countdown timer — computed from an absolute end-timestamp (not a
-  // decrementing counter) so it survives a page refresh with the correct
-  // remaining time instead of resetting
-  useEffect(() => {
-    if (!timerEndsAt) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTimeLeftDisplay(null);
-      return;
-    }
-    if (screen !== "map" && screen !== "scene") return;
-
-    const tick = () => {
-      const remaining = timerEndsAt - Date.now();
-      if (remaining <= 0) {
-        setTimeLeftDisplay(0);
-        goToGameOver("time", null);
-        return true;
-      }
-      setTimeLeftDisplay(remaining);
-      return false;
-    };
-
-    if (tick()) return;
-    const id = window.setInterval(() => {
-      if (tick()) window.clearInterval(id);
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [screen, timerEndsAt]);
-
-  const beginRun = (chosen: JasoosSettings) => {
-    // همهٔ مسیرهای شروع از اینجا رد می‌شوند — دکمهٔ intro، صفحهٔ تنظیمات، و
-    // restart. گذاشتنِ دروازه فقط روی restart یک راهِ باز جا می‌گذاشت.
-    if (guest.blocked) {
-      setGuestPrompt(true);
-      return;
-    }
-    restoredOwnerRef.current = user ? user.id : "guest";
-    setSettings(chosen);
-    setRunLevels(pickJasoosLevels(pickedLevels, chosen.questionCount));
-    setLevelIndex(0);
-    setClearedCount(0);
-    setLives(START_LIVES);
-    setAttemptId(0);
-    setMissedSpy(null);
-    setTimerEndsAt(
-      chosen.timeLimitMinutes ? Date.now() + chosen.timeLimitMinutes * 60000 : null,
-    );
-    setScreen("play");
-  };
-
-  /** درس‌هایی که در این پایه پرونده دارند. سایت درس‌های خالی را نشان نمی‌دهد،
-   *  و شماره‌ها را هم با همان پرشِ خودش (بدون ۴، بدون ۱۵) می‌آورد. */
+  /** درس‌هایی که در این پایه پرونده دارند — سایت درس‌های بی‌پرونده را نمی‌آورد. */
   const lessonOptions = useMemo(
     () =>
       lessonsOf(grade).map((l) => ({
@@ -288,9 +65,11 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
     [grade],
   );
 
-  /** تعویضِ پایه گزینش را پاک می‌کند: شمارِ پرونده‌یِ هر درس از پایه‌ای به
-   *  پایه‌یِ دیگر عوض می‌شود، و گذاشتنِ برگزیده‌یِ پایه‌یِ پیشین روی درسِ
-   *  هم‌نام، پرونده‌هایی را می‌آورد که کاربر برنداشته. */
+  const pickedLevels = useMemo(
+    () => levelsForLessons(grade, [...pickedLessons]),
+    [grade, pickedLessons],
+  );
+
   const changeGrade = (key: string) => {
     setGrade(key as GradeKey);
     setPickedLessons(new Set());
@@ -305,161 +84,91 @@ function JasoosGame({ levels: allLevels }: { levels: JasoosLevel[] }) {
     });
   };
 
-  /** «انتخاب همه» همه را برمی‌گزیند؛ اگر از پیش همه بودند، برمی‌دارد. */
   const toggleAllLessons = () => {
     const all = lessonOptions.map((l) => l.lesson);
-    setPickedLessons((prev) =>
-      prev.size === all.length ? new Set() : new Set(all),
-    );
+    setPickedLessons((prev) => (prev.size === all.length ? new Set() : new Set(all)));
   };
 
-  /** پرونده‌های درس‌های برگزیده، همان که نوارِ پایانی خلاصه می‌کند. */
-  const pickedLevels = useMemo(
-    () => levelsForLessons(grade, [...pickedLessons]),
-    [grade, pickedLessons],
-  );
-
-  const restart = () => {
+  const start = () => {
     if (guest.blocked) {
       setGuestPrompt(true);
       return;
     }
-    if (!settings) {
-      setScreen("settings");
-      return;
-    }
-    beginRun(settings);
+    setRunLevels(pickedLevels);
+    setScreen("play");
   };
 
-  /** فقط «کدام پرونده» و «چه کسی را زدی».
-   *
-   *  بیت، دسته و نقشِ درست عمداً فرستاده نمی‌شوند: سرور همه را از `levelId` و
-   *  از روی همان مرجعی که خودِ بازی از آن ساخته شده درمی‌آورد. تا دیروز
-   *  `correctRole` هم از اینجا می‌رفت، یعنی هر دو طرفِ مقایسه دستِ کلاینت
-   *  بود و «همیشه درست» یک درخواست فاصله داشت. */
-  const logAttempt = (lvl: JasoosLevel, chosenRole: string) => {
+  /** سایت پس از هر شلیک پاسخ را به سرور می‌فرستد. */
+  const onShot = (level: HuntLevel, suspect: HuntSuspect) => {
+    setCurrent(level);
     if (!user) return;
-
     void apiPost("/api/v1/jasoos/answer", {
-      levelId: lvl.id,
-      chosenRole,
+      levelId: level.id,
+      chosenRole: suspect.role,
     }).then((result) => {
-      if (!result.ok) console.error("jasoos answer save failed:", result.errors.join(" "));
+      if (!result.ok) {
+        console.error("jasoos answer save failed:", result.errors.join(" "));
+      }
     });
   };
 
-  const handleResult = (correct: boolean, spy: SuspectType, chosen: SuspectType) => {
-    logAttempt(level, chosen.role);
-
-    if (correct) {
-      const nextCleared = clearedCount + 1;
-      setClearedCount(nextCleared);
-      if (nextCleared >= runLevels.length) {
-        setTimerEndsAt(null);
-        guest.recordRound();
-        setScreen("win");
-      } else {
-        setScreen("play");
-      }
-      return;
-    }
-
-    const nextLives = lives - 1;
-    setLives(nextLives);
-    if (nextLives <= 0) {
-      goToGameOver("lives", spy);
-    } else {
-      // retry the same case: bump the key so ShootingScene remounts fresh
-      setAttemptId((a) => a + 1);
-    }
+  const onFinish = () => {
+    guest.recordRound();
+    setCurrent(null);
   };
 
-  if (!restoredFromStorage) {
-    return <div className={styles.game} role="status">در حال آماده‌سازی پرونده‌ها…</div>;
+  const backToSetup = () => {
+    setCurrent(null);
+    setScreen("setup");
+  };
+
+  if (screen === "play") {
+    return (
+      <>
+        {guestPrompt && (
+          <GuestLimitModal section="jasoos" onDismiss={() => setGuestPrompt(false)} />
+        )}
+        <HuntRun
+          levels={runLevels}
+          onShot={onShot}
+          onLevel={setCurrent}
+          onFinish={onFinish}
+          onAgain={() => setRunLevels([...runLevels])}
+          onChangeLessons={backToSetup}
+        />
+      </>
+    );
   }
 
   return (
-    <MotionConfig reducedMotion="user">
-    <div ref={screenRef} tabIndex={-1} className={styles.game} dir="rtl" aria-label="بازی جاسوس نقش‌ها">
-      {guestPrompt && <GuestLimitModal section="jasoos" onDismiss={() => setGuestPrompt(false)} />}
-      <AnimatePresence mode="wait">
-        {/* سایت بی‌مقدمه سراغِ «پایه و درس» می‌رود؛ صفحهٔ آشناییِ ما جایش را
-            به همان می‌دهد. تنظیماتِ شمار/زمان درست پس از آن می‌آید، چون
-            شمارِ پرونده به درس‌های برگزیده بسته است. */}
-        {screen === "intro" && (
-          <motion.div onAnimationComplete={focusScreen} key="intro" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <GameSetup
-              title="جاسوسِ نقش‌ها"
-              lede="چند مظنون، یک جاسوس. نقشی را بزن که در متن نیست."
-              hero={<HuntHero />}
-              summary={
-                pickedLessons.size === 0
-                  ? "یک یا چند درس انتخاب کن."
-                  : `${pickedLessons.size.toLocaleString("fa-IR")} درس · ${pickedLevels.length.toLocaleString("fa-IR")} پرونده`
-              }
-              startLabel="شروع شکار"
-              canStart={pickedLessons.size > 0}
-              startTour="start"
-              onStart={() => {
-                if (guest.blocked) { setGuestPrompt(true); return; }
-                // سایت پس از گزینشِ درس راست به شکار می‌رود؛ تنظیماتِ
-                // شمار/زمانِ ما یک گامِ افزوده است و در میانه نمی‌آید.
-                beginRun({
-                  questionCount: pickedLevels.length,
-                  timeLimitMinutes: null,
-                });
-              }}
-            >
-              <LessonPicker
-                grades={GRADE_META}
-                grade={grade}
-                onGrade={changeGrade}
-                lessons={lessonOptions}
-                selected={pickedLessons}
-                onToggle={toggleLesson}
-                onToggleAll={toggleAllLessons}
-              />
-            </GameSetup>
-          </motion.div>
-        )}
-        {screen === "settings" && (
-          <motion.div onAnimationComplete={focusScreen} key="settings" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-            <JasoosSettingsModal
-              maxQuestions={pickedLevels.length}
-              onStart={beginRun}
-              onBack={() => setScreen("intro")}
-            />
-          </motion.div>
-        )}
-        {screen === "play" && (
-          <motion.div onAnimationComplete={focusScreen} key={"play-" + attemptId} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-            <HuntRun
-              levels={runLevels}
-              onAgain={restart}
-              onChangeLessons={() => setScreen("intro")}
-            />
-          </motion.div>
-        )}
-        {(screen === "gameover" || screen === "win") && (
-          <motion.section onAnimationComplete={focusScreen} key={screen} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={styles.panel + " " + styles.result} aria-labelledby="jasoos-result-title">
-            <div className={styles.resultIcon}>{screen === "win" ? <Trophy /> : gameOverReason === "time" ? <Clock3 /> : <SearchX />}</div>
-            <h2 id="jasoos-result-title" className="game-display">{screen === "win" ? "آفرین، کارآگاه!" : gameOverReason === "time" ? "زمان مأموریت تمام شد" : "این دور به پایان رسید"}</h2>
-            <p>{screen === "win" ? "هیچ جاسوسی از نگاهت پنهان نماند. همهٔ پرونده‌ها حل شدند!" : "هر پرونده یک نکتهٔ تازه دارد؛ دور بعد با تجربه‌تر برمی‌گردی."}</p>
-            <div className={styles.resultStats}>
-              <div><strong>{clearedCount.toLocaleString("fa-IR")} از {runLevels.length.toLocaleString("fa-IR")}</strong><span>پروندهٔ حل‌شده</span></div>
-              <div><strong>{lives.toLocaleString("fa-IR")}</strong><span>جان باقی‌مانده</span></div>
-            </div>
-            {screen === "gameover" && missedSpy && <div className={styles.resultEvidence}><strong>جاسوس واقعی «{missedSpy.role}» بود.</strong><p>{missedSpy.evidence}</p></div>}
-            <div className={styles.resultActions}>
-              <button type="button" onClick={restart} className={styles.primaryButton}><RotateCcw size={17} />{screen === "win" ? "یک مأموریت تازه" : "دوباره تلاش می‌کنم"}</button>
-              <button type="button" onClick={() => setScreen("settings")} className={styles.secondaryButton}><SlidersHorizontal size={17} /> تغییر تنظیمات</button>
-            </div>
-          </motion.section>
-        )}
-      </AnimatePresence>
-    </div>
-    </MotionConfig>
+    <>
+      {guestPrompt && (
+        <GuestLimitModal section="jasoos" onDismiss={() => setGuestPrompt(false)} />
+      )}
+      <GameSetup
+        title="جاسوسِ نقش‌ها"
+        lede="چند مظنون، یک جاسوس. نقشی را بزن که در متن نیست."
+        hero={<HuntHero />}
+        summary={
+          pickedLessons.size === 0
+            ? "یک یا چند درس انتخاب کن."
+            : `${pickedLessons.size.toLocaleString("fa-IR")} درس · ${pickedLevels.length.toLocaleString("fa-IR")} پرونده`
+        }
+        startLabel="شروع شکار"
+        canStart={pickedLessons.size > 0}
+        startTour="start"
+        onStart={start}
+      >
+        <LessonPicker
+          grades={GRADE_META}
+          grade={grade}
+          onGrade={changeGrade}
+          lessons={lessonOptions}
+          selected={pickedLessons}
+          onToggle={toggleLesson}
+          onToggleAll={toggleAllLessons}
+        />
+      </GameSetup>
+    </>
   );
 }
-
-export default JasoosGame;

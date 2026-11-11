@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import HuntCase, { type HuntLevel, type HuntSuspect } from "./HuntCase";
 import Tour, { type TourStep } from "@/components/UI/kit/Tour";
 import { Volume2, VolumeX } from "lucide-react";
@@ -72,26 +72,45 @@ const JASOOS_TOUR: TourStep[] = [
  *  یک ردیف تیک به‌ازای هر پرونده، و در پایان فهرستِ «جاسوس‌هایی که در رفتند». */
 export default function HuntRun({
   levels,
+  onShot,
+  onLevel,
+  onFinish,
   onAgain,
   onChangeLessons,
 }: {
   levels: HuntLevel[];
+  /** پس از هر شلیک — برایِ ذخیره‌یِ پاسخ. */
+  onShot?: (level: HuntLevel, suspect: HuntSuspect) => void;
+  /** پرونده‌یِ رویِ میز عوض شد. */
+  onLevel?: (level: HuntLevel | null) => void;
+  /** شکار به پایان رسید. */
+  onFinish?: () => void;
   onAgain: () => void;
   onChangeLessons: () => void;
 }) {
   const [index, setIndex] = useState(0);
   const [results, setResults] = useState<Result[]>([]);
   const [finished, setFinished] = useState(false);
+  const level = levels[index];
+  const isLast = index >= levels.length - 1;
   const sfxOn = useSyncExternalStore(subscribeSfx, sfxIsOn, () => true);
+  const cbs = useRef({ onShot, onLevel, onFinish });
+  cbs.current = { onShot, onLevel, onFinish };
+
   useEffect(() => {
-    if (finished) sfx("finish");
+    if (finished) {
+      sfx("finish");
+      cbs.current.onFinish?.();
+    }
   }, [finished]);
+
+  useEffect(() => {
+    cbs.current.onLevel?.(finished ? null : level ?? null);
+  }, [level, finished]);
 
   /** سه فرصت برایِ کلِ شکار — سایت با هر شلیکِ اشتباه یکی از این‌ها را برمی‌دارد. */
   const [chances, setChances] = useState(CHANCES);
 
-  const level = levels[index];
-  const isLast = index >= levels.length - 1;
 
   const onResolve = useCallback(
     (hit: boolean, spy: HuntSuspect) => {
@@ -101,6 +120,7 @@ export default function HuntRun({
         return [...prev, { level, hit, spy }];
       });
       if (!hit) setChances((c) => Math.max(0, c - 1));
+      cbs.current.onShot?.(level, spy);
     },
     [level],
   );
