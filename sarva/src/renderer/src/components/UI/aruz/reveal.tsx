@@ -121,7 +121,7 @@ export function RevealWords({
           >
             {w}
           </motion.span>
-          {i < words.length - 1 ? " " : ""}
+          {i < words.length - 1 ? " " : ""}
         </span>
       ))}
     </motion.span>
