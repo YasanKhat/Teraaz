@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Crosshair } from "lucide-react";
-import { animate } from "motion/react";
+import { animate, motion, useMotionValue, useSpring, useTransform } from "motion/react";
 import HuntAgent from "./HuntAgent";
 import { sfx } from "@/lib/jasoos-sfx";
 import "./hunt.css";
@@ -31,7 +31,7 @@ function markEvidence(
   words: string | undefined,
 ): { text: string; mark?: boolean }[][] {
   const wanted = (words ?? "")
-    .split(/[\s،,؛;:]+/)
+    .split(/[\s|،,؛;:]+/)
     .map((w) => w.replace(/^[«"'(]+|[»"')!؟?.،,؛;]+$/g, ""))
     .filter((w) => w.length > 1);
   return lines.map((line) => {
@@ -106,6 +106,14 @@ export default function HuntCase({
   const pointerType = useRef<string>("mouse");
   const geo = useRef<{ w: number; h: number; heads: { x: number; y: number }[] } | null>(null);
   const [tracer, setTracer] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  /** نشانه با فنر دنبالِ موس می‌رود، نه با پرش — همان سفتی و میراییِ سایت. */
+  const mx = useMotionValue(0);
+  const my = useMotionValue(0);
+  const sx = useSpring(mx, { stiffness: 850, damping: 52, mass: 0.5 });
+  const sy = useSpring(my, { stiffness: 850, damping: 52, mass: 0.5 });
+  /** قابِ دوربین به‌اندازه‌یِ پهنایِ صحنه جابه‌جا می‌شود. */
+  const scopeX = useTransform(sx, (v) => v - (geo.current?.w ?? 0));
+  const scopeY = useTransform(sy, (v) => v - (geo.current?.h ?? 0));
 
   useEffect(() => {
     const t = timers.current;
@@ -220,6 +228,8 @@ export default function HuntCase({
     const x = e.clientX - box.left;
     const y = e.clientY - box.top;
     setAim({ x, y });
+    mx.set(x);
+    my.set(y);
     trackEyes(x, y);
   };
 
@@ -285,6 +295,11 @@ export default function HuntCase({
           >
             {level.suspects.map((s, i) => {
               const st = stateFor(i);
+              const words = (level.suspects[i].wordInVerse ?? "")
+                .split(/[\s|،,؛;:]+/)
+                .map((w) => w.replace(/^[«"'(]+|[»"')!؟?.،,؛;]+$/g, ""))
+                .filter((w) => w.length > 1)
+                .join("، ");
               return (
                 <button
                   key={i}
@@ -304,6 +319,12 @@ export default function HuntCase({
                   onPointerEnter={(e) => {
                     if (e.pointerType !== "touch") {
                       setLocked(i);
+                      const head = (measure() ?? geo.current)?.heads[i];
+                      if (head) {
+                        mx.set(head.x);
+                        my.set(head.y);
+                        trackEyes(head.x, head.y);
+                      }
                       if (phase === "hunt") sfx("lock");
                     }
                   }}
@@ -347,8 +368,14 @@ export default function HuntCase({
                       {(i + 1).toLocaleString("fa-IR")}
                     </span>
                     <span className={H + "role"}>{s.role}</span>
-                    <span className={H + "plateSub"} aria-hidden="true">
-                      {st === "down" ? "شکار شد" : st === "escaped" ? "در رفت" : st === "struck" ? "اشتباه" : ""}
+                    <span className={H + "plateSub"} aria-hidden={st === "idle" || undefined}>
+                      {st === "down" || st === "escaped"
+                        ? "جاسوس"
+                        : st === "struck"
+                          ? `بی‌گناه${words ? ` · «${words}»` : ""}`
+                          : st === "clear" && words
+                            ? `«${words}»`
+                            : ""}
                     </span>
                   </span>
                 </button>
@@ -358,42 +385,35 @@ export default function HuntCase({
         </div>
 
         <span className={H + "scopeClip"} aria-hidden="true">
-          <span
+          <motion.span
             className={H + "scope"}
+            style={{ x: scopeX, y: scopeY }}
             data-on={aiming || undefined}
-            data-locked={locked !== null || undefined}
-            style={
-              aim
-                ? { left: aim.x, top: aim.y }
-                : undefined
-            }
-          >
-            <svg viewBox="-50 -50 100 100">
-              <g className={H + "reticleUnder"}>
-                <circle r="30" />
-                <path d="M-47 0h32M15 0h32M0-47v32M0 15v32" />
-              </g>
-              <g className={H + "reticleInk"}>
-                <circle r="30" />
-                <path d="M-47 0h32M15 0h32M0-47v32M0 15v32" />
-                <circle r="1.8" className={H + "reticleDot"} />
-                <path d="M-9-30v6M9-30v6M-9 30v-6M9 30v-6" className={H + "reticleTicks"} />
-              </g>
-            </svg>
-            {(locked !== null || phase !== "hunt") && (
-              <span className={H + "readout"}>
-                {phase === "hunt" && locked !== null
-                  ? level.suspects[locked].role
-                  : outcome === "hit"
-                    ? "شکار شد!"
-                    : outcome === "miss"
-                      ? "در رفت"
-                      : ""}
-              </span>
-            )}
-          </span>
+          />
         </span>
-
+        <motion.span
+          className={H + "reticle"}
+          style={{ x: sx, y: sy }}
+          data-on={aiming || undefined}
+          data-locked={locked !== null || undefined}
+          aria-hidden="true"
+        >
+          <svg viewBox="-50 -50 100 100">
+            <g className={H + "reticleUnder"}>
+              <circle r="30" />
+              <path d="M-47 0h32M15 0h32M0-47v32M0 15v32" />
+            </g>
+            <g className={H + "reticleInk"}>
+              <circle r="30" />
+              <path d="M-47 0h32M15 0h32M0-47v32M0 15v32" />
+              <circle r="1.8" className={H + "reticleDot"} />
+              <path d="M-9-30v6M9-30v6M-9 30v-6M9 30v-6" className={H + "reticleTicks"} />
+            </g>
+          </svg>
+          {locked !== null && phase === "hunt" && (
+            <span className={H + "readout"}>{level.suspects[locked].role}</span>
+          )}
+        </motion.span>
         <svg className={H + "tracer"} aria-hidden="true">
           {tracer && (
             <line
