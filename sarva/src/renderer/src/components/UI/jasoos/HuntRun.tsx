@@ -1,7 +1,10 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import HuntCase, { type HuntLevel, type HuntSuspect } from "./HuntCase";
+import Tour, { type TourStep } from "@/components/UI/kit/Tour";
+import { Volume2, VolumeX } from "lucide-react";
+import { setSfxOn, sfxIsOn, sfx, subscribeSfx } from "@/lib/jasoos-sfx";
 import "./hunt.css";
 
 const H = "hunt-module__hXhGKa__";
@@ -9,6 +12,23 @@ const H = "hunt-module__hXhGKa__";
 type Result = { level: HuntLevel; hit: boolean; spy: HuntSuspect };
 
 const CHANCES = 3;
+
+/** آموزشِ نخستین — همان چهار گامِ سایت، هر کدام روی یک لنگرِ data-tour. */
+const JASOOS_TOUR: TourStep[] = [
+  { target: '[data-tour="jasoos-verse"]', text: "اول متن را بخوان." },
+  {
+    target: '[data-tour="jasoos-windows"]',
+    text: "هر پنجره یک نقش دارد. سه نقش در متن هست و یکی نیست. آن یکی جاسوس است.",
+  },
+  {
+    target: '[data-tour="jasoos-console"]',
+    text: "روی پنجرهٔ جاسوس بزن تا شلیک کنی. روی گوشی دو بار بزن. کلیدهای ۱ تا ۴ هم کار می‌کنند.",
+  },
+  {
+    target: '[data-tour="jasoos-ammo"]',
+    text: "با هر شلیک اشتباه یکی از فرصت‌ها کم می‌شود.",
+  },
+];
 
 /** گردشِ کاملِ شکار: اچ‌یوا‌دی، پرونده‌ها یکی‌یکی، و کارنامه‌یِ پایان.
  *
@@ -26,6 +46,11 @@ export default function HuntRun({
   const [index, setIndex] = useState(0);
   const [results, setResults] = useState<Result[]>([]);
   const [finished, setFinished] = useState(false);
+  const sfxOn = useSyncExternalStore(subscribeSfx, sfxIsOn, () => true);
+  useEffect(() => {
+    if (finished) sfx("finish");
+  }, [finished]);
+
   /** سه فرصت برایِ کلِ شکار — سایت با هر شلیکِ اشتباه یکی از این‌ها را برمی‌دارد. */
   const [chances, setChances] = useState(CHANCES);
 
@@ -70,8 +95,22 @@ export default function HuntRun({
             <span key={a} className={H + "round"} data-spent={a >= chances || undefined} />
           ))}
         </span>
+        <button
+          type="button"
+          className="game-icon-button"
+          onClick={() => setSfxOn(!sfxOn)}
+          aria-label={sfxOn ? "بی‌صدا" : "با صدا"}
+          aria-pressed={!sfxOn}
+        >
+          {sfxOn ? (
+            <Volume2 aria-hidden="true" className="size-4" />
+          ) : (
+            <VolumeX aria-hidden="true" className="size-4" />
+          )}
+        </button>
       </div>
 
+      <Tour id="play-jasoos" steps={JASOOS_TOUR} />
       <ol className={H + "ticks"}>
         {levels.map((l, i) => {
           const r = results.find((x) => x.level.id === l.id);

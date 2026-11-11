@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Crosshair } from "lucide-react";
+import { ArrowLeft, Crosshair } from "lucide-react";
 import HuntAgent from "./HuntAgent";
+import { sfx } from "@/lib/jasoos-sfx";
 import "./hunt.css";
 
 const H = "hunt-module__hXhGKa__";
@@ -71,6 +72,8 @@ export default function HuntCase({
   nextLabel: string;
 }) {
   const spyIndex = level.suspects.findIndex((s) => s.isSpy);
+  const spy = level.suspects[spyIndex];
+  const nextRef = useRef<HTMLButtonElement>(null);
   const [phase, setPhase] = useState<"hunt" | "shot" | "reveal">("hunt");
   const [shotAt, setShotAt] = useState<number | null>(null);
   const [outcome, setOutcome] = useState<"hit" | "miss" | null>(null);
@@ -107,15 +110,22 @@ export default function HuntCase({
       setShotAt(i);
       setPhase("shot");
       setTouchArmed(false);
+      sfx("shot");
 
-      after(110, () => setOutcome(hit ? "hit" : "miss"));
+      after(110, () => {
+        setOutcome(hit ? "hit" : "miss");
+        sfx(hit ? "down" : "miss");
+      });
 
       if (hit) {
         after(1050, () => setPhase("reveal"));
         onResolve(true, level.suspects[spyIndex]);
       } else {
         // یک شلیک، یک پرونده: اگر خطا رفت، جاسوس همان‌جا در می‌رود.
-        after(560, () => setEscaped(true));
+        after(560, () => {
+          setEscaped(true);
+          sfx("escape");
+        });
         after(1350, () => setPhase("reveal"));
         onResolve(false, level.suspects[spyIndex]);
       }
@@ -211,7 +221,10 @@ export default function HuntCase({
                     pointerType.current = e.pointerType;
                   }}
                   onPointerEnter={(e) => {
-                    if (e.pointerType !== "touch") setLocked(i);
+                    if (e.pointerType !== "touch") {
+                      setLocked(i);
+                      if (phase === "hunt") sfx("lock");
+                    }
                   }}
                   onPointerLeave={(e) => {
                     if (e.pointerType !== "touch") setLocked(null);
@@ -266,6 +279,8 @@ export default function HuntCase({
         <span className={H + "scopeClip"} aria-hidden="true">
           <span
             className={H + "scope"}
+            data-on={aiming || undefined}
+            data-locked={locked !== null || undefined}
             style={
               aim
                 ? { left: aim.x, top: aim.y }
@@ -284,52 +299,63 @@ export default function HuntCase({
                 <path d="M-9-30v6M9-30v6M-9 30v-6M9 30v-6" className={H + "reticleTicks"} />
               </g>
             </svg>
+            {(locked !== null || phase !== "hunt") && (
+              <span className={H + "readout"}>
+                {phase === "hunt" && locked !== null
+                  ? level.suspects[locked].role
+                  : outcome === "hit"
+                    ? "شکار شد!"
+                    : outcome === "miss"
+                      ? "در رفت"
+                      : ""}
+              </span>
+            )}
           </span>
-        </span>
-
-        <span className={H + "readout"} aria-hidden="true">
-          {outcome === "hit" ? "شکار شد!" : outcome === "miss" ? "در رفت" : ""}
         </span>
 
         <svg className={H + "tracer"} aria-hidden="true" />
         <span className={H + "flash"} aria-hidden="true" />
       </div>
 
-      {resolved && revealed && (
-        <div className={H + "console"}>
-          <div className={H + "debrief"}>
+      <div className={H + "console"} data-tour="jasoos-console">
+        {revealed ? (
+          <div className={H + "debrief"} role="status">
             <div className={H + "debriefCopy"}>
               <h3 className={H + "debriefTitle"}>
                 {outcome === "hit"
-                  ? `جاسوس «${resolved.role}» بود.`
-                  : escaped
-                    ? `جاسوس «${level.suspects[spyIndex].role}» بود و در رفت.`
-                    : `«${resolved.role}» جاسوس نبود.`}
+                  ? "شکار شد!"
+                  : `جاسوس «${spy.role}» بود و در رفت.`}
               </h3>
-              <p>{resolved.evidence}</p>
+              <p>{spy.evidence}</p>
             </div>
+            <button
+              ref={nextRef}
+              type="button"
+              className={H + "next"}
+              onClick={onNext}
+            >
+              {nextLabel}
+              <ArrowLeft aria-hidden="true" className="size-4" />
+            </button>
           </div>
-          <button type="button" className={H + "next"} onClick={onNext}>
-            {nextLabel}
-          </button>
-        </div>
-      )}
-
-      <div className={H + "brief"}>
-        <Crosshair aria-hidden="true" className={H + "briefIcon"} />
-        <p>
-          {touchArmed && locked !== null
-            ? "دوباره بزن تا شلیک شود."
-            : `نقشی را بزن که در این ${level.contentType === "poem" ? "بیت" : "جمله"} نیست.`}
-        </p>
-        {touchArmed && locked !== null && phase === "hunt" ? (
-          <button type="button" className={H + "fireBtn"} onClick={() => fire(locked)}>
-            شلیک
-          </button>
         ) : (
-          <span className={H + "keys"} aria-hidden="true">
-            <kbd>۱</kbd>–<kbd>{level.suspects.length.toLocaleString("fa-IR")}</kbd>
-          </span>
+          <div className={H + "brief"}>
+            <Crosshair aria-hidden="true" className={H + "briefIcon"} />
+            <p>
+              {touchArmed && locked !== null
+                ? "دوباره بزن تا شلیک شود."
+                : `نقشی را بزن که در این ${level.contentType === "poem" ? "بیت" : "جمله"} نیست.`}
+            </p>
+            {touchArmed && locked !== null && phase === "hunt" ? (
+              <button type="button" className={H + "fireBtn"} onClick={() => fire(locked)}>
+                شلیک
+              </button>
+            ) : (
+              <span className={H + "keys"} aria-hidden="true">
+                <kbd>۱</kbd>–<kbd>{level.suspects.length.toLocaleString("fa-IR")}</kbd>
+              </span>
+            )}
+          </div>
         )}
       </div>
     </section>
