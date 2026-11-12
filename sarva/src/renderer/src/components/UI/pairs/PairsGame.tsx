@@ -4,10 +4,12 @@ import GuestLimitModal from "@/components/UI/GuestLimitModal";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { motion } from "motion/react";
 import {
+  LITERARY_PAIRS,
   MEMORY_GRADES,
   MEMORY_TERMS,
   buildMemoryDeck,
   buildMemoryRounds,
+  emptyMemoryDecks,
   memoryGridColumns,
   memoryRoundSizes,
   type LiteraryPair,
@@ -18,6 +20,63 @@ import {
 } from "@/lib/literary-pairs";
 import { useSetReportTarget } from "@/lib/reports/target";
 import { useRoundGuard } from "@/lib/games/round-guard";
+import Tour, { type TourStep } from "@/components/UI/kit/Tour";
+import GameResult, {
+  resultButton,
+  resultTone,
+} from "@/components/UI/games/GameResult";
+
+/* آموزشِ نخستین ورود — متن و ترتیب عیناً از بسته‌یِ زنده‌یِ سایت (آرایه‌ی `S`
+   در ماژولِ ۸۷۳۵۱۲). آرایه باید در سطحِ ماژول بماند: تور شناساییِ گام را با
+   خودِ آبجکت می‌سنجد و ساختنش درونِ رندر یعنی هر بار از نو گشتن به دنبالِ
+   لنگر.
+
+   ⚠️ دو گام و نه بیشتر: یکی برای خودِ زمین، یکی برای شمارشگرِ حرکت. هر چه
+   بیشتر باشد، بازیکن پیش از نخستین دست خسته می‌شود. */
+const PAIRS_TOUR: TourStep[] = [
+  {
+    target: '[data-tour="pairs-grid"] > button:first-child',
+    text: "روی یک کارت بزن تا برگردد، بعد کارت دوم را. اگر اثر و پدیدآورنده‌اش باشند، باز می‌مانند.",
+  },
+  {
+    target: '[data-tour="pairs-moves"]',
+    text: "هر دو کارت یک حرکت است. سعی کن با حرکت کمتر تمامش کنی.",
+  },
+];
+
+/* لحن‌هایِ کارنامه — باز همان سه‌گانه‌یِ سایت (`p` در ماژولِ ۸۷۳۵۱۲)، با این
+   تفاوتِ معنادار که اینجا فقط «بی‌نقص» عنوان دارد. سایت برای `great` و `low`
+   عنوانی ننوشته، یعنی آن دو سطح عنوان را از `resultTone` می‌گیرند و تنها
+   خط‌هایشان را عوض می‌کنند. همین را نگه داشته‌ایم: undoِ آن یعنی اختراعِ
+   متنی که سایت ندارد.
+
+   ⚠️ معیارِ «بی‌نقص» اینجا تعدادِ حرکت است و نه درصدِ درستی: هر جفت را با
+   یک حرکت پیدا کردن یعنی حرکت‌ها برابرِ جفت‌ها. */
+/* ⚠️ `title` و `lines` هر دو اختیاری‌اند، و این از رویِ سلیقه نیست:
+   `resultTone` عنوان و خط را جداگانه برمی‌دارد (`o?.title ?? TIER_COPY[t].title`
+   و `o?.lines ?? TIER_COPY[t].lines`)، پس سطحی که اینجا فقط `lines` دارد،
+   عنوانش را از جدولِ مشترک می‌گیرد. در نینجا هر سه سطح عنوان داشتند؛ در
+   جفت‌ها سایت فقط برای «بی‌نقص» عنوان نوشته است. */
+const PAIRS_TONES: Partial<
+  Record<string, { title?: string; lines?: string[] }>
+> = {
+    perfect: {
+      title: "حافظهٔ بی‌نقص!",
+      lines: [
+        "هر جفت را با یک حرکت پیدا کردی.",
+        "حتی یک کارتِ اشتباه هم برنگرداندی.",
+      ],
+    },
+    great: {
+      lines: ["تقریباً همه را از حافظه جفت کردی.", "حافظه‌ات خوب کار کرد."],
+    },
+    low: {
+      lines: [
+        "یک بار دیگر جفت‌ها را مرور کن و دوباره بیا.",
+        "قبل از بازی جفت‌ها را با دقت بخوان.",
+      ],
+    },
+  };
 
 // اول پایه، بعد نوبت، بعد نقشهٔ دست‌ها، بعد مرورِ آثارِ همان دست، بعد خودِ
 // بازی. دو صفحهٔ اول همان چیزی است که آزمون‌های واقعی دارند: دانش‌آموزِ دهم
@@ -142,7 +201,25 @@ function RoundProgress({
   );
 }
 
-function PairsGame({ decks }: { decks: MemoryDecks }) {
+/* دسته‌کارت‌هایِ پیش‌فرض: همان پشتیبانِ «همه یا هیچ» که lib/pairs-content.ts
+   برای وقتی می‌نویسد که جدولِ پایگاه خالی است.
+   //
+   // ⚠️ این ثابت فقط یک راحتی نیست — بی‌آن بازی از همان کلیکِ اول می‌شکست.
+   // مسیرِ بازی (`pages/GameRoute.tsx`) این مؤلفه را بی‌هیچ ورودی‌ای می‌سازد،
+   // پس `decks` تعریف‌نشده می‌ماند و نخستین دست با «Cannot read properties of
+   // undefined» به صفحهٔ خطا می‌رفت. همان الگویی که نینجا دارد
+   // (`rounds = NINJA_ROUNDS`): داده‌یِ کتابی پیش‌فرض است، و هرچه از پایگاه
+   // برسد روی آن می‌نشیند. */
+const STATIC_DECKS: MemoryDecks = (() => {
+  const d = emptyMemoryDecks();
+  for (const g of Object.keys(d) as (keyof MemoryDecks)[]) {
+    d[g].dey = [...LITERARY_PAIRS];
+    d[g].khordad = [...LITERARY_PAIRS];
+  }
+  return d;
+})();
+
+function PairsGame({ decks: decksProp }: { decks?: MemoryDecks }) {
   /* «نیمهٔ اولِ کتاب» در این بازی از قبل یک مفهومِ صریح است: آزمونِ دی.
      پس قفلِ مهمان دقیقاً روی همان می‌نشیند و لازم نیست نیمه را حساب کنیم. */
   const { user } = useCurrentUser();
@@ -164,6 +241,16 @@ function PairsGame({ decks }: { decks: MemoryDecks }) {
   const [matched, setMatched] = useState<Set<number>>(new Set()); // matched pairIds
   const [moves, setMoves] = useState(0);
   const [locked, setLocked] = useState(false);
+
+  /* ورودی برای جایی که محتوا از بیرون می‌رسد؛ در برنامه‌یِ رومیزی مسیر چیزی
+     نمی‌دهد، پس داده‌یِ کتابی نشان داده می‌شود.
+
+     ⚠️ چرا اینجا مستقیم از پایگاه خوانده نمی‌شود، با آن‌که lib/pairs-content.ts
+     دقیقاً برای همین هست: آن ماژول از `@/lib/admin/audit` می‌آید و از آن‌جا
+     به `node:crypto` می‌رسد، که در ساختِ وب بیرون گذاشته می‌شود و همین یک
+     واردات کلِ ساخت را می‌شکند. تا زمانی که آن رشته اصلاح نشود، وصل کردنش
+     در اینجا یعنی از کار انداختنِ دروازه‌یِ ساخت. */
+  const decks = decksProp ?? STATIC_DECKS;
 
   const pairs = grade && term ? decks[grade][term] : [];
 
@@ -609,73 +696,96 @@ function PairsGame({ decks }: { decks: MemoryDecks }) {
     );
   }
 
-  // ---- round finished (and maybe the whole session) ----
+  // ---- کارنامه: همان کارتِ مشترکِ سایت (`f.default` در ماژولِ ۸۷۳۵۱۲) ----
+  //
+  // ⚠️ اینجا تا امروز یک کارتِ دستی بود — یک 🏆/🎉، یک عنوان، یک خط و سه
+  // دکمه — در حالی که سایت کارنامه را به مؤلفه‌یِ مشترکِ نتیجه می‌سپارد:
+  // حلقه‌یِ «درصد دقت»، سه آمار (جفت / حرکتِ اشتباه / کلِ حرکت‌ها)، و لحنی
+  // که از همان جدولِ سه‌گانه می‌آید. همان اشتباهی که در نینجا بود و درست شد.
+  //
+  // ⚠️ `seed` همان `3*r+l`ِ سایت است: هر جفتِ درست سه امتیازِ پایه دارد و
+  // هر حرکت یکی کم می‌کند. نتیجه تعیین نمی‌کند چه کسی برنده است (همه بعد از
+  // جفت کردنِ آخر می‌برند) — فقط انتخابِ خط را تصادفیِ پایدار می‌کند تا یک
+  // بازیکن هر بار همان جمله را نبیند.
   if (won) {
     const hasNext = roundIndex + 1 < rounds.length;
-    return (
-      <div className="container mx-auto my-10 max-w-2xl text-center sm:my-16">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="glass relative z-20 rounded-2xl p-8 sm:p-12"
-        >
-          <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/15 text-3xl">
-            {seriesDone ? "🏆" : "🎉"}
-          </div>
-          <h2 className="game-display text-2xl font-bold text-primary">
-            {seriesDone
-              ? "همهٔ دست‌ها تمام شد"
-              : rounds.length > 1
-                ? `دستِ ${ordinal(roundIndex)} تمام شد`
-                : "آفرین! همه را جفت کردی"}
-          </h2>
-          <p className="mt-2 text-muted-foreground">
-            {seriesDone && rounds.length > 1
-              ? `هر ${fa(pairs.length)} جفتِ این آزمون را از حافظه جفت کردی — روی هم ${fa(totalMoves)} حرکت.`
-              : `با ${fa(moves)} حرکت همهٔ آثارِ این دست را به پدیدآورنده‌شان رساندی.`}
-          </p>
+    /* وقتی کلِ نشست تمام شده، آمارِ کل نشان داده می‌شود و نه آمارِ این دست:
+       جفت‌هایِ همهٔ دست‌ها، و حرکت‌هایی که صرفِ همهٔ آن‌ها شده. */
+    const pairsDone = seriesDone ? pairs.length : pairCount;
+    const movesUsed = seriesDone ? totalMoves : moves;
+    const pct = movesUsed
+      ? Math.min(100, Math.round((pairsDone / movesUsed) * 100))
+      : 0;
 
+    return (
+      <div
+        dir="rtl"
+        className="container relative z-20 mx-auto my-10 max-w-2xl sm:my-16"
+      >
+        <GameResult
+          pct={pct}
+          ringLabel="درصد دقت"
+          tone={resultTone(pct, 3 * pairsDone + movesUsed, PAIRS_TONES)}
+          context={
+            rounds.length > 1
+              ? seriesDone
+                ? "همهٔ دست‌ها تمام شد"
+                : `دستِ ${ordinal(roundIndex)} تمام شد`
+              : `فارسی ${gradeTitle} \u00b7 ${termTitle}`
+          }
+          stats={[
+            { label: "جفت", value: pairsDone, mark: "ok" },
+            { label: "حرکت اشتباه", value: Math.max(0, movesUsed - pairsDone), mark: "bad" },
+            { label: "کل حرکت‌ها", value: movesUsed },
+          ]}
+          actions={
+            <>
+              {hasNext && !seriesDone ? (
+                <button
+                  type="button"
+                  onClick={() => startRound(roundIndex + 1)}
+                  className={resultButton.primary}
+                >
+                  دستِ {ordinal(roundIndex + 1)}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={restartSession}
+                  className={resultButton.primary}
+                >
+                  {rounds.length > 1 ? "یک نشستِ تازه" : "یک دور دیگر"}
+                </button>
+              )}
+              {rounds.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setPhase("plan")}
+                  className={resultButton.ghost}
+                >
+                  فهرست دست‌ها
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={backToTerms}
+                className={resultButton.ghost}
+              >
+                تغییر آزمون
+              </button>
+            </>
+          }
+        >
           {rounds.length > 1 && (
-            <div className="mt-5 flex justify-center">
+            <div className="flex justify-center">
               <RoundProgress index={roundIndex} total={rounds.length} done={done} />
             </div>
           )}
-
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
-            {hasNext && !seriesDone ? (
-              <button
-                onClick={() => startRound(roundIndex + 1)}
-                className="min-h-11 rounded-xl bg-primary px-8 font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-90 active:scale-95"
-              >
-                دستِ {ordinal(roundIndex + 1)}
-              </button>
-            ) : (
-              <button
-                onClick={restartSession}
-                className="min-h-11 rounded-xl bg-primary px-8 font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-90 active:scale-95"
-              >
-                {rounds.length > 1 ? "یک نشستِ تازه" : "یک دور دیگر"}
-              </button>
-            )}
-            {rounds.length > 1 && (
-              <button
-                onClick={() => setPhase("plan")}
-                className="min-h-11 rounded-xl border border-border bg-card px-5 text-sm text-muted-foreground transition-all hover:border-primary/50"
-              >
-                فهرست دست‌ها
-              </button>
-            )}
-            <button
-              onClick={backToTerms}
-              className="min-h-11 rounded-xl border border-border bg-card px-5 text-sm text-muted-foreground transition-all hover:border-primary/50"
-            >
-              تغییر آزمون
-            </button>
-          </div>
-        </motion.div>
+        </GameResult>
       </div>
     );
   }
+
 
   // ---- memory board ----
   return (
@@ -692,11 +802,17 @@ function PairsGame({ decks }: { decks: MemoryDecks }) {
           <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
             {fa(matched.size)} / {fa(pairCount)}
           </span>
-          <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
+          <span
+            data-tour="pairs-moves"
+            className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
+          >
             {fa(moves)} حرکت
           </span>
         </div>
       </div>
+
+      {/* آموزشِ نخستین ورود — عیناً جایِ سایت: پس از سربرگ و پیش از زمین. */}
+      <Tour id="play-pairs" steps={PAIRS_TOUR} />
 
       {/* ⚠️ `flex` و نه `grid` — همان انتخابی که صفحهٔ مرور از اول کرده بود.
           زمینِ موبایل حالا می‌تواند ردیفِ آخرِ ناتمام داشته باشد (ده کارت در
@@ -709,7 +825,11 @@ function PairsGame({ decks }: { decks: MemoryDecks }) {
           کلاسِ پویا نمی‌سازد. کسرِ فاصله‌ها لازم است، وگرنه چهار کارتِ
           ۲۵٪ به‌اضافهٔ سه فاصله از عرض بیرون می‌زند و یکی به خطِ بعد
           می‌افتد. */}
-      <div style={gridStyle} className="flex flex-wrap justify-center gap-2 sm:gap-3.5">
+      <div
+        style={gridStyle}
+        data-tour="pairs-grid"
+        className="flex flex-wrap justify-center gap-2 sm:gap-3.5"
+      >
         {deck.map((card, index) => {
           const isMatched = matched.has(card.pairId);
           const isUp = isMatched || flipped.includes(index);
