@@ -94,7 +94,16 @@ export default function HuntCase({
   const [outcome, setOutcome] = useState<"hit" | "miss" | null>(null);
   const [escaped, setEscaped] = useState(false);
   /** نشانه رویِ کدام پنجره قفل شده (موشوار یا لمسی). */
-  const [locked, setLocked] = useState<number | null>(null);
+  const [locked, setLockedState] = useState<number | null>(null);
+  /* همان `O.current.locked`ِ سایت. قفل باید همان لحظه، پیش از رندرِ بعدی،
+     دیده شود: رویدادهایِ pointermove بلافاصله پس از قفل شدن هنوز در بسته‌‌یِ
+     قدیمی‌اند و `locked` را `null` می‌بینند؛ اگر با state بسنجیم، نشانه را
+     دوباره رویِ جایِ موشوار می‌گذارند و از رویِ مظنون می‌لغزد. */
+  const lockedRef = useRef<number | null>(null);
+  const setLocked = (i: number | null) => {
+    lockedRef.current = i;
+    setLockedState(i);
+  };
   const [touchArmed, setTouchArmed] = useState(false);
   /** موس درونِ صحنه است؟ نشانه تا وقتی موس در صحنه باشد پیداست — رویِ
    *  سراسرِ نما، نه فقط رویِ پنجره‌ها. (`f` در کامپوننتِ سایت.) */
@@ -229,7 +238,7 @@ export default function HuntCase({
    *  تفاوتِ مهم: سایت هنگامِ رها شدن (`null`) نشانه را به واپسین جایِ آزادِ
    *  موس برمی‌گرداند، نه اینکه همان‌جا رویِ سرِ مظنون بخکد. */
   const hover = (i: number | null) => {
-    if (phase !== "hunt" || i === locked) return;
+    if (phase !== "hunt" || i === lockedRef.current) return;
     setLocked(i);
     if (i === null) {
       setTouchArmed(false);
@@ -256,7 +265,7 @@ export default function HuntCase({
     aim.current = { x, y };
     /* فقط وقتی رویِ پنجره‌ای قفل نشده‌ایم نشانه موس را دنبال می‌کند؛ وگرنه
        رویِ همان مظنون می‌ماند تا شلیک یا رها شدن. */
-    if (locked === null && phase === "hunt") {
+    if (lockedRef.current === null && phase === "hunt") {
       mx.set(x);
       my.set(y);
       trackEyes(x, y);
