@@ -411,11 +411,6 @@ export default function HuntCase({
                         شکار شد
                       </span>
                     )}
-                    {st === "escaped" && (
-                      <span className={H + "stamp"} aria-hidden="true">
-                        در رفت
-                      </span>
-                    )}
                   </span>
                   <span className={H + "plate"}>
                     <span className={H + "plateNum"} aria-hidden="true">

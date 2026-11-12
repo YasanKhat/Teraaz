@@ -126,6 +126,22 @@ export default function HuntRun({
   return (
     <div className={H + "game"} dir="rtl" aria-label="جاسوسِ نقش‌ها" tabIndex={-1}>
       <div className={H + "hud"}>
+        {/* همان `ep`ِ سایت: نوارِ پیشرفت نخستین فرزندِ hud است، نه بیرونِ آن.
+            `.ticks` در css «flex: 1 1 0%» دارد، یعنی برای کش آمدن در همان
+            ردیفِ hud ساخته شده — بیرونش که بگذاری «flex» بی‌اثر می‌شود و یک
+            ردیفِ جدا می‌سازد. */}
+        <ol className={H + "ticks"}>
+          {levels.map((l, i) => {
+            const r = results.find((x) => x.level.id === l.id);
+            return (
+              <li
+                key={l.id}
+                className={H + "tick"}
+                data-state={r ? (r.hit ? "ok" : "bad") : i === index ? "now" : "todo"}
+              />
+            );
+          })}
+        </ol>
         <span className={H + "count"}>
           پرونده {(Math.min(index + 1, levels.length)).toLocaleString("fa-IR")} از{" "}
           {levels.length.toLocaleString("fa-IR")}
@@ -155,20 +171,6 @@ export default function HuntRun({
         </button>
       </div>
 
-      <Tour id="play-jasoos" steps={JASOOS_TOUR} />
-      <ol className={H + "ticks"}>
-        {levels.map((l, i) => {
-          const r = results.find((x) => x.level.id === l.id);
-          return (
-            <li
-              key={l.id}
-              className={H + "tick"}
-              data-state={r ? (r.hit ? "hit" : "miss") : i === index ? "now" : "todo"}
-            />
-          );
-        })}
-      </ol>
-
       {!finished && level && (
         <HuntCase
           key={level.id}
@@ -180,6 +182,8 @@ export default function HuntRun({
           nextLabel={isLast || chances <= 0 ? "نتیجه" : "پروندهٔ بعد"}
         />
       )}
+
+      <Tour id="play-jasoos" steps={JASOOS_TOUR} />
 
       {finished && (
         <>
