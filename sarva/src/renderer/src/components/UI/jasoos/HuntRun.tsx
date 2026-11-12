@@ -177,7 +177,7 @@ export default function HuntRun({
           total={levels.length}
           onResolve={onResolve}
           onNext={onNext}
-          nextLabel={isLast ? "نتیجه" : "پروندهٔ بعد"}
+          nextLabel={isLast || chances <= 0 ? "نتیجه" : "پروندهٔ بعد"}
         />
       )}
 
