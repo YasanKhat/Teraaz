@@ -110,14 +110,20 @@
 
      ⚠️ و اینجا `.dark` ندارد: خودِ --primary در تمِ تیره روشن‌تر می‌شود، پس
      شب هم کمی بازتر می‌شود — همان جهتی که درست است. */
-  --game-night-1: color-mix(in oklch, var(--primary) 30%, lab(21.12% 0 0)); /* سقفِ صحنه */
-  --game-night-2: color-mix(in oklch, var(--primary) 20%, lab(9.52% 0 0)); /* میانه */
-  --game-night-3: color-mix(in oklch, var(--primary) 12%, lab(3.04863% 0 0)); /* تهِ صحنه */
+  /* ⚠️ این شش تا فقط *پشتیبان*اند — همان آرایشِ سایت: مقدارِ ساده نخست،
+     مقدارِ ترکیبی در یک `@supports` پس از این بلوک (پایینِ `:root`).
+     دلیلش این است که اگر مرورگری `color-mix` را نشناسد، مقدارِ ترکیبی
+     نامعتبر است و *دور انداخته می‌شود* — و بدونِ پشتیبان، زمینِ بازی بی‌رنگ
+     می‌ماند. سایت همین دوپایه را دارد و ما تا پیش از این فقط پایهٔ دوم را
+     داشتیم: در چنان مرورگری شب کاملاً می‌پرید. */
+  --game-night-1: var(--primary); /* سقفِ صحنه */
+  --game-night-2: var(--primary); /* میانه */
+  --game-night-3: var(--primary); /* تهِ صحنه */
   /* متن و سطحِ شناور *روی* شب. کرمِ سایت، نه سفیدِ خام. */
-  --game-night-ink: color-mix(in oklch, var(--cream) 92%, var(--primary));
-  --game-night-veil: color-mix(in oklch, var(--game-night-3) 72%, transparent);
+  --game-night-ink: var(--cream);
+  --game-night-veil: var(--game-night-3);
   /* لبهٔ صحنه — همان مرزی که کارت‌های سایت دارند، ولی از سمتِ شب دیده شود. */
-  --game-night-edge: color-mix(in oklch, var(--primary) 34%, var(--game-night-1));
+  --game-night-edge: var(--primary);
 
   /* ── رنگِ الگوی هندسیِ پس‌زمینه ───────────────────────────────────────
      تا پیش از این هر جا `<GeometricPattern />` بود، رنگش را والدش تعیین
@@ -158,8 +164,30 @@
      هر color-mix با سفید که روشنش کند، اشباعش را هم می‌خورد.
 
      ⚠️ و اینجا `.dark` ندارد — امروز هم نشان در هر دو تم یک رنگ است. */
-  --logo-1: #0dbfc3;
+   --logo-1: #0dbfc3;
   --logo-2: #00abb5;
+}
+
+/* ── شبِ زمینِ بازی، پایهٔ دوم ─────────────────────────────────────────────
+   شش متغیرِ بالا در همین‌جا دوباره تعریف می‌شوند، ولی این بار با `color-mix`.
+   در مرورگری که آن را بشناسد این بلوک برنده است و پشتیبانِ ساده کنار
+   می‌رود؛ در مرورگری که نشناسد، کلِ بلوک نادیده گرفته می‌شود و پشتیبان
+   می‌ماند. همان دوپایه‌ای که سایت دارد.
+
+   ⚠️ جایِ این بلوک *بعدِ* `:root` است و نه پیش از آن — وگرنه پشتیبان
+   می‌آمد و مقدارِ ترکیبی را می‌پوشاند.
+
+   ⚠️ نیامدنش درونِ `:root` عمدی است: `@supports` را نمی‌توان در یک قانون
+   نشاند (مگر با CSS Nesting که اینجا ارزشِ ریسک ندارد). */
+@supports (color: color-mix(in lab, red, red)) {
+  :root {
+    --game-night-1: color-mix(in oklch, var(--primary) 30%, lab(21.12% 0 0));
+    --game-night-2: color-mix(in oklch, var(--primary) 20%, lab(9.52% 0 0));
+    --game-night-3: color-mix(in oklch, var(--primary) 12%, lab(3.04863% 0 0));
+    --game-night-ink: color-mix(in oklch, var(--cream) 92%, var(--primary));
+    --game-night-veil: color-mix(in oklch, var(--game-night-3) 72%, transparent);
+    --game-night-edge: color-mix(in oklch, var(--primary) 34%, var(--game-night-1));
+  }
 }
 
 .dark {
@@ -1514,8 +1542,16 @@ html {
        • سایهٔ نرمِ پایین، همان چیزی که کارت‌های سایت دارند. */
   border: 1px solid var(--game-night-edge);
   box-shadow:
-    0 0 0 6px color-mix(in oklch, var(--primary) 7%, transparent),
-    0 18px 48px -18px color-mix(in oklch, var(--primary-deep) 45%, transparent);
+    0 0 0 6px var(--primary),
+    0 18px 48px -18px var(--primary-deep);
+}
+
+@supports (color: color-mix(in lab, red, red)) {
+  .ninja-field {
+    box-shadow:
+      0 0 0 6px color-mix(in oklch, var(--primary) 7%, transparent),
+      0 18px 48px -18px color-mix(in oklch, var(--primary-deep) 45%, transparent);
+  }
 }
 
 /* --- نشانِ سروا، محو در میانهٔ شب ---
@@ -1558,12 +1594,22 @@ html {
    ⚠️ مقصدِ مخلوط در تمِ روشن `--background` و `--card` است، و نه `lab()`.
    شبِ روشن باید به کاغذِ صفحه پیوسته باشد، نه به یک خاکستریِ مطلق. */
 :root:not(.dark) .ninja-field {
-  --game-night-1: color-mix(in oklab, var(--primary) 10%, var(--card));
-  --game-night-2: color-mix(in oklab, var(--primary) 7%, var(--background));
-  --game-night-3: color-mix(in oklab, var(--primary) 16%, var(--background));
+  --game-night-1: var(--primary);
+  --game-night-2: var(--primary);
+  --game-night-3: var(--primary);
   --game-night-ink: var(--foreground);
-  --game-night-veil: color-mix(in oklab, var(--card) 80%, transparent);
-  --game-night-edge: color-mix(in oklab, var(--primary) 22%, transparent);
+  --game-night-veil: var(--card);
+  --game-night-edge: var(--primary);
+}
+
+@supports (color: color-mix(in lab, red, red)) {
+  :root:not(.dark) .ninja-field {
+    --game-night-1: color-mix(in oklab, var(--primary) 10%, var(--card));
+    --game-night-2: color-mix(in oklab, var(--primary) 7%, var(--background));
+    --game-night-3: color-mix(in oklab, var(--primary) 16%, var(--background));
+    --game-night-veil: color-mix(in oklab, var(--card) 80%, transparent);
+    --game-night-edge: color-mix(in oklab, var(--primary) 22%, transparent);
+  }
 }
 
 /* روی زمینِ روشن دو چیز دیگر هم باید از شب بیرون بیایند:
@@ -1582,11 +1628,17 @@ html {
 /* هالهٔ دوم روی زمینِ روشن لاجوردی نیست؛ سایت آن را طلایی می‌کند تا با ماه و
    امتیازِ طلاییِ همان صحنه هم‌خانواده شود. */
 :root:not(.dark) .ninja-field .ninja-aurora-b {
-  background: radial-gradient(
-    38% 30% at 75% 62%,
-    color-mix(in oklab, var(--gold) 30%, transparent),
-    transparent 70%
-  );
+  background: radial-gradient(38% 30% at 75% 62%, var(--gold), transparent 70%);
+}
+
+@supports (color: color-mix(in lab, red, red)) {
+  :root:not(.dark) .ninja-field .ninja-aurora-b {
+    background: radial-gradient(
+      38% 30% at 75% 62%,
+      color-mix(in oklab, var(--gold) 30%, transparent),
+      transparent 70%
+    );
+  }
 }
 
 /* --- هاله‌های پس‌زمینه: دو لکهٔ رنگی که آرام جابه‌جا می‌شوند --- */
@@ -1620,26 +1672,38 @@ html {
 }
 
 .ninja-aurora-a {
-  background: radial-gradient(
-    40% 32% at 25% 30%,
-    color-mix(in oklch, var(--color-primary) 42%, transparent),
-    transparent 70%
-  );
+  background: radial-gradient(40% 32% at 25% 30%, var(--color-primary), transparent 70%);
   animation: ninjaAuroraA 15s ease-in-out infinite;
 }
 
+@supports (color: color-mix(in lab, red, red)) {
+  .ninja-aurora-a {
+    background: radial-gradient(
+      40% 32% at 25% 30%,
+      color-mix(in oklch, var(--color-primary) 42%, transparent),
+      transparent 70%
+    );
+  }
+}
+
 .ninja-aurora-b {
-  background: radial-gradient(
-    38% 30% at 75% 62%,
+  background: radial-gradient(38% 30% at 75% 62%, var(--lapis-light), transparent 70%);
+  animation: ninjaAuroraB 19s ease-in-out infinite;
+}
+
+@supports (color: color-mix(in lab, red, red)) {
+  .ninja-aurora-b {
     /* ⚠️ اینجا یک بار `rgba(96,140,230,.42)`ِ ثابت بود، با این توضیح که
        --lapis-light در تمِ تیره آن‌قدر تیره می‌شود که هاله دیده نشود. آن
        ایراد بعداً در خودِ توکن درست شد (بالای فایل، کنارِ --lapis-light) و
        این هگز جا ماند — پس زمینِ بازی تنها جایی از سایت بود که با عوض شدنِ
        پالت هیچ تکان نمی‌خورد. حالا دوباره از توکن می‌آید. */
-    color-mix(in oklch, var(--lapis-light) 42%, transparent),
-    transparent 70%
-  );
-  animation: ninjaAuroraB 19s ease-in-out infinite;
+    background: radial-gradient(
+      38% 30% at 75% 62%,
+      color-mix(in oklch, var(--lapis-light) 42%, transparent),
+      transparent 70%
+    );
+  }
 }
 
 /* بافتِ ریزِ نقطه‌ای، تا پس‌زمینه یکدستِ بی‌جان نباشد */
@@ -1651,12 +1715,16 @@ html {
 /* --- خودِ کلمه --- */
 /* یک لبهٔ روشن بالا و یک سایهٔ زیر: همان چیزی که یک تکه را از یک لکهٔ رنگی
    جدا می‌کند. */
+/* ⚠️ هگزِ هشت‌رقمی عمداً همانِ خودِ سایت است و نه معادلِ گردشده‌اش.
+   `#ffffff73` می‌شود ۰٫۴۵۰۹۸ و نه ۰٫۴۵؛ `rgba(...,0.45)` یک‌هزارم کم‌تر است.
+   به چشم نمی‌آید، اما چون سنجش را با بسته‌یِ زنده می‌سنجیم، گرد کردن فقط
+   یک اختلافِ بی‌دلیل می‌سازد. */
 .ninja-chip {
+  text-shadow: 0 1px #ffffff40;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    inset 0 -2px 6px rgba(0, 0, 0, 0.25),
-    0 6px 16px rgba(0, 0, 0, 0.45);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
+    inset 0 1px #ffffff73,
+    inset 0 -2px 6px #00000040,
+    0 6px 16px #00000073;
 }
 
 /* --- دو نیمه بعد از برش --- */
@@ -1762,7 +1830,8 @@ html {
   inset: 0;
   z-index: 25;
   pointer-events: none;
-  background: radial-gradient(ellipse at center, transparent 35%, rgba(255, 60, 60, 0.75));
+  /* همان هگزِ سایت: `#ff3c3cbf` می‌شود ۰٫۷۴۹ و نه ۰٫۷۵. */
+  background: radial-gradient(#0000 35%, #ff3c3cbf);
   animation: ninjaWrongFlash 0.45s ease-out forwards;
 }
 
@@ -1802,26 +1871,41 @@ html {
 
 /* کارت‌های صفحهٔ حفظ کردن — برجسته، تا از متنِ توضیح جدا باشند */
 .ninja-study-card {
-  background: linear-gradient(
-    160deg,
-    color-mix(in oklch, var(--color-primary) 22%, transparent),
-    color-mix(in oklch, var(--color-primary) 8%, transparent)
-  );
-  border: 1px solid color-mix(in oklch, var(--color-primary) 35%, transparent);
+  background: linear-gradient(160deg, var(--color-primary), var(--color-primary));
+  border: 1px solid var(--color-primary);
   color: var(--color-primary);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 4px 14px rgba(0, 0, 0, 0.25);
+    inset 0 1px #ffffff1f,
+    0 4px 14px #00000040;
   transition:
     transform 0.2s,
     box-shadow 0.2s;
+}
+
+@supports (color: color-mix(in lab, red, red)) {
+  .ninja-study-card {
+    background: linear-gradient(
+      160deg,
+      color-mix(in oklch, var(--color-primary) 22%, transparent),
+      color-mix(in oklch, var(--color-primary) 8%, transparent)
+    );
+    border: 1px solid color-mix(in oklch, var(--color-primary) 35%, transparent);
+  }
 }
 
 .ninja-study-card:hover {
   transform: translateY(-2px);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 8px 22px color-mix(in oklch, var(--color-primary) 30%, transparent);
+    0 8px 22px var(--color-primary);
+}
+
+@supports (color: color-mix(in lab, red, red)) {
+  .ninja-study-card:hover {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      0 8px 22px color-mix(in oklch, var(--color-primary) 30%, transparent);
+  }
 }
 
 /* دکمهٔ شروع: یک تپشِ آرام تا معلوم باشد کجا باید زد */
