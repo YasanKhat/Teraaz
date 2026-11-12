@@ -11,7 +11,7 @@ import GameSetup from "@/components/UI/games/GameSetup";
 import LessonPicker from "@/components/UI/games/LessonPicker";
 import HuntRun from "./HuntRun";
 import HuntHero from "./HuntHero";
-import { lessonsOf, levelsForLessons } from "@/lib/jasoos-bank";
+import { JASOOS_HAND, lessonsOf, levelsForLessons, pickJasoosLevels } from "@/lib/jasoos-bank";
 import { GRADE_META, LESSON_TITLES } from "@/lib/doroos/catalog";
 import type { GradeKey } from "@/lib/doroos/types";
 import type { HuntLevel, HuntSuspect } from "./HuntCase";
@@ -33,6 +33,8 @@ export default function JasoosGame() {
   const [grade, setGrade] = useState<GradeKey>("dahom");
   const [pickedLessons, setPickedLessons] = useState<Set<number>>(new Set());
   const [runLevels, setRunLevels] = useState<HuntLevel[]>([]);
+  /** هر دور یک شماره می‌گیرد تا HuntRun از نو ساخته شود. */
+  const [runId, setRunId] = useState(0);
   /** پرونده‌یِ رویِ میز — برایِ گزارشِ اشکال و ذخیره‌یِ پاسخ. */
   const [current, setCurrent] = useState<HuntLevel | null>(null);
   const [guestPrompt, setGuestPrompt] = useState(false);
@@ -93,13 +95,26 @@ export default function JasoosGame() {
     setPickedLessons((prev) => (prev.size === all.length ? new Set() : new Set(all)));
   };
 
+  /** اندازه‌یِ دست: سایت بیش از ده پرونده نمی‌دهد. */
+  const dealCount = Math.min(pickedLevels.length, JASOOS_HAND);
+
+  /** یک دست تازه — درهم‌زنی و بریدن به اندازه‌یِ دست، همان `pickJasoosLevels`.
+   *
+   *  `runId` بالا می‌رود تا `HuntRun` از نو ساخته شود: حالتِ دور (شمارنده،
+   *  نتیجه‌ها، فرصت‌ها) درونِ خودِ آن کامپوننت است و بدونِ این کلید هیچ‌کدام
+   *  پاک نمی‌شدند — برای همین «یک دست دیگر» هیچ کاری نمی‌کرد. */
+  const deal = () => {
+    setRunLevels(pickJasoosLevels(pickedLevels, JASOOS_HAND));
+    setRunId((n) => n + 1);
+    setScreen("play");
+  };
+
   const start = () => {
     if (guest.blocked) {
       setGuestPrompt(true);
       return;
     }
-    setRunLevels(pickedLevels);
-    setScreen("play");
+    deal();
   };
 
   /** سایت پس از هر شلیک پاسخ را به سرور می‌فرستد. */
@@ -139,11 +154,12 @@ export default function JasoosGame() {
           />
         )}
         <HuntRun
+          key={runId}
           levels={runLevels}
           onShot={onShot}
           onLevel={setCurrent}
           onFinish={onFinish}
-          onAgain={() => setRunLevels([...runLevels])}
+          onAgain={deal}
           onChangeLessons={backToSetup}
         />
       </>
@@ -168,7 +184,7 @@ export default function JasoosGame() {
         summary={
           pickedLessons.size === 0
             ? "یک یا چند درس انتخاب کن."
-            : `${pickedLessons.size.toLocaleString("fa-IR")} درس · ${pickedLevels.length.toLocaleString("fa-IR")} پرونده`
+            : `${pickedLessons.size.toLocaleString("fa-IR")} درس · ${dealCount.toLocaleString("fa-IR")} پرونده · ${(3).toLocaleString("fa-IR")} جان`
         }
         startLabel="شروع شکار"
         canStart={pickedLessons.size > 0}

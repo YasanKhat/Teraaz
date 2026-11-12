@@ -30,12 +30,52 @@ export function lessonsOf(
 }
 
 /** پرونده‌های درس‌های برگزیده، به ترتیبِ همان بانک. */
+/** شمارِ پرونده‌هایِ نشان‌دارِ یک درس — همان `taggedLevelCount`ِ سایت.
+ *
+ *  سایت از این برایِ دو چیز استفاده می‌کند: اینکه درس «باز» است یا «به‌زودی»،
+ *  و اینکه آیا پرونده‌هایِ بی‌پایه به دستِ بازی افزوده شوند یا نه. */
+export function taggedLevelCount(grade: GradeKey, lesson: number): number {
+  return JASOOS_BANK.filter((lv) => lv.grade === grade && lv.lesson === lesson)
+    .length;
+}
+
+/** همان `levelsForLessons`ِ سایت.
+ *
+ *  نکته‌ای که به چشم نمی‌آید: اگر یکی از درس‌هایِ برگزیده اصلاً پروندهٔ
+ *  نشان‌دار نداشته باشد، سایت پرونده‌هایِ *بی‌پایه* را هم به دست می‌افزاید تا
+ *  دست خالی نماند. در این بانک همهٔ ۳۶۵ پرونده پایه و درس دارند، پس این شاخه
+ *  در عمل بسته است — اما نگه داشته شده تا اگر روزی پروندهٔ بی‌پایه‌ای آمد،
+ *  رفتار با سایت یکی بماند. */
 export function levelsForLessons(
   grade: GradeKey,
   lessons: readonly number[],
 ): JasoosBankLevel[] {
+  if (!grade || !lessons?.length) return [...JASOOS_BANK];
   const picked = new Set(lessons);
-  return JASOOS_BANK.filter(
-    (lv) => lv.grade === grade && picked.has(lv.lesson),
+  const tagged = JASOOS_BANK.filter(
+    (lv) => lv.grade === grade && lv.lesson != null && picked.has(lv.lesson),
   );
+  const hasEmpty = lessons.some((l) => taggedLevelCount(grade, l) === 0);
+  const untagged = hasEmpty ? JASOOS_BANK.filter((lv) => !lv.grade) : [];
+  return [...tagged, ...untagged];
+}
+
+/** دستِ بازی — سایت بیش از این پرونده نمی‌دهد (عضوِ آزاد هم همین قدر). */
+export const JASOOS_HAND = 10;
+
+/** همان `pickJasoosLevels`ِ سایت: درهم‌زنیِ فیشر–یتس، بعد بریدن به اندازه‌یِ دست.
+ *
+ *  ⚠️ چرا مهم است: پیش از این برنامه همهٔ پرونده‌هایِ درس را به ترتیب می‌داد،
+ *  پس انتخابِ درسِ یکِ دهم یعنی ۱۴ پرونده‌یِ پشتِ‌هم و همیشه به یک ترتیب؛
+ *  سایت ده پرونده برمی‌دارد و هر بار درهم می‌زند. */
+export function pickJasoosLevels(
+  levels: readonly JasoosBankLevel[],
+  cap: number = JASOOS_HAND,
+): JasoosBankLevel[] {
+  const a = [...levels];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a.slice(0, Math.min(cap, a.length));
 }
