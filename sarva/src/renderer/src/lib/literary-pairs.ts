@@ -94,7 +94,9 @@ export const LITERARY_DECKS: MemoryDecks = {
       { work: "سفرنامه", author: "ناصر خسرو", image: "/games/poems/10/dah-21.webp" },
       { work: "گلستان", author: "سعدی", image: "/games/poems/10/dah-10.webp" },
       { work: "اتاق آبی", author: "سهراب سپهری", image: "/games/poems/10/dah-11.webp" },
-      { work: "ازریابی شتاب‌زده", author: "جلال آل احمد", image: "/games/poems/10/dah-4.webp" },
+      // سایت خودش این عنوان را «ازریابی» نوشته (در داده‌هایِ دسته، کنارِ
+      // همین نگاره)؛ «ارزیابی شتاب‌زده» املایِ درستِ اثرِ جلال آل احمد است.
+      { work: "ارزیابی شتاب‌زده", author: "جلال آل احمد", image: "/games/poems/10/dah-4.webp" },
     ],
     khordad: [
       { work: "خاک آزادگان", author: "سپیده کاشانی", image: "/games/poems/10/dah-8.webp" },

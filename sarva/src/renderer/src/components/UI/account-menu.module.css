@@ -245,6 +245,169 @@
   color: oklch(0.72 0.15 25);
 }
 
+/* ── صندوقِ اعلان‌هایِ تازه ──────────────────────────────────────────────
+   تازه‌یِ بسته‌یِ ۱۲ نوامبر: پیش از این منویِ حساب فقط تصویر و فهرستِ
+   صفحه‌ها بود و نشانی از اعلان نداشت. */
+.inbox {
+  margin: 0 2px 8px;
+  padding: 6px;
+  border: 1px solid color-mix(in oklch, var(--primary) 14%, transparent);
+  border-radius: 16px;
+  background: color-mix(in oklch, var(--primary) 6%, transparent);
+}
+
+.inboxHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 6px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.inboxHead b {
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 1px 5px 0;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+  color: #fff;
+  background: #de3b3d;
+  background: lab(51.5803% 63.2457 38.9399);
+}
+
+.inboxList {
+  display: grid;
+  gap: 2px;
+}
+
+.inboxItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 7px 6px;
+  border-radius: 11px;
+  outline: none;
+  transition: background 140ms;
+}
+
+.inboxItem:hover,
+.inboxItem[data-highlighted] {
+  background: color-mix(in oklch, var(--card) 70%, transparent);
+}
+
+.inboxIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin-top: 1px;
+  border-radius: 9px;
+}
+
+.inboxText {
+  display: grid;
+  min-width: 0;
+  line-height: 1.55;
+}
+
+.inboxText strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.inboxText time {
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+}
+
+.inboxFrom {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.inboxSkeleton {
+  display: block;
+  height: 40px;
+  border-radius: 11px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklch, var(--foreground) 5%, transparent),
+    color-mix(in oklch, var(--foreground) 9%, transparent),
+    color-mix(in oklch, var(--foreground) 5%, transparent)
+  );
+  background-size: 200% 100%;
+  animation: inboxShimmer 1.2s linear infinite;
+}
+
+.inboxAll {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 34px;
+  margin-top: 2px;
+  border-radius: 10px;
+  outline: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.inboxAll:hover,
+.inboxAll[data-highlighted] {
+  background: color-mix(in oklch, var(--primary) 10%, transparent);
+}
+
+/* حالتِ «اعلانی نیست» — یک ردیفِ کم‌جان، نه یک صندوقِ خالی. */
+.inboxQuiet {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  margin: 0 2px 6px;
+  padding: 0 12px;
+  border-radius: 12px;
+  outline: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.inboxQuiet:hover,
+.inboxQuiet[data-highlighted] {
+  color: var(--foreground);
+  background: color-mix(in oklch, var(--foreground) 5%, transparent);
+}
+
+.inboxChevron {
+  margin-inline-start: auto;
+}
+
+/* نقطهٔ قرمز رویِ آواتار — جایگاه را اینجا می‌گیرد، ظاهرش در ماژولِ خودش. */
+.avatarBadge {
+  top: -3px;
+  inset-inline-end: -4px;
+}
+
+@keyframes inboxShimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
 @keyframes accountIn {
   from {
     opacity: 0;
@@ -280,6 +443,9 @@
     animation: none;
   }
   .trigger[data-plus]::before {
+    animation: none;
+  }
+  .inboxSkeleton {
     animation: none;
   }
 }

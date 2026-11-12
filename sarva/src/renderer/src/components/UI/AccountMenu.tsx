@@ -4,11 +4,14 @@ import { Link } from "@/app/router";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "@/app/router";
 import * as Menu from "@radix-ui/react-dropdown-menu";
-import { BookMarked, CreditCard, House, LogOut, Presentation, Settings, ShieldCheck, UserRound } from "lucide-react";
-import { apiPost } from "@/lib/api/client";
-import { clearCurrentUser, useCurrentUser, usePlusSummary } from "@/lib/auth/use-current-user";
+import { BellRing, BookMarked, ChevronLeft, CreditCard, House, LogOut, Presentation, Settings, ShieldCheck, UserRound } from "lucide-react";
+import { apiGet, apiPatch, apiPost } from "@/lib/api/client";
+import { clearCurrentUser, refreshCurrentUser, useCurrentUser, usePlusSummary } from "@/lib/auth/use-current-user";
 import { formatPhone } from "@/lib/auth/phone";
+import { kindOf, NOTIFICATION_TONE } from "@/lib/plus/notification-kind";
+import type { PlusNotification } from "@/lib/plus/types";
 import SarvaStar from "./SarvaStar";
+import UnreadBadge from "./UnreadBadge";
 import styles from "./account-menu.module.css";
 
 const fa = (n: number) => n.toLocaleString("fa-IR");
@@ -18,6 +21,116 @@ function daysLeft(expiresAt: string | null): number | null {
   if (!expiresAt) return null;
   const ms = new Date(expiresAt).getTime() - Date.now();
   return Number.isFinite(ms) ? Math.max(0, Math.ceil(ms / 86_400_000)) : null;
+}
+
+/** «۵ دقیقه پیش» — همان تابعِ بسته‌یِ زنده، با آستانه‌هایِ خودش. */
+function since(createdAt: string): string {
+  const minutes = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60_000);
+  if (minutes < 1) return "همین الان";
+  if (minutes < 60) return `${minutes.toLocaleString("fa-IR")} دقیقه پیش`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours.toLocaleString("fa-IR")} ساعت پیش`;
+  const days = Math.floor(hours / 24);
+  return days < 7
+    ? `${days.toLocaleString("fa-IR")} روز پیش`
+    : `${Math.floor(days / 7).toLocaleString("fa-IR")} هفته پیش`;
+}
+
+const INBOX_HREF = "/panel/home#notifications";
+
+/**
+ * سه اعلانِ نخوانده‌یِ بالایِ منو — تازه‌یِ بسته‌یِ ۱۲ نوامبر.
+ *
+ * ⚠️ واکشی فقط وقتی شمارنده غیرصفر است؛ در غیر این صورت هر باز شدنِ منو یک
+ * درخواستِ بی‌فایده است. و ⚠️ کلیک هم «خوانده شدن» را می‌فرستد و هم شمارنده
+ * را همان‌دم یکی کم می‌کند — تأخیرِ شبکه نباید عدد را دروغگو کند.
+ */
+function Notifications({ unread }: { unread: number }) {
+  const [rows, setRows] = useState<PlusNotification[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (unread <= 0) return;
+    let alive = true;
+    apiGet<{ notifications: PlusNotification[] }>("/api/v1/notifications")
+      .then((result) => {
+        if (!alive) return;
+        if (!result.ok) return void setFailed(true);
+        setRows(result.data.notifications.filter((row) => !row.readAt).slice(0, 3));
+      });
+    return () => {
+      alive = false;
+    };
+  }, [unread]);
+
+  const [left, setLeft] = useState(unread);
+  useEffect(() => setLeft(unread), [unread]);
+
+  if (left <= 0) {
+    return (
+      <Menu.Item asChild>
+        <Link href={INBOX_HREF} className={styles.inboxQuiet}>
+          <BellRing size={16} strokeWidth={1.8} aria-hidden />
+          <span>اعلان تازه‌ای نداری</span>
+          <ChevronLeft size={15} aria-hidden className={styles.inboxChevron} />
+        </Link>
+      </Menu.Item>
+    );
+  }
+
+  const markRead = (id: string) => {
+    setLeft((n) => Math.max(0, n - 1));
+    void apiPatch("/api/v1/notifications", { id }).then(refreshCurrentUser);
+  };
+
+  return (
+    <section className={styles.inbox} aria-label="اعلان‌های تازه">
+      <div className={styles.inboxHead}>
+        <span>اعلان‌های تازه</span>
+        <b>{left.toLocaleString("fa-IR")}</b>
+      </div>
+      {rows !== null || failed ? (
+        <div className={styles.inboxList}>
+          {(rows ?? []).map((row) => {
+            // نوع‌هایی که سایت می‌شناسد و این‌جا هنوز در `PlusNotificationKind`
+            // نیستند (مانند `admin_message`) از مسیرِ رشته می‌گذرند.
+            const kind = row.kind as string;
+            const { icon: Icon, tone } = kindOf(kind);
+            return (
+              <Menu.Item key={row.id} asChild>
+                <Link
+                  href={row.href ?? INBOX_HREF}
+                  className={styles.inboxItem}
+                  onClick={() => markRead(row.id)}
+                >
+                  <span className={`${styles.inboxIcon} ${NOTIFICATION_TONE[tone]}`} aria-hidden>
+                    <Icon size={15} strokeWidth={1.9} />
+                  </span>
+                  <span className={styles.inboxText}>
+                    {kind === "admin_message" && <small className={styles.inboxFrom}>از طرف سروا</small>}
+                    <strong>{row.title}</strong>
+                    <time dateTime={row.createdAt}>{since(row.createdAt)}</time>
+                  </span>
+                </Link>
+              </Menu.Item>
+            );
+          })}
+        </div>
+      ) : (
+        <div className={styles.inboxList} aria-busy="true">
+          {Array.from({ length: Math.min(left, 3) }, (_, i) => (
+            <span key={i} className={styles.inboxSkeleton} />
+          ))}
+        </div>
+      )}
+      <Menu.Item asChild>
+        <Link href={INBOX_HREF} className={styles.inboxAll}>
+          {left > (rows?.length ?? 0) && rows !== null ? `دیدن همه (${left.toLocaleString("fa-IR")})` : "دیدن همهٔ اعلان‌ها"}
+          <ChevronLeft size={14} aria-hidden />
+        </Link>
+      </Menu.Item>
+    </section>
+  );
 }
 
 export function Avatar({ src, size }: { src: string | null; size: number }) {
@@ -68,6 +181,7 @@ export default function AccountMenu() {
   }
 
   const isPlus = plus.state === "active";
+  const unread = plus.unreadNotifications ?? 0;
   const left = isPlus ? daysLeft(plus.expiresAt) : null;
   const contact = user.email ?? formatPhone(user.phone);
 
@@ -123,7 +237,7 @@ export default function AccountMenu() {
       <Menu.Trigger
         className={styles.trigger}
         data-plus={isPlus || undefined}
-        aria-label={`حساب کاربری ${user.fullName ?? ""}`.trim()}
+        aria-label={`حساب کاربری ${user.fullName ?? ""}${unread > 0 ? ` — ${unread.toLocaleString("fa-IR")} اعلان تازه` : ""}`.replace(/\s+/g, " ").trim()}
         onPointerEnter={hoverOpen}
         onPointerLeave={hoverClose}
         onPointerDown={(e) => {
@@ -136,6 +250,7 @@ export default function AccountMenu() {
         }}
       >
         <Avatar src={user.avatarUrl} size={36} />
+        <UnreadBadge count={unread} className={styles.avatarBadge} />
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Content
@@ -160,6 +275,8 @@ export default function AccountMenu() {
               {contact && <span dir="ltr">{contact}</span>}
             </div>
           </div>
+
+          <Notifications unread={unread} />
 
           {isPlus ? (
             <Menu.Item asChild>

@@ -2,7 +2,7 @@
 
 import { Link } from "@/app/router";
 import * as Menu from "@radix-ui/react-dropdown-menu";
-import { Activity, BookOpen, ChevronDown, FileText, Gamepad2, GraduationCap, History, MoonStar, Music2, Shapes } from "lucide-react";
+import { Activity, BookOpen, Check, ChevronDown, ChevronLeft, FileText, Gamepad2, GraduationCap, History, Info, MessagesSquare, MoonStar, Music2, Shapes } from "lucide-react";
 import { usePlusSummary } from "@/lib/auth/use-current-user";
 import { useSiteContent } from "@/lib/site/use-site-content";
 import MainLogo from "../svgs/mainLogo";
@@ -28,6 +28,16 @@ const navLinks = [
   { id: "timeline", title: "خط زمان", href: "/timeline", icon: History },
 ];
 
+/** ستونِ کناریِ فهرست — دو پیوند با یک توضیحِ کوتاه زیرِ هر کدام.
+ *
+ *  ⚠️ این ستون تازه است. در بسته‌یِ سربرگِ ۹ نوامبر، منو فقط شبکه‌یِ نه‌بخشی
+ *  را داشت (`[...k]`، بی‌هیچ ستونی)؛ در بسته‌یِ ۱۲ نوامبر ستون اضافه شده و
+ *  کارتِ پلاس هم از پایینِ شبکه به *داخلِ* همین ستون کوچیده است. */
+const sideLinks = [
+  { id: "club", title: "سروا کلاب", note: "سؤال بپرس، جواب بگیر", href: "/sarvaclub", icon: MessagesSquare },
+  { id: "about", title: "درباره سروا", note: "ما کی هستیم", href: "/about", icon: Info },
+];
+
 const BADGE_LABELS: Record<string, string> = { new: "جدید", en: "NEW", fresh: "تازه", hot: "داغ", fire: "" };
 
 /** نشانِ کوچکِ کنارِ یک بخش (جدید/تازه/داغ/آتش). متن از `navBadges` در
@@ -49,6 +59,18 @@ function Sparkle() {
       <path d="M12 1.5c.5 5.6 4.9 10 10.5 10.5-5.6.5-10 4.9-10.5 10.5C11.5 16.9 7.1 12.5 1.5 12 7.1 11.5 11.5 7.1 12 1.5Z" />
     </svg>
   );
+}
+
+/** «۱۲ روز دیگر» — متنِ کوچکِ کارتِ پلاس در فهرست.
+ *
+ *  ⚠️ واژه با منویِ حساب فرق می‌کند و باید فرق کند: آن‌جا «روز مانده» است و
+ *  این‌جا «روز دیگر». سایت همین دو واژه را در دو جا نوشته است. */
+function plusDaysText(expiresAt: string | null): string | null {
+  if (!expiresAt) return null;
+  const ms = new Date(expiresAt).getTime() - Date.now();
+  if (!Number.isFinite(ms)) return null;
+  const days = Math.max(0, Math.ceil(ms / 86_400_000));
+  return days === 0 ? "امروز تمام می‌شود" : `${days.toLocaleString("fa-IR")} روز دیگر`;
 }
 
 export default function Header({ compact = false, previewPlus = false }: { compact?: boolean; previewPlus?: boolean }) {
@@ -103,26 +125,51 @@ export default function Header({ compact = false, previewPlus = false }: { compa
                       </Menu.Item>
                     ))}
                   </div>
-                  {/* کارتِ پلاس در سایت یک «کارت» جدا است، نه یک آیتمِ دیگرِ شبکه. */}
-                  {plusVisible && (
-                    <Menu.Item asChild>
-                      {/* ⚠️ این کارت همیشه به صفحه‌یِ معرفی می‌رود (`/plus`)،
-                          حتی وقتی اشتراک فعال است. در بسته‌یِ زنده آدرسِ آن
-                          `plusHref` است و با اشتراکِ فعال به
-                          `/panel/subscription` می‌رود — اما کاربر اینجا
-                          دنبالِ همان صفحه‌یِ معرفی است، نه پروفایل. نشانِ
-                          کوچکِ کنارِ نشانِ سروا (بالا) همچنان به صفحه‌یِ
-                          اشتراک می‌رود؛ این استثنا تنها همین یک کارت است. */}
-                      <Link href="/plus" className={styles.plusCard}>
-                        <span className={styles.menuIcon}><SarvaStar size={24} aria-hidden /></span>
-                        <span className={styles.plusText}>
-                          <b>{plusTitle}</b>
-                          <small>{plusActive ? "اشتراکِ فعال" : "همهٔ درس‌ها و بازی‌ها"}</small>
-                        </span>
-                        <NavBadge kind={navBadges?.plus} />
-                      </Link>
-                    </Menu.Item>
-                  )}
+                  <div className={styles.side}>
+                    {sideLinks.map(({ id, title, note, href, icon: Icon }) => (
+                      <Menu.Item key={id} asChild>
+                        <Link href={href} className={styles.sideItem}>
+                          <span className={styles.sideIcon}><Icon size={19} strokeWidth={1.7} aria-hidden /></span>
+                          <span className={styles.sideText}>
+                            <b>{title}</b>
+                            <small>{note}</small>
+                          </span>
+                          <ChevronLeft size={15} aria-hidden className={styles.sideChevron} />
+                          <NavBadge kind={navBadges?.[id]} />
+                        </Link>
+                      </Menu.Item>
+                    ))}
+                    {plusVisible && (
+                      plusActive ? (
+                        /* مشترکِ فعال: کارت دیگر پیوند نیست — مُهرِ
+                           «مشترک هستی» رویش می‌نشیند و جایی نمی‌رود. نشانِ
+                           «پلاسِ» کنارِ لوگو (بالا) همچنان به صفحه‌یِ
+                           اشتراک می‌رود، پس دسترسی از بین نمی‌رود. */
+                        <Menu.Item disabled className={`${styles.plusCard} ${styles.plusOwned}`}>
+                          <span className={styles.menuIcon}><SarvaStar size={24} aria-hidden /></span>
+                          <span className={styles.plusText}>
+                            <b>{plusTitle}</b>
+                            <small>{plusDaysText(plus.expiresAt) ?? "اشتراکت فعال است"}</small>
+                          </span>
+                          <span className={styles.stamp} aria-label="اشتراک فعال">
+                            <Check size={13} strokeWidth={3} aria-hidden />
+                            مشترک هستی
+                          </span>
+                        </Menu.Item>
+                      ) : (
+                        <Menu.Item asChild>
+                          <Link href={plusHref} className={styles.plusCard}>
+                            <span className={styles.menuIcon}><SarvaStar size={24} aria-hidden /></span>
+                            <span className={styles.plusText}>
+                              <b>{plusTitle}</b>
+                              <small>همهٔ درس‌ها و بازی‌ها، بی‌محدودیت</small>
+                            </span>
+                            <NavBadge kind={navBadges?.plus} />
+                          </Link>
+                        </Menu.Item>
+                      )
+                    )}
+                  </div>
                 </Menu.Content>
               </Menu.Portal>
             </Menu.Root>

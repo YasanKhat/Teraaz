@@ -172,15 +172,93 @@
   gap: 6px;
 }
 
-/* کارتِ سروا پلاس: یک کارتِ جدا در پایینِ فهرست، نه یک آیتمِ دیگرِ شبکه. */
+/* ستونِ کناریِ فهرست — «سروا کلاب» و «درباره سروا»، و پایینش کارتِ پلاس.
+   این ستون در نسخه‌یِ پیشینِ سایت نبود (باندلِ سربرگِ ۹ نوامبر فقط شبکه داشت)
+   و در نسخه‌یِ تازه (۱۲ نوامبر) اضافه شده است. */
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 212px;
+  padding-inline-start: 8px;
+  border-inline-start: 1px solid color-mix(in oklch, var(--foreground) 8%, transparent);
+}
+
+.sideItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 8px 10px;
+  border-radius: 16px;
+  color: var(--foreground);
+  text-decoration: none;
+  outline: none;
+  transition: background 160ms;
+}
+
+.sideItem:hover, .sideItem[data-highlighted] {
+  background: color-mix(in oklch, var(--primary) 10%, transparent);
+}
+
+.sideIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 13px;
+  color: var(--primary);
+  background: color-mix(in oklch, var(--primary) 11%, transparent);
+  transition: background 160ms, color 160ms;
+}
+
+.sideItem:hover .sideIcon, .sideItem[data-highlighted] .sideIcon {
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.sideText {
+  display: grid;
+  min-width: 0;
+  line-height: 1.5;
+}
+
+.sideText b {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.sideText small {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+.sideChevron {
+  flex-shrink: 0;
+  margin-inline-start: auto;
+  color: var(--muted-foreground);
+  opacity: 0;
+  transform: translate(4px);
+  transition: opacity 160ms, transform 160ms;
+}
+
+.sideItem:hover .sideChevron, .sideItem[data-highlighted] .sideChevron {
+  opacity: 1;
+  transform: none;
+}
+
+/* کارتِ سروا پلاس — یک کارتِ جدا در پایینِ ستونِ کناری، نه یک آیتمِ شبکه. */
 .plusCard {
   position: relative;
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  width: 132px;
+  gap: 8px;
+  min-height: 116px;
   padding: 14px 10px;
   border-radius: 18px;
   color: var(--foreground);
@@ -205,6 +283,64 @@
   transform: translateY(-2px);
   color: #fff;
   background: linear-gradient(135deg, var(--gold-deep), var(--primary));
+}
+
+/* مشترکِ فعال: کارت دیگر پیوند نیست و مُهرِ «مشترک هستی» رویش می‌نشیند. */
+.plusOwned {
+  cursor: default;
+}
+
+.plusOwned:hover, .plusOwned[data-highlighted] {
+  border-color: color-mix(in oklab, var(--gold) 30%, transparent);
+}
+
+.plusOwned:hover .menuIcon {
+  transform: none;
+  color: var(--gold-ink);
+  background: color-mix(in oklab, var(--gold) 24%, transparent);
+}
+
+.plusOwned .menuIcon svg {
+  fill: currentColor;
+}
+
+.stamp {
+  position: absolute;
+  top: 10px;
+  inset-inline-end: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px 2px;
+  border: 2px solid;
+  border-radius: 8px;
+  outline: 1px solid;
+  outline-offset: 2px;
+  white-space: nowrap;
+  font-size: 10.5px;
+  font-weight: 900;
+  line-height: 1.5;
+  color: color-mix(in oklch, var(--gold-ink) 85%, var(--primary));
+  opacity: 0.88;
+  mix-blend-mode: multiply;
+  transform: rotate(-12deg);
+  animation: stampIn 520ms cubic-bezier(0.2, 1.6, 0.4, 1) 120ms both;
+}
+
+:global(.dark) .stamp {
+  color: var(--gold);
+  mix-blend-mode: normal;
+}
+
+@keyframes stampIn {
+  from {
+    opacity: 0;
+    transform: rotate(-12deg) scale(1.6);
+  }
+  to {
+    opacity: 0.88;
+    transform: rotate(-12deg) scale(1);
+  }
 }
 
 .plusText {
@@ -395,7 +531,37 @@
   }
   .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
   .menu { flex-direction: column; gap: 6px; width: calc(100vw - 32px); max-width: 380px; padding: 8px; }
-  .plusCard { flex-direction: row; justify-content: flex-start; width: auto; padding: 10px 12px; text-align: start; }
+  /* رویِ موبایل ستونِ کناری به یک ردیفِ دوستونه زیرِ شبکه می‌رود. */
+  .side {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: auto;
+    padding-top: 6px;
+    padding-inline-start: 0;
+    border-inline-start: 0;
+    border-top: 1px solid color-mix(in oklch, var(--foreground) 8%, transparent);
+  }
+  .sideItem {
+    gap: 8px;
+    min-height: 52px;
+    padding: 6px 8px;
+  }
+  .sideIcon {
+    width: 34px;
+    height: 34px;
+  }
+  .sideText b {
+    font-size: 12.5px;
+  }
+  .sideChevron {
+    display: none;
+  }
+  .plusCard { grid-column: 1 / -1; flex-direction: row; justify-content: flex-start; min-height: 0; padding: 10px 12px; text-align: start; }
+  .stamp {
+    top: 50%;
+    inset-inline-end: 12px;
+    translate: 0 -50%;
+  }
   .menuItem {
     min-height: 78px;
     font-size: 11px;
@@ -421,10 +587,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .menu, .plusMark span, .sparkle {
+  .menu, .plusMark span, .sparkle, .stamp {
     animation: none;
   }
-  .menuTrigger svg {
+  .menuTrigger svg,
+  .sideChevron {
     transition: none;
   }
 }
