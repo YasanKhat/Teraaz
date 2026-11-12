@@ -4,12 +4,11 @@ import GuestLimitModal from "@/components/UI/GuestLimitModal";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { motion } from "motion/react";
 import {
-  LITERARY_PAIRS,
+  LITERARY_DECKS,
   MEMORY_GRADES,
   MEMORY_TERMS,
   buildMemoryDeck,
   buildMemoryRounds,
-  emptyMemoryDecks,
   memoryGridColumns,
   memoryRoundSizes,
   type LiteraryPair,
@@ -20,6 +19,11 @@ import {
 } from "@/lib/literary-pairs";
 import { useSetReportTarget } from "@/lib/reports/target";
 import { useRoundGuard } from "@/lib/games/round-guard";
+import {
+  PAIRS_DISPLAY_MODES,
+  setPairsDisplay,
+  usePairsDisplay,
+} from "@/lib/games/pairs-display";
 import Tour, { type TourStep } from "@/components/UI/kit/Tour";
 import GameResult, {
   resultButton,
@@ -210,14 +214,46 @@ function RoundProgress({
    // undefined» به صفحهٔ خطا می‌رفت. همان الگویی که نینجا دارد
    // (`rounds = NINJA_ROUNDS`): داده‌یِ کتابی پیش‌فرض است، و هرچه از پایگاه
    // برسد روی آن می‌نشیند. */
-const STATIC_DECKS: MemoryDecks = (() => {
-  const d = emptyMemoryDecks();
-  for (const g of Object.keys(d) as (keyof MemoryDecks)[]) {
-    d[g].dey = [...LITERARY_PAIRS];
-    d[g].khordad = [...LITERARY_PAIRS];
-  }
-  return d;
-})();
+const STATIC_DECKS: MemoryDecks = LITERARY_DECKS;
+
+/** کلیدِ دوحالتهٔ قابِ مرور — کوچک و کنارگذاشته، چون اصلِ صفحه جفت‌هاست و
+ *  این فقط یک ترجیحِ نمایشی. انتخاب در انباره می‌ماند. */
+function PairsDisplaySwitch() {
+  const mode = usePairsDisplay();
+  return (
+    <div className="mb-5 flex flex-col items-center gap-1.5">
+      <div
+        role="radiogroup"
+        aria-label="نمایشِ قابِ مرور"
+        className="flex items-center gap-1 rounded-full border border-border/70 bg-card/70 p-1 text-xs"
+      >
+        {PAIRS_DISPLAY_MODES.map((m) => {
+          const on = m.id === mode;
+          return (
+            <button
+              key={m.id}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              title={m.hint}
+              onClick={() => setPairsDisplay(m.id)}
+              className={`rounded-full px-3 py-1.5 transition-all ${
+                on
+                  ? "bg-primary font-bold text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {m.label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        {PAIRS_DISPLAY_MODES.find((m) => m.id === mode)?.hint}
+      </p>
+    </div>
+  );
+}
 
 function PairsGame({ decks: decksProp }: { decks?: MemoryDecks }) {
   /* «نیمهٔ اولِ کتاب» در این بازی از قبل یک مفهومِ صریح است: آزمونِ دی.
@@ -225,6 +261,10 @@ function PairsGame({ decks: decksProp }: { decks?: MemoryDecks }) {
   const { user } = useCurrentUser();
   const [guestPrompt, setGuestPrompt] = useState(false);
   const termLockedForGuest = (id: MemoryTerm) => user === null && id !== "dey";
+
+  /* قابِ مرور: جلدِ واقعی یا قابِ ساختگی. پیش‌فرض جلد است (رفتارِ سایت). */
+  const displayMode = usePairsDisplay();
+  const showCover = displayMode === "cover";
 
   const [phase, setPhase] = useState<Phase>("grade");
   const [grade, setGrade] = useState<MemoryGrade | null>(null);
@@ -586,6 +626,15 @@ function PairsGame({ decks: decksProp }: { decks?: MemoryDecks }) {
           </div>
         </div>
 
+        {/* انتخابِ قاب — چیزی که سایت ندارد و به درخواستِ خودِ شما آمد: جلدِ
+            واقعیِ کتاب (رفتارِ سایت، پیش‌فرض) یا قابِ ساختگیِ خودِ برنامه.
+            انتخاب در مرورگر می‌ماند، پس یک‌بار کافی است.
+
+            ⚠️ چرا اینجا و نه در یک صفحهٔ تنظیماتِ دور: تفاوتِ این دو را جز در
+            همین صفحه نمی‌شود دید. کلیدی که اثرش جلویِ چشم نباشد، کسی پیدایش
+            نمی‌کند. */}
+        <PairsDisplaySwitch />
+
         {/* چیدمانِ flex و نه grid: دستِ آخر می‌تواند چهار یا پنج جفت باشد و
             ردیفِ ناتمامِ *وسط‌چین* یک خطِ کوتاهِ عمدی به نظر می‌رسد، نه یک
             خانهٔ خالی در شبکه.
@@ -634,7 +683,7 @@ function PairsGame({ decks: decksProp }: { decks?: MemoryDecks }) {
                   aria-hidden
                   className="pointer-events-none absolute inset-x-5 top-8 bottom-1 rounded-[45%] bg-primary/12 blur-2xl transition-all duration-500 group-hover:bg-gold/20"
                 />
-                {p.image ? (
+                {showCover && p.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={p.image}

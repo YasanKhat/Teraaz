@@ -2,7 +2,7 @@
 import { query } from "@/lib/db";
 import { recordError } from "@/lib/admin/audit";
 import {
-  LITERARY_PAIRS,
+  LITERARY_DECKS,
   emptyMemoryDecks,
   isMemoryGrade,
   isMemoryTerm,
@@ -72,8 +72,8 @@ async function readMemoryDecksFromDb(): Promise<MemoryDeckData> {
   // نیست.
   if (rows.length === 0) {
     for (const grade of Object.keys(decks) as (keyof MemoryDecks)[]) {
-      decks[grade].dey = [...LITERARY_PAIRS];
-      decks[grade].khordad = [...LITERARY_PAIRS];
+      decks[grade].dey = [...LITERARY_DECKS[grade].dey];
+      decks[grade].khordad = [...LITERARY_DECKS[grade].khordad];
     }
     return { decks, fromDatabase: false };
   }

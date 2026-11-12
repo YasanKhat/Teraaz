@@ -58,21 +58,134 @@ export function emptyMemoryDecks(): MemoryDecks {
   };
 }
 
-// Every author here is unique so each work has exactly one correct author card
-// — otherwise a match would be ambiguous.
-export const LITERARY_PAIRS: LiteraryPair[] = [
-  { work: "شاهنامه", author: "فردوسی" },
-  { work: "مثنوی معنوی", author: "مولوی" },
-  { work: "گلستان", author: "سعدی" },
-  { work: "منطق‌الطیر", author: "عطار" },
-  { work: "خمسه", author: "نظامی" },
-  { work: "کلیله و دمنه", author: "نصرالله منشی" },
-  { work: "تاریخ بیهقی", author: "ابوالفضل بیهقی" },
-  { work: "رباعیات", author: "خیام" },
-  { work: "سفرنامه", author: "ناصرخسرو" },
-  { work: "حدیقةالحقیقه", author: "سنایی" },
-];
+/**
+ * دسته‌هایِ واقعیِ «جفت‌های ادبی» — همان که sarvaedu.ir در بسته‌یِ RSC به
+ * مرورگر می‌فرستد: همان جفت‌ها، همان ترتیب، همان نگاره‌ها. هشتاد و سه جفت در
+ * شش دسته (سه پایه × دو نوبت).
+ *
+ * این همان چیزی است که پیش از این نبود: برنامه ده جفتِ ساختگیِ بی‌نگاره داشت و
+ * همان‌ها را به هر شش دسته می‌چسباند — یعنی دانش‌آموزِ دوازدهم همان جفت‌هایِ
+ * دهم را می‌دید و هیچ دسته‌ای شبیهِ آزمونِ واقعی نبود. نگاره‌ها (جلدِ کتاب‌ها)
+ * از پیش در public/games/poems بودند و فقط داده به آن‌ها وصل نبود.
+ *
+ * ⚠️ در دو دسته نامِ نویسنده تکرار می‌شود: «سعدی» برای بوستان و گلستان،
+ * «جامی» برای بهارستان و تحفه الاحرار، «عطار نیشابوری» برای تذکره الاولیا و
+ * اسرارنامه (یازدهم/دی)، و «مولوی» برای فیه ما فیه و مثنوی معنوی
+ * (دوازدهم/دی). پس در زمین دو کارتِ هم‌نام هست و تنها یکی با اثرِ داده‌شده
+ * جفت می‌شود — چون جفت شدن با `pairId` است و نه با متن. این رفتارِ خودِ
+ * سایت است، با همه‌یِ ناعادلانه بودنش، و «عین سایت» یعنی همین را هم داشته
+ * باشیم.
+ *
+ * ⚠️ ترتیب معنا دارد: دست‌ها به ترتیبِ همین فهرست افراز می‌شوند، پس همان
+ * ترتیبی که سایت فرستاده نگه داشته شده و نه مرتب‌سازیِ الفبایی.
+ */
+export const LITERARY_DECKS: MemoryDecks = {
+  dahom: {
+    dey: [
+      { work: "الهی‌نامه", author: "عطار نیشاپوری", image: "/games/poems/10/dah-14.webp" },
+      { work: "چشمه", author: "نیما یوشیج (علی اسفندیاری)", image: "/games/poems/10/dah-24.webp" },
+      { work: "کلیله و دمنه", author: "ترجمه نصرالله منشی", image: "/games/poems/10/dah-23.webp" },
+      { work: "قابوس‌نامه", author: "عنصرالمعالی کیکاووس", image: "/games/poems/10/dah-15.webp" },
+      { work: "دیوار", author: "جمال میرصادقی", image: "/games/poems/10/dah-5.webp" },
+      { work: "گوشواره عرش", author: "سیدعلی موسوی گرمارودی", image: "/games/poems/10/dah-12.webp" },
+      { work: "سیاست‌نامه", author: "خواجه نظام‌الملک", image: "/games/poems/10/dah-7.webp" },
+      { work: "اسرارالتوحید", author: "محمد بن منور", image: "/games/poems/10/dah-25.webp" },
+      { work: "تفسیر سوره یوسف", author: "احمد بن محمد بن زید طوسی", image: "/games/poems/10/dah-1.webp" },
+      { work: "سفرنامه", author: "ناصر خسرو", image: "/games/poems/10/dah-21.webp" },
+      { work: "گلستان", author: "سعدی", image: "/games/poems/10/dah-10.webp" },
+      { work: "اتاق آبی", author: "سهراب سپهری", image: "/games/poems/10/dah-11.webp" },
+      { work: "ازریابی شتاب‌زده", author: "جلال آل احمد", image: "/games/poems/10/dah-4.webp" },
+    ],
+    khordad: [
+      { work: "خاک آزادگان", author: "سپیده کاشانی", image: "/games/poems/10/dah-8.webp" },
+      { work: "من زنده ام", author: "معصومه آباد", image: "/games/poems/10/dah-19.webp" },
+      { work: "شاهنامه", author: "فردوسی", image: "/games/poems/10/dah-17.webp" },
+      { work: "دلیران و مردان ایران زمین", author: "محمود شاهرخی", image: "/games/poems/10/dah-18.webp" },
+      { work: "مثنوی معنوی", author: "مولانا", image: "/games/poems/10/dah-20.webp" },
+      { work: "اخلاق محسنی", author: "حسین واعظ کاشفی", image: "/games/poems/10/dah-6.webp" },
+      { work: "خسرو", author: "عبدالحسین وجدانی", image: "/games/poems/10/dah-13.webp" },
+      { work: "جوامع الحکایات و لوامع الروایات", author: "سدید الدین محمد عوفی", image: "/games/poems/10/dah-9.webp" },
+      { work: "سمفونی پنجم جنوب", author: "نزار قبانی", image: "/games/poems/10/dah-22.webp" },
+      { work: "مزار شاعر", author: "فرانسوا کوپه", image: "/games/poems/10/dah-16.webp" },
+      { work: "مائده‌های زمینی", author: "آندره ژید", image: "/games/poems/10/dah-2.webp" },
+      { work: "سه پرسش", author: "تولستوی", image: "/games/poems/10/dah-3.webp" },
+    ],
+  },
+  yazdahom: {
+    dey: [
+      { work: "فرهاد و شیرین", author: "وحشی بافقی", image: "/games/poems/11/yaz-31.webp" },
+      { work: "بوستان", author: "سعدی", image: "/games/poems/11/yaz-11.webp" },
+      { work: "بهارستان", author: "جامی", image: "/games/poems/11/yaz-4.webp" },
+      { work: "تاریخ بیهقی", author: "ابوالفضل بیهقی", image: "/games/poems/11/yaz-1.webp" },
+      { work: "تحفه الاحرار", author: "جامی", image: "/games/poems/11/yaz-5.webp" },
+      { work: "در امواج سند", author: "مهدی حمیدی شیرازی", image: "/games/poems/11/yaz-25.webp" },
+      { work: "گلستان", author: "سعدی", image: "/games/poems/11/yaz-12.webp" },
+      { work: "عباس میرزا آغازگری تنها", author: "مجید واعظی", image: "/games/poems/11/yaz-21.webp" },
+      { work: "زندان موصل", author: "کامور بخشایش", image: "/games/poems/11/yaz-18.webp" },
+      { work: "لیلی و مجنون", author: "نظامی گنجه ای", image: "/games/poems/11/yaz-30.webp" },
+      { work: "تذکره الاولیا", author: "عطار نیشابوری", image: "/games/poems/11/yaz-16.webp" },
+      { work: "مرصاد العباد من المبدأ الى المعاد", author: "نجم الدین رازی (معروف به نجم دایه)", image: "/games/poems/11/yaz-28.webp" },
+      { work: "غزلیات شمس", author: "جلال الدین محمد مولوی", image: "/games/poems/11/yaz-26.webp" },
+      { work: "زندگانی جلال الدین محمد مشهور به مولوی", author: "بدیع الزمان فروزان فر", image: "/games/poems/11/yaz-3.webp" },
+      { work: "الهی نامه", author: "سنایی غزنوی", image: "/games/poems/11/yaz-13.webp" },
+      { work: "اسرارنامه", author: "عطار نیشابوری", image: "/games/poems/11/yaz-15.webp" },
+      { work: "اسرار التوحيد", author: "محمد بن منور", image: "/games/poems/11/yaz-22.webp" },
+      { work: "روزها", author: "دکتر محمد علی اسلامی ندوشن", image: "/games/poems/11/yaz-23.webp" },
+      { work: "میثاق دوستی", author: "لطفعلی صورتگر", image: "/games/poems/11/yaz-19.webp" },
+    ],
+    khordad: [
+      { work: "بانگ جرس", author: "حمید سبزواری", image: "/games/poems/11/yaz-7.webp" },
+      { work: "هم صدا با حلق اسماعیل", author: "سید حسن حسینی", image: "/games/poems/11/yaz-14.webp" },
+      { work: "شاهنامه", author: "فردوسی", image: "/games/poems/11/yaz-17.webp" },
+      { work: "روضه خلد", author: "مجد خوافی", image: "/games/poems/11/yaz-20.webp" },
+      { work: "حمله حیدری", author: "باذل مشهدی", image: "/games/poems/11/yaz-2.webp" },
+      { work: "کلیله و دمنه", author: "ترجمه ابوالمعالی نصرالله منشی", image: "/games/poems/11/yaz-29.webp" },
+      { work: "جوامع الحكايات و لوامع الروايات", author: "محمد عوفی", image: "/games/poems/11/yaz-24.webp" },
+      { work: "شلوارهای وصله دار", author: "رسول پرویزی", image: "/games/poems/11/yaz-9.webp" },
+      { work: "سه دیدار", author: "نادر ابراهیمی", image: "/games/poems/11/yaz-27.webp" },
+      { work: "ماه نو و مرغان آواره", author: "را بیندرانات تاگور", image: "/games/poems/11/yaz-8.webp" },
+      { work: "پیامبر و دیوانه", author: "جبران خلیل جبران", image: "/games/poems/11/yaz-6.webp" },
+      { work: "پرنده ای به نام آذرباد", author: "ریچارد باخ", image: "/games/poems/11/yaz-10.webp" },
+    ],
+  },
+  davazdahom: {
+    dey: [
+      { work: "گلستان", author: "سعدی", image: "/games/poems/12/davaz-5.webp" },
+      { work: "کلیله و دمنه", author: "نصرالله منشی", image: "/games/poems/12/davaz-26.webp" },
+      { work: "روایت سنگرسازان ۲", author: "عیسی سلمانی لطف‌آبادی", image: "/games/poems/12/davaz-15.webp" },
+      { work: "قصیده دماوندیه", author: "محمدتقی بهار", image: "/games/poems/12/davaz-20.webp" },
+      { work: "قصه شیرین فرهاد", author: "احمد عربلو", image: "/games/poems/12/davaz-1.webp" },
+      { work: "فیه ما فیه", author: "مولوی", image: "/games/poems/12/davaz-24.webp" },
+      { work: "فی حقیقت العشق", author: "شهاب‌الدین سهروردی", image: "/games/poems/12/davaz-10.webp" },
+      { work: "تمهیدات", author: "عین‌القضات همدانی", image: "/games/poems/12/davaz-16.webp" },
+      { work: "مثل درخت در شب باران", author: "محمدرضا شفیعی کدکنی", image: "/games/poems/12/davaz-8.webp" },
+      { work: "از پاریز تا پاریس", author: "محمدابراهیم باستانی پاریزی", image: "/games/poems/12/davaz-18.webp" },
+      { work: "تذکره‌الاولیا", author: "عطار", image: "/games/poems/12/davaz-12.webp" },
+      { work: "کویر", author: "علی شریعتی", image: "/games/poems/12/davaz-14.webp" },
+      { work: "مثنوی معنوی", author: "مولوی", image: "/games/poems/12/davaz-25.webp" },
+      { work: "بخارای من، ایل من", author: "محمد بهمن‌بیگی", image: "/games/poems/12/davaz-19.webp" },
+    ],
+    khordad: [
+      { work: "قصه‌های دوشنبه", author: "آلفونس دوده", image: "/games/poems/12/davaz-2.webp" },
+      { work: "هوا را از من بگیر، خنده‌ات را نه", author: "پابلو نرودا", image: "/games/poems/12/davaz-3.webp" },
+      { work: "ارمیا", author: "رضا امیرخانی", image: "/games/poems/12/davaz-4.webp" },
+      { work: "دری به خانهٔ خورشید", author: "سلمان هراتی", image: "/games/poems/12/davaz-6.webp" },
+      { work: "سانتاماریا", author: "سیدمهدی شجاعی", image: "/games/poems/12/davaz-7.webp" },
+      { work: "غزلواره‌ها", author: "شکسپیر", image: "/games/poems/12/davaz-9.webp" },
+      { work: "سندبادنامه", author: "ظهیری سمرقندی", image: "/games/poems/12/davaz-11.webp" },
+      { work: "منطق‌الطیر", author: "عطار نیشابوری", image: "/games/poems/12/davaz-13.webp" },
+      { work: "شاهنامه", author: "فردوسی", image: "/games/poems/12/davaz-17.webp" },
+      { work: "تیرانا", author: "محمدرضا رحمانی (مهرداد اوستا)", image: "/games/poems/12/davaz-21.webp" },
+      { work: "کباب غاز", author: "محمدعلی جمالزاده", image: "/games/poems/12/davaz-22.webp" },
+      { work: "در حیاط کوچک پاییز در زندان", author: "مهدی اخوان ثالث", image: "/games/poems/12/davaz-23.webp" },
+      { work: "بینوایان", author: "ویکتور هوگو", image: "/games/poems/12/davaz-27.webp" },
+    ],
+  },
 
+};
+
+
+/** یک کارتِ رویِ زمین. هر جفت دو کارت می‌سازد: یکی اثر، یکی پدیدآورنده. */
 export type MemoryCard = {
   id: number;
   pairId: number;
@@ -81,7 +194,6 @@ export type MemoryCard = {
   /** نگارهٔ جفت — روی هر دو کارتِ یک جفت یکسان است. */
   image: string;
 };
-
 
 /** بیشترین جفت در یک «دست».
  *
