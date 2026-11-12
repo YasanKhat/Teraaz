@@ -6,13 +6,38 @@ import type { NinjaRound } from "@/lib/ninja-data";
 
 import StudyTable from "./StudyTable";
 import SliceField from "./SliceField";
+import GameResult, {
+  resultButton,
+  resultTone,
+  tierOf,
+} from "@/components/UI/games/GameResult";
 import NinjaSettingsModal, { NinjaSettings, type NinjaDifficulty } from "./NinjaSettingsModal";
 import GameIntro from "@/components/UI/games/GameIntro";
+import { RotateCcw, SlidersHorizontal } from "lucide-react";
 import { NinjaPreview } from "@/components/UI/games/GamePreviews";
 import { useSetReportTarget } from "@/lib/reports/target";
 import { useRoundGuard } from "@/lib/games/round-guard";
 
 type Screen = "intro" | "settings" | "study" | "slicing" | "gameover" | "win";
+
+/** لحن‌هایِ ویژه‌یِ نینجا — همان `A` در بسته‌یِ سایت.
+ *
+ *  فقط سه سطح دارد: «بد نبود» و «باید بیشتر تمرین کنی» همانِ مشترک می‌مانند،
+ *  چون سایت برایشان متنی نساخته. */
+const NINJA_TONES: Partial<Record<string, { title: string; lines: string[] }>> = {
+  perfect: {
+    title: "نینجای بی‌خطا!",
+    lines: ["حتی یک برش اشتباه نداشتی.", "همه را درست بریدی."],
+  },
+  great: {
+    title: "آفرین، نینجای دستور زبان شدی!",
+    lines: ["تقریباً همه را درست بریدی.", "دستت خیلی کم خطا رفت."],
+  },
+  good: {
+    title: "از پسش برآمدی",
+    lines: ["چند برش اشتباه داشتی، ولی دوام آوردی."],
+  },
+};
 
 const START_LIVES = 3;
 const ROUND_DURATION_MS = 46000;
@@ -129,6 +154,10 @@ function NinjaGame({ rounds = NINJA_ROUNDS }: { rounds?: NinjaRound[] }) {
     baseRoundId,
   ]);
 
+  useEffect(() => {
+    if (lives <= 0 && screen === "slicing") setScreen("gameover");
+  }, [lives, screen]);
+
   const beginRound = (settings: NinjaSettings) => {
     const base = rounds.find((r) => r.id === settings.roundId);
     if (!base) return;
@@ -154,11 +183,10 @@ function NinjaGame({ rounds = NINJA_ROUNDS }: { rounds?: NinjaRound[] }) {
     setScreen("study");
   };
 
-  const loseLife = () => {
-    const next = lives - 1;
-    setLives(next);
-    if (next <= 0) setScreen("gameover");
-  };
+  /* همان `R`ِ سایت: جان زیرِ صفر نمی‌رود، و پایانِ بازی را یک `useEffect`
+     گِره می‌زند نه خودِ کاهش — تا باختن فقط در میدانِ برش رخ دهد، نه در
+     صفحه‌ای که دیگر برش‌زنی در آن نیست. */
+  const loseLife = () => setLives((n) => Math.max(0, n - 1));
 
   const handleSlice = (word: string, isTarget: boolean) => {
     if (!round) return;
@@ -266,84 +294,86 @@ function NinjaGame({ rounds = NINJA_ROUNDS }: { rounds?: NinjaRound[] }) {
           </motion.div>
         )}
 
-        {screen === "gameover" && (
-          <motion.div
-            key="gameover"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="glass relative z-20 rounded-2xl p-6 sm:p-12 text-center border-2 border-destructive"
-          >
-            <h2 className="game-display text-2xl sm:text-3xl font-bold mb-3 text-destructive">
-              جان‌هایت تمام شد!
-            </h2>
-            {lastMistake && (
-              <p className="text-sm sm:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed mb-4">
-                {lastMistake}
-              </p>
-            )}
-            <p className="mb-6 text-sm sm:text-base">
-              امتیاز نهایی‌ات:{" "}
-              <span className="game-num font-bold text-primary">
-                {totalScore.toLocaleString("fa-IR")}
-              </span>
-            </p>
-            <div className="flex items-center justify-center gap-x-3">
-              <button
-                onClick={restart}
-                className="inline-flex items-center justify-center font-medium text-primary-foreground
-                  bg-primary hover:brightness-90 active:scale-95 transition-all rounded-xl px-8 py-3 sm:py-4 text-base sm:text-lg"
-              >
-                شروع دوباره
-              </button>
-              <button
-                onClick={() => setScreen("settings")}
-                className="inline-flex items-center justify-center font-medium
-                  glass hover:brightness-110 active:scale-95 transition-all rounded-xl px-6 py-3 sm:py-4 text-sm sm:text-base"
-              >
-                تغییر تنظیمات
-              </button>
-            </div>
-          </motion.div>
-        )}
-
-        {screen === "win" && (
-          <motion.div
-            key="win"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="glass relative z-20 rounded-2xl p-6 sm:p-12 text-center border-2 border-primary"
-          >
-            <h2 className="game-display text-2xl sm:text-3xl font-bold mb-3 text-primary">
-              آفرین، نینجای دستور زبان شدی!
-            </h2>
-            <p className="text-sm sm:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed mb-8">
-              <span className="game-num font-bold text-primary">
-                {totalScore.toLocaleString("fa-IR")}
-              </span>{" "}
-              کلمه‌ی درست را برش زدی.
-            </p>
-            <div className="flex items-center justify-center gap-x-3">
-              <button
-                onClick={restart}
-                className="inline-flex items-center justify-center font-medium text-primary-foreground
-                  bg-primary hover:brightness-90 active:scale-95 transition-all rounded-xl px-8 py-3 sm:py-4 text-base sm:text-lg"
-              >
-                بازی دوباره
-              </button>
-              <button
-                onClick={() => setScreen("settings")}
-                className="inline-flex items-center justify-center font-medium
-                  glass hover:brightness-110 active:scale-95 transition-all rounded-xl px-6 py-3 sm:py-4 text-sm sm:text-base"
-              >
-                تغییر تنظیمات
-              </button>
-            </div>
+        {(screen === "gameover" || screen === "win") && (
+          /* کارنامه: همان کارتِ مشترکِ سایت (`B` در بسته).
+             پیش از این دو صفحه‌یِ دستی داشتیم — بیِ حلقه‌یِ درصد، بیِ آمار و
+             بیِ لحن — در حالی که سایت حلقه‌یِ «درصد دقت»، سه آمار و سه لحنِ
+             ویژه‌یِ نینجا نشان می‌دهد. */
+          <motion.div key={screen} exit={{ opacity: 0, y: -20 }} className="relative z-20">
+            <NinjaResult
+              won={screen === "win"}
+              score={totalScore}
+              lives={lives}
+              category={round?.category}
+              lastMistake={lastMistake}
+              onRestart={restart}
+              onSettings={() => setScreen("settings")}
+            />
           </motion.div>
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+/** کارنامه‌یِ نینجا — همان `B` در بسته‌یِ سایت.
+ *
+ *  درصد، از برش‌هایِ درست و اشتباه می‌آید: `گرد(درست / (درست + اشتباه) × ۱۰۰)`.
+ *  هنگامِ برد، لحن از جدولِ خودِ نینجا و با تخمِ `درست + ۳ × اشتباه` برگزیده
+ *  می‌شود؛ هنگامِ باخت عنوان ثابت است («جان‌هایت تمام شد») و زیرِ آن همان
+ *  واپسین خطا می‌نشیند. */
+function NinjaResult({
+  won,
+  score,
+  lives,
+  category,
+  lastMistake,
+  onRestart,
+  onSettings,
+}: {
+  won: boolean;
+  score: number;
+  lives: number;
+  category?: string;
+  lastMistake: string | null;
+  onRestart: () => void;
+  onSettings: () => void;
+}) {
+  const mistakes = Math.max(0, START_LIVES - lives);
+  const pct = score + mistakes ? Math.round((score / (score + mistakes)) * 100) : 0;
+  const tone = won
+    ? resultTone(pct, score + 3 * mistakes, NINJA_TONES)
+    : {
+        tier: tierOf(pct),
+        title: "جان‌هایت تمام شد",
+        line: lastMistake ?? "دوباره امتحان کن.",
+      };
+
+  return (
+    <GameResult
+      pct={pct}
+      ringLabel="درصد دقت"
+      tone={tone}
+      context={category ? `دسته: ${category}` : undefined}
+      celebrate={won}
+      stats={[
+        { label: "برش درست", value: score, mark: "ok" },
+        { label: "اشتباه", value: mistakes, mark: "bad" },
+        { label: "جان باقی‌مانده", value: Math.max(0, lives), unit: `از ${START_LIVES.toLocaleString("fa-IR")}` },
+      ]}
+      actions={
+        <>
+          <button type="button" onClick={onRestart} className={resultButton.primary}>
+            <RotateCcw aria-hidden="true" className="size-4" />
+            {won ? "بازی دوباره" : "شروع دوباره"}
+          </button>
+          <button type="button" onClick={onSettings} className={resultButton.ghost}>
+            <SlidersHorizontal aria-hidden="true" className="size-4" />
+            تغییر تنظیمات
+          </button>
+        </>
+      }
+    />
   );
 }
 

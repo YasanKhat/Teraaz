@@ -29,7 +29,7 @@ export type Stat = { label: string; value: number; mark?: Mark; unit?: string; d
 /** همان تابعِ `ease`ِ سایت. */
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
-const tierOf = (pct: number) =>
+export const tierOf = (pct: number) =>
   pct >= 100 ? "perfect" : pct >= 80 ? "great" : pct >= 60 ? "good" : pct >= 40 ? "fair" : "low";
 
 /** تیتر و خط‌هایِ هر سطح — بی‌کم‌وکاست از سایت. */
