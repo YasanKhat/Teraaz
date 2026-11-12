@@ -117,7 +117,7 @@ export const LESSON_TITLES: Record<GradeKey, Record<number, string>> = {
     14: "سی‌مرغ و سیمرغ",
     16: "کباب غاز",
     17: "خندۀ تو",
-    18: "خندۀ جاودانی",
+    18: "عشق جاودانی",
   },
 };
 
