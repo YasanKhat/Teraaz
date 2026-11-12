@@ -4,6 +4,7 @@ import { Heart } from "lucide-react";
 import type { NinjaRound } from "@/lib/ninja-data";
 import type { NinjaDifficulty } from "./NinjaSettingsModal";
 import Tour, { useTourActive, type TourStep } from "@/components/UI/kit/Tour";
+import MainLogo from "@/components/svgs/mainLogo";
 
 /* آموزشِ نخستین ورود — متن و ترتیب عیناً از بسته‌یِ زنده‌یِ سایت.
    آرایه باید در سطحِ ماژول بماند: تور شناساییِ گام را با خودِ آبجکت می‌سنجد
@@ -489,6 +490,11 @@ function SliceField({
             • ته‌رنگش دیگر سیاهِ تقریباً خالص نیست (‏L≈۰٫۰۶ بود)؛ شب هست، ولی
               شبی که از فیروزهٔ سروا ساخته شده. */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_12%,var(--game-night-1),var(--game-night-2)_52%,var(--game-night-3))]" />
+      {/* نشانِ سروا، تار و کم‌جان در میانهٔ شب. سایت آن را لایهٔ دومِ زمین
+          می‌گذارد — پس از شیبِ آسمان و پیش از دو هاله — نه در حاشیه. */}
+      <span aria-hidden className="ninja-logo">
+        <MainLogo />
+      </span>
       <div className="ninja-aurora ninja-aurora-a absolute inset-0" />
       <div className="ninja-aurora ninja-aurora-b absolute inset-0" />
       <div className="ninja-grain pointer-events-none absolute inset-0 opacity-[0.06]" />

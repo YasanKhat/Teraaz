@@ -1518,6 +1518,77 @@ html {
     0 18px 48px -18px color-mix(in oklch, var(--primary-deep) 45%, transparent);
 }
 
+/* --- نشانِ سروا، محو در میانهٔ شب ---
+   سایت این را درست پس از شیبِ آسمان و پیش از دو هاله می‌گذارد؛ یک تزئینِ
+   حاشیه‌ای نیست، بخشی از لایه‌بندیِ خودِ زمین است. بی‌اش، مرکزِ زمین یک
+   سطحِ هموار و بی‌هویت می‌ماند.
+
+   ⚠️ `aspect-ratio` همان نسبتِ `SARVA_LOGO_VIEWBOX` است (۳۷۶٫۸ در ۴۴۹٫۸۲).
+   تنها `height` داده شده و پهنا از نسبت می‌آید — یعنی نشان در هیچ اندازه‌ای
+   کشیده نمی‌شود.
+
+   ⚠️ `blur` و `opacity` با هم معنا می‌دهند: نشان باید حس شود، دیده نشود.
+   روی تمِ روشن کمی پررنگ‌تر است، چون روی زمینِ روشن زودتر گم می‌شود. */
+.ninja-logo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  height: 70%;
+  aspect-ratio: 376.8/449.8;
+  opacity: 0.3;
+  filter: blur(10px) saturate(1.1);
+  pointer-events: none;
+}
+
+:root:not(.dark) .ninja-logo {
+  opacity: 0.34;
+}
+
+/* --- شبِ زمین در تمِ روشن ---
+   شش متغیرِ `--game-night-*` در `:root` تعریف شده‌اند و تم نمی‌شناسند، پس
+   بدونِ این بلوک زمینِ بازی در تمِ روشن هم تیره می‌ماند — در حالی که سایت
+   در تمِ روشن زمین را با خودِ صفحه هم‌رنگ می‌کند.
+
+   ⚠️ سایت این کار را روی خودِ `.ninja-field` می‌کند و نه با یک تعریفِ دوم در
+   `:root`. فرقش همین‌جاست: چون روی عنصر است، تنها زمینِ نینجا عوض می‌شود و
+   هر چه دیگر از `--game-night-*` استفاده می‌کند (مثلاً `ab-gain-praise` در
+   قفسهٔ شاعران) دست‌نخورده می‌ماند.
+
+   ⚠️ مقصدِ مخلوط در تمِ روشن `--background` و `--card` است، و نه `lab()`.
+   شبِ روشن باید به کاغذِ صفحه پیوسته باشد، نه به یک خاکستریِ مطلق. */
+:root:not(.dark) .ninja-field {
+  --game-night-1: color-mix(in oklab, var(--primary) 10%, var(--card));
+  --game-night-2: color-mix(in oklab, var(--primary) 7%, var(--background));
+  --game-night-3: color-mix(in oklab, var(--primary) 16%, var(--background));
+  --game-night-ink: var(--foreground);
+  --game-night-veil: color-mix(in oklab, var(--card) 80%, transparent);
+  --game-night-edge: color-mix(in oklab, var(--primary) 22%, transparent);
+}
+
+/* روی زمینِ روشن دو چیز دیگر هم باید از شب بیرون بیایند:
+   • امتیاز و پیامِ طلایی — `text-gold-light` روی زمینِ روشن خوانده نمی‌شود،
+     سایت هر دو را به `gold-ink` می‌برد؛
+   • شمارشگرِ پشت‌هم — همان رنگِ متنِ معمولیِ صفحه. */
+:root:not(.dark) .ninja-field .ninja-score,
+:root:not(.dark) .ninja-field .ninja-popup.text-gold-light {
+  color: var(--gold-ink);
+}
+
+:root:not(.dark) .ninja-field .ninja-combo {
+  color: var(--foreground);
+}
+
+/* هالهٔ دوم روی زمینِ روشن لاجوردی نیست؛ سایت آن را طلایی می‌کند تا با ماه و
+   امتیازِ طلاییِ همان صحنه هم‌خانواده شود. */
+:root:not(.dark) .ninja-field .ninja-aurora-b {
+  background: radial-gradient(
+    38% 30% at 75% 62%,
+    color-mix(in oklab, var(--gold) 30%, transparent),
+    transparent 70%
+  );
+}
+
 /* --- هاله‌های پس‌زمینه: دو لکهٔ رنگی که آرام جابه‌جا می‌شوند --- */
 @keyframes ninjaAuroraA {
   0%,
