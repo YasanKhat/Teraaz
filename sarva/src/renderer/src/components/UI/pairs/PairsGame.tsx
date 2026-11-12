@@ -1,7 +1,5 @@
 "use client";
-import { useCurrentUser } from "@/lib/auth/use-current-user";
-import GuestLimitModal from "@/components/UI/GuestLimitModal";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { motion } from "motion/react";
 import {
   LITERARY_DECKS,
@@ -25,6 +23,7 @@ import {
   usePairsDisplay,
 } from "@/lib/games/pairs-display";
 import Tour, { type TourStep } from "@/components/UI/kit/Tour";
+import { AnimatedTabs } from "@/components/UI/kit/animated-tabs";
 import GameResult, {
   resultButton,
   resultTone,
@@ -216,52 +215,40 @@ function RoundProgress({
    // برسد روی آن می‌نشیند. */
 const STATIC_DECKS: MemoryDecks = LITERARY_DECKS;
 
-/** کلیدِ دوحالتهٔ قابِ مرور — کوچک و کنارگذاشته، چون اصلِ صفحه جفت‌هاست و
- *  این فقط یک ترجیحِ نمایشی. انتخاب در انباره می‌ماند. */
+/** کلیدِ قابِ مرور — دو واژه و بس: «نگاره» یا «قاب».
+ *
+ * رویِ همان `AnimatedTabs` ساخته شده که بقیهٔ برنامه به کار می‌برد، تا
+ * نشانگر میانِ دو گزینه سُر بخورد و جهت‌نمایِ راست‌به‌چپ درست کار کند.
+ *
+ * ⚠️ زیرش هیچ نوشته‌ای نیست. توضیحِ هر گزینه در `title` است (با ایستادنِ
+ * نشانگر پیدا می‌شود): این کلید یک ترجیحِ فرعی است و یک خطِ راهنما زیرِ
+ * آن، وسطِ صفحه‌ای که کارش حفظ کردنِ جفت‌هاست، بیش از اندازه به چشم
+ * می‌آمد. و تازه آن دو واژه خودشان گویایِ تفاوت‌اند. */
 function PairsDisplaySwitch() {
   const mode = usePairsDisplay();
   return (
-    <div className="mb-5 flex flex-col items-center gap-1.5">
-      <div
-        role="radiogroup"
-        aria-label="نمایشِ قابِ مرور"
-        className="flex items-center gap-1 rounded-full border border-border/70 bg-card/70 p-1 text-xs"
-      >
-        {PAIRS_DISPLAY_MODES.map((m) => {
-          const on = m.id === mode;
-          return (
-            <button
-              key={m.id}
-              type="button"
-              role="radio"
-              aria-checked={on}
-              title={m.hint}
-              onClick={() => setPairsDisplay(m.id)}
-              className={`rounded-full px-3 py-1.5 transition-all ${
-                on
-                  ? "bg-primary font-bold text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {m.label}
-            </button>
-          );
-        })}
-      </div>
-      <p className="text-[11px] text-muted-foreground">
-        {PAIRS_DISPLAY_MODES.find((m) => m.id === mode)?.hint}
-      </p>
+    <div className="mb-5 flex justify-center">
+      <AnimatedTabs
+        label="نمایشِ قابِ مرور"
+        value={mode}
+        onChange={setPairsDisplay}
+        tabs={PAIRS_DISPLAY_MODES.map((m) => ({
+          value: m.id,
+          label: m.label,
+          title: m.hint,
+        }))}
+      />
     </div>
   );
 }
 
 function PairsGame({ decks: decksProp }: { decks?: MemoryDecks }) {
-  /* «نیمهٔ اولِ کتاب» در این بازی از قبل یک مفهومِ صریح است: آزمونِ دی.
-     پس قفلِ مهمان دقیقاً روی همان می‌نشیند و لازم نیست نیمه را حساب کنیم. */
-  const { user } = useCurrentUser();
-  const [guestPrompt, setGuestPrompt] = useState(false);
-  const termLockedForGuest = (id: MemoryTerm) => user === null && id !== "dey";
-
+  /* ⚠️ قفلِ مهمان از این بازی برداشته شد. سایت برای نیمهٔ دومِ کتاب یک
+     «🔒 نیازمند ورود» می‌گذاشت، برنامه هم همان را می‌آورد — ولی نه شبیهِ
+     سایت از آب درمی‌آمد و نه اصلاً لازم بود: این بازی حافظه است، نه
+     محتوایِ درسنامه، و بستنِ نیمی از آن به رویِ کسی که وارد نشده یعنی
+     نیمی از بانکِ جفت‌ها بلااستفاده می‌ماند. بدتر، پنجرهٔ ورودی که باز
+     می‌کرد پر از اشکال بود. حالا هر دو نوبت برای همه باز است. */
   /* قابِ مرور: جلدِ واقعی یا قابِ ساختگی. پیش‌فرض جلد است (رفتارِ سایت). */
   const displayMode = usePairsDisplay();
   const showCover = displayMode === "cover";
@@ -282,6 +269,22 @@ function PairsGame({ decks: decksProp }: { decks?: MemoryDecks }) {
   const [moves, setMoves] = useState(0);
   const [locked, setLocked] = useState(false);
 
+  /* زمان‌سنجِ برگرداندنِ دو کارتِ ناجور. در یک ref نگه داشته می‌شود تا بشود
+     باطلش کرد: بی‌آن، اگر بازیکن در همان ۸۵۰ میلی‌ثانیه «چیدنِ دوباره» یا
+     «مرور آثار» بزند، زمان‌سنجِ قدیمی پس از چیدنِ تازه آتش می‌گیرد و
+     `flipped` را پاک می‌کند — یعنی نخستین کارتی که بازیکن در دستِ تازه
+     برگردانده، بی‌دلیل بسته می‌شود. سایت هم همین اشکال را دارد (همان
+     `setTimeout`ِ رها‌شده)، ولی این یک نقص است و نه یک تصمیمِ محصول،
+     و درست کردنش در حالتِ عادی هیچ رفتاری را عوض نمی‌کند. */
+  const mismatchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelMismatch = () => {
+    if (mismatchTimer.current !== null) {
+      clearTimeout(mismatchTimer.current);
+      mismatchTimer.current = null;
+    }
+  };
+  useEffect(() => cancelMismatch, []);
+
   /* ورودی برای جایی که محتوا از بیرون می‌رسد؛ در برنامه‌یِ رومیزی مسیر چیزی
      نمی‌دهد، پس داده‌یِ کتابی نشان داده می‌شود.
 
@@ -296,6 +299,7 @@ function PairsGame({ decks: decksProp }: { decks?: MemoryDecks }) {
 
   /** یک نشستِ تازه از همین آزمون: افرازِ تازه، پیشرفتِ صفر. */
   const openSession = (list: LiteraryPair[]) => {
+    cancelMismatch();
     const built = buildMemoryRounds(list);
     setRounds(built);
     setRoundIndex(0);
@@ -324,6 +328,7 @@ function PairsGame({ decks: decksProp }: { decks?: MemoryDecks }) {
   const startRound = (index: number) => {
     const round = rounds[index];
     if (!round) return;
+    cancelMismatch();
     setRoundIndex(index);
     setDeck(buildMemoryDeck(round));
     setFlipped([]);
@@ -391,9 +396,11 @@ function PairsGame({ decks: decksProp }: { decks?: MemoryDecks }) {
     const [a, b] = next.map((i) => deck[i]);
     if (a.pairId !== b.pairId) {
       setLocked(true);
-      setTimeout(() => {
+      cancelMismatch();
+      mismatchTimer.current = setTimeout(() => {
         setFlipped([]);
         setLocked(false);
+        mismatchTimer.current = null;
       }, 850);
       return;
     }
@@ -448,9 +455,6 @@ function PairsGame({ decks: decksProp }: { decks?: MemoryDecks }) {
   if (phase === "term" && grade) {
     return (
       <>
-        {guestPrompt && (
-          <GuestLimitModal section="pairs" onDismiss={() => setGuestPrompt(false)} />
-        )}
         <Chooser
           title={`فارسی ${gradeTitle}`}
           subtitle="کدام آزمون؟"
@@ -471,14 +475,8 @@ function PairsGame({ decks: decksProp }: { decks?: MemoryDecks }) {
               hint:
                 n === 0
                   ? "هنوز آماده نیست"
-                  : termLockedForGuest(t.id)
-                    ? `${t.hint} · 🔒 نیازمند ورود`
-                    : `${fa(n)} جفت · ${fa(roundCount)} دست`,
+                  : `${fa(n)} جفت · ${fa(roundCount)} دست`,
               onClick: () => {
-                if (termLockedForGuest(t.id)) {
-                  setGuestPrompt(true);
-                  return;
-                }
                 setTerm(t.id);
                 setPhase("plan");
               },

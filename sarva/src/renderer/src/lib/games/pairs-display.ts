@@ -20,12 +20,12 @@ import { useSyncExternalStore } from "react";
 export const PAIRS_DISPLAY_MODES = [
   {
     id: "cover",
-    label: "جلدِ کتاب",
-    hint: "نگارهٔ واقعی — همان سایت",
+    label: "نگاره",
+    hint: "جلدِ واقعیِ کتاب — همان سایت",
   },
   {
     id: "plate",
-    label: "قابِ ساختگی",
+    label: "قاب",
     hint: "کتابِ کج با ترنجِ طلایی",
   },
 ] as const;

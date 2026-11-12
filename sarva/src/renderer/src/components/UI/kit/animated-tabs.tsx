@@ -18,7 +18,7 @@ export function AnimatedTabs<T extends string>({
   label,
   className,
 }: {
-  tabs: { value: T; label: string; hint?: string }[];
+  tabs: { value: T; label: string; hint?: string; title?: string }[];
   value: T;
   onChange: (value: T) => void;
   label: string;
@@ -54,6 +54,7 @@ export function AnimatedTabs<T extends string>({
             data-value={t.value}
             aria-selected={active}
             tabIndex={active ? 0 : -1}
+            title={t.title}
             onClick={() => onChange(t.value)}
             className={cn(
               "relative rounded-xl px-4 py-2 text-sm font-semibold transition-colors",
