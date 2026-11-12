@@ -7,11 +7,12 @@ import AccessSheet, { type AccessState } from "./AccessSheet";
 import { apiPost } from "@/lib/api/client";
 import { useSetReportTarget } from "@/lib/reports/target";
 import { useRoundGuard } from "@/lib/games/round-guard";
+import { usePlusGate } from "@/lib/plus/use-plus-gate";
 import GameSetup from "@/components/UI/games/GameSetup";
 import LessonPicker from "@/components/UI/games/LessonPicker";
 import HuntRun from "./HuntRun";
 import HuntHero from "./HuntHero";
-import { JASOOS_HAND, lessonsOf, levelsForLessons, pickJasoosLevels } from "@/lib/jasoos-bank";
+import { JASOOS_FREE_HAND, JASOOS_HAND, lessonsOf, levelsForLessons, pickJasoosLevels } from "@/lib/jasoos-bank";
 import { GRADE_META, LESSON_TITLES } from "@/lib/doroos/catalog";
 import type { GradeKey } from "@/lib/doroos/types";
 import type { HuntLevel, HuntSuspect } from "./HuntCase";
@@ -41,6 +42,11 @@ export default function JasoosGame() {
 
   const { user } = useCurrentUser();
   const guest = useGuestRounds("jasoos");
+  /* همان `ee.limited`ِ سایت: کاربری که پلاس ندارد. سایت به او پنج پرونده
+     می‌دهد و به پلاسی ده تا — ما همیشه ده می‌دادیم. */
+  const plusGate = usePlusGate();
+  const limited = plusGate.ready && !plusGate.unlocked;
+  const hand = limited ? JASOOS_FREE_HAND : JASOOS_HAND;
 
   const access: AccessState = guest.blocked
     ? { kind: "quota", perDay: true }
@@ -95,8 +101,8 @@ export default function JasoosGame() {
     setPickedLessons((prev) => (prev.size === all.length ? new Set() : new Set(all)));
   };
 
-  /** اندازه‌یِ دست: سایت بیش از ده پرونده نمی‌دهد. */
-  const dealCount = Math.min(pickedLevels.length, JASOOS_HAND);
+  /** اندازه‌یِ دست — همان `ec`ِ سایت: `Math.min(ed.length, eu)`. */
+  const dealCount = Math.min(pickedLevels.length, hand);
 
   /** یک دست تازه — درهم‌زنی و بریدن به اندازه‌یِ دست، همان `pickJasoosLevels`.
    *
@@ -104,7 +110,7 @@ export default function JasoosGame() {
    *  نتیجه‌ها، فرصت‌ها) درونِ خودِ آن کامپوننت است و بدونِ این کلید هیچ‌کدام
    *  پاک نمی‌شدند — برای همین «یک دست دیگر» هیچ کاری نمی‌کرد. */
   const deal = () => {
-    setRunLevels(pickJasoosLevels(pickedLevels, JASOOS_HAND));
+    setRunLevels(pickJasoosLevels(pickedLevels, hand));
     setRunId((n) => n + 1);
     setScreen("play");
   };
