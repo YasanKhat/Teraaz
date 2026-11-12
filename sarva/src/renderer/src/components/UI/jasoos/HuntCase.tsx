@@ -148,6 +148,18 @@ export default function HuntCase({
     (i: number) => {
       if (phase !== "hunt") return;
       const hit = level.suspects[i].isSpy;
+      const g0 = measure();
+      /* سایت پیش از شلیک نشانه را رویِ سرِ همان مظنون می‌نشاند (`eo(t)` در
+         `eu`) و آن را قفل نشان می‌دهد. با شلیکِ کیبوردی (کلیدهایِ ۱ تا n)
+         موشوار اصلاً رویِ مظنون نیست، پس بیِ این کار نشانه همان‌جا که بود
+         می‌ماند و معلوم نیست کجا را زده‌ایم. */
+      setLocked(i);
+      const h0 = g0?.heads[i];
+      if (h0) {
+        mx.set(h0.x);
+        my.set(h0.y);
+        trackEyes(h0.x, h0.y);
+      }
       setShotAt(i);
       setPhase("shot");
       setTouchArmed(false);
@@ -155,8 +167,8 @@ export default function HuntCase({
       sfx("shot");
 
       // ردِّ گلوله از پایینِ قاب تا سرِ آن مظنون، و لرزشِ لوله
-      const g = measure();
-      const head = g?.heads[i];
+      const g = g0;
+      const head = h0;
       if (g && head) setTracer({ x1: g.w / 2, y1: g.h + 8, x2: head.x, y2: head.y });
       if (stageRef.current) {
         animate(
