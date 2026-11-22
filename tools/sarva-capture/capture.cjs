@@ -5,7 +5,11 @@ const crypto = require('node:crypto');
 const path = require('node:path');
 const out = 'sarva-capture-output';
 const origin = 'https://sarvaedu.ir';
-const routes = ['/', '/game', '/game/ninja', '/game/pairs', '/game/grammar-circuit', '/game/jasoos', '/game/vocab'];
+const routes = ['/', '/game', '/game/jasoos', '/game/vocab', '/game/grammar-circuit',
+  '/game/rang-ara', '/game/imla', '/game/aruz-rapid', '/game/taar', '/game/kimia',
+  '/game/ninja', '/game/pairs', '/game/aruz-bridge', '/game/role-hunt', '/game/tarazoo',
+  '/doroos', '/exam', '/konkur', '/shab-emtehan', '/learn', '/aruz', '/vazn-yab',
+  '/timeline', '/sarvaclub', '/guide', '/about', '/plus'];
 const digest = b => crypto.createHash('sha256').update(b).digest('hex');
 async function main() {
   await fs.mkdir(path.join(out, 'resources'), { recursive: true });
@@ -47,6 +51,23 @@ async function main() {
         await fs.writeFile(path.join(out, name + '.html'), await page.content());
         await page.screenshot({ path: path.join(out, name + '.png'), fullPage: true, timeout: 30000 });
         item.title = await page.title();
+        // Only explicitly selected, anonymous, non-submitting interactions.
+        const action = route === '/' ? 'فهرست' : route === '/game/pairs' ? 'فارسی دهم' : route === '/game/ninja' ? 'بزن بریم' : null;
+        if (action) {
+          try {
+            const button = page.getByRole('button', { name: action, exact: true }).first();
+            await button.click({ timeout: 5000 });
+            await page.waitForTimeout(1200);
+            await fs.writeFile(path.join(out, name + '-interaction.html'), await page.content());
+            await page.screenshot({ path: path.join(out, name + '-interaction.png'), fullPage: true, timeout: 30000 });
+            const metrics = await page.locator('button, a, [role="menu"], main, h1, h2').evaluateAll(nodes => nodes.slice(0, 250).map(el => {
+              const r = el.getBoundingClientRect(), c = getComputedStyle(el);
+              return { tag: el.tagName, text: (el.innerText || '').trim().slice(0,200), aria: el.getAttribute('aria-label'), rect: { x:r.x, y:r.y, width:r.width, height:r.height }, style: { display:c.display, fontSize:c.fontSize, color:c.color, backgroundColor:c.backgroundColor, borderRadius:c.borderRadius } };
+            }));
+            await fs.writeFile(path.join(out, name + '-metrics.json'), JSON.stringify(metrics));
+            item.action = action;
+          } catch (err) { item.errors.push('interaction: ' + String(err)); }
+        }
       } catch (err) { item.errors.push(String(err)); }
       await Promise.allSettled([...pending]);
       await context.close();
