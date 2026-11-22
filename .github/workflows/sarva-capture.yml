@@ -27,7 +27,9 @@ jobs:
       - name: Capture anonymous public pages
         env:
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/capture-deps/node_modules/playwright
-        run: node tools/sarva-capture/capture.cjs
+        run: |
+          node tools/sarva-capture/capture.cjs
+          node -e 'const m=require("./sarva-capture-output/manifest.json"); for(const r of m.routes) console.log(`::notice::${r.route} status=${r.status} title=${r.title} resources=${r.responses.length} errors=${r.errors.length}`); console.log(`::notice::total unique resources=${Object.keys(m.resources).length}`)' 
       - name: Upload capture
         if: always()
         uses: actions/upload-artifact@v4
