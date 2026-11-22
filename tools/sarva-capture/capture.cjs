@@ -16,7 +16,7 @@ if (routes.some(route => !route.startsWith('/') || route.startsWith('//'))) thro
 // post, send, or other state-changing actions on behalf of a user.
 const interactionNames = {
   '/': 'فهرست', '/game/pairs': 'فارسی دهم', '/game/ninja': 'بزن بریم',
-  '/game/aruz-rapid': 'شروع', '/game/taar': 'شروع',
+  '/game/aruz-rapid': 'شروع', '/game/taar': 'شروع', '/game/tarazoo': 'شروع',
   '/game/kimia': 'شروع آزمایش', '/game/vocab': 'درس اول، ۲۵ کارت',
 };
 const digest = b => crypto.createHash('sha256').update(b).digest('hex');
@@ -29,7 +29,7 @@ async function main() {
     for (const route of routes) {
       const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fa-IR', serviceWorkers: 'block' });
       const page = await context.newPage();
-      const item = { route, responses: [], errors: [] };
+      const item = { route, responses: [], errors: [], publicApiGets: [] };
       report.routes.push(item);
       const pending = new Set();
       page.on('pageerror', err => item.errors.push(String(err)));
@@ -38,7 +38,14 @@ async function main() {
           const url = response.url();
           let u; try { u = new URL(url); } catch { return; }
           // Never record API responses, URL query parameters, headers, or other origins.
-          if (u.origin !== origin || u.pathname.startsWith('/api/') || u.search) return;
+          if (u.origin !== origin) return;
+          // Record paths only (no queries, headers, cookies or response bodies) to
+          // discover whether anonymous play fetches additional data.
+          if (u.pathname.startsWith('/api/')) {
+            if (response.request().method() === 'GET' && ['/game/taar','/game/tarazoo'].includes(route)) item.publicApiGets.push({ path: u.pathname, status: response.status() });
+            return;
+          }
+          if (u.search) return;
           const type = response.headers()['content-type'] || '';
           if (!/javascript|text\/css|font|image|audio/i.test(type)) return;
           try {

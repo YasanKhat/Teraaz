@@ -93,3 +93,24 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           INDEX_TITLE: CaptureImlaIndex
         run: node tools/sarva-capture/publish-blobs.cjs
+
+  new-game-scenarios:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --prefix "$RUNNER_TEMP/capture-deps" playwright@1.56.1
+      - run: '"$RUNNER_TEMP/capture-deps/node_modules/.bin/playwright" install --with-deps chromium'
+      - name: Capture new games
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/capture-deps/node_modules/playwright
+          CAPTURE_ROUTES: /game/taar,/game/tarazoo
+        run: node tools/sarva-capture/capture.cjs
+      - name: Publish public capture index
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          INDEX_TITLE: CaptureNewGamesIndex
+        run: node tools/sarva-capture/publish-blobs.cjs
