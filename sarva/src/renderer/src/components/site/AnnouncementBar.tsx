@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Link } from "@/app/router";
 import { useSiteContent } from "@/lib/site/use-site-content";
 import type { AnnouncementTone } from "@/lib/site/content";
+import styles from "./announcement-bar.module.css";
 
 /**
  * نوار اعلان سایت.
@@ -166,7 +167,6 @@ const TONE: Record<
   },
 };
 
-const mix = (color: string, pct: number) => `color-mix(in oklab, ${color} ${pct}%, transparent)`;
 
 export default function AnnouncementBar() {
   const content = useSiteContent();
@@ -178,6 +178,10 @@ export default function AnnouncementBar() {
   // فقط برای انیمیشن: یک فریم بعد از اینکه عنصر واقعاً در DOM نشست، ارتفاعش
   // باز می‌شود. بدون این، با ارتفاع نهایی متولد می‌شود و صفحه می‌پرد.
   const [open, setOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [clamped, setClamped] = useState(true);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const swipe = useRef<{ x: number; y: number; dx: number; active: boolean } | null>(null);
 
   useEffect(() => {
     // بستنِ حالت اینجا انجام *نمی‌شود*: وقتی اعلانی نیست یا بسته شده،
@@ -197,165 +201,108 @@ export default function AnnouncementBar() {
   const close = () => {
     // اول انیمیشن جمع شدن، بعد ثبت — وگرنه کامپوننت همان لحظه ناپدید می‌شود
     // و بستن، پرشی به نظر می‌رسد.
-    setOpen(false);
+    setLeaving(true);
     setTimeout(() => markDismissed(storageKey), 260);
   };
 
+  const extra = announcement as typeof announcement & { badge?: string | null; endsAt?: string | null };
+  const remainingMs = extra.endsAt ? Date.parse(extra.endsAt) - Date.now() : NaN;
+  const hours = remainingMs / 3_600_000;
+  const remaining = !Number.isFinite(hours) || hours <= 0 ? null
+    : hours < 1 ? { text: "کمتر از یک ساعت دیگر", soon: true }
+    : hours < 24 ? { text: `تا ${Math.ceil(hours).toLocaleString("fa-IR")} ساعت دیگر`, soon: true }
+    : Math.ceil(hours / 24) <= 30 ? { text: `تا ${Math.ceil(hours / 24).toLocaleString("fa-IR")} روز دیگر`, soon: hours <= 48 } : null;
+  const endSwipe = () => {
+    const state = swipe.current;
+    const card = cardRef.current;
+    swipe.current = null;
+    if (!state?.active || !card) return;
+    card.style.transition = "";
+    if (Math.abs(state.dx) > .3 * card.offsetWidth) {
+      card.style.transform = `translateX(${Math.sign(state.dx) * card.offsetWidth}px)`;
+      card.style.opacity = "0";
+      close();
+    } else {
+      card.style.transform = "";
+      card.style.opacity = "";
+    }
+  };
+
+  const contentLink = hasLink ? (
+    <>
+      {announcement.linkLabel}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} aria-hidden>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11 6 5 12l6 6M19 12H5" />
+      </svg>
+    </>
+  ) : null;
+
   return (
-    <div
-      role="region"
-      aria-label="اعلان سایت"
-      dir="rtl"
-      className={`relative z-40 grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${
-        open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-      }`}
-    >
-      <div className="overflow-hidden">
-        {/* ⚠️ همان `container`ِ هدر: لبه‌های کارت دقیقاً با لبه‌های لوگو و
-            منو هم‌خط‌اند، پس اعلان جزئی از سرِ صفحه دیده می‌شود و نه چیزی که
-            رویش چسبانده شده. */}
-        <div className="container pt-3">
-          <div
-            className={`glass-pop relative isolate overflow-hidden rounded-2xl transition-transform duration-300 ease-out motion-reduce:transition-none ${
-              open ? "translate-y-0" : "-translate-y-2"
-            }`}
-            style={{ borderColor: mix(tone.accent, 30) }}
-          >
-            {/* هاله‌ای که از لبهٔ شروع (راست) محو می‌شود */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 -z-10"
-              style={{
-                background: `linear-gradient(270deg, ${mix(tone.accent, 14)}, ${mix(tone.accent, 4)} 45%, transparent 80%)`,
+    <div className={styles.slot} role="presentation">
+      <div className={styles.grow} data-open={open}>
+        <div className={styles.growInner}>
+          <div className={`container ${styles.wrap}`}>
+            <div ref={cardRef} role="region" aria-label={`اعلان سایت: ${tone.label}`} dir="rtl"
+              className={styles.card} data-tone={announcement.tone} data-in={open && !leaving} data-leaving={leaving}
+              data-decor-anim={tone.live || undefined}
+              onPointerDown={(event) => {
+                if (!announcement.dismissible || event.pointerType === "mouse" || (event.target as HTMLElement).closest("a,button")) return;
+                swipe.current = { x: event.clientX, y: event.clientY, dx: 0, active: false };
               }}
-            />
-            {/* درخششِ آرام — فقط transform */}
-            <div
-              aria-hidden
-              className="ann-sheen pointer-events-none absolute inset-y-0 -z-10 w-1/3"
-              style={{ background: `linear-gradient(90deg, transparent, ${mix(tone.accent, 12)}, transparent)` }}
-            />
-            {/* لبهٔ رنگیِ سمتِ شروع */}
-            <span
-              aria-hidden
-              className="absolute inset-y-3 start-0 w-[3px] rounded-e-full"
-              style={{ background: tone.accent }}
-            />
-
-            {/* روی گوشی: [آیکون | متن | بستن] و دکمه در ردیفِ دوم، هم‌خط با
-                متن. از sm به بالا همه در یک ردیف. */}
-            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2.5 py-3 ps-4 pe-2.5 sm:flex sm:items-center sm:gap-4 sm:py-3.5 sm:pe-3">
-              <span
-                aria-hidden
-                className="relative flex size-10 shrink-0 items-center justify-center rounded-xl text-white"
-                style={{
-                  background: `linear-gradient(145deg, ${tone.accent}, color-mix(in oklab, ${tone.accent} 72%, black))`,
-                  boxShadow: `0 6px 16px -6px ${mix(tone.accent, 70)}, inset 0 1px 0 rgb(255 255 255 / 0.25)`,
-                }}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} className="size-5">
-                  {tone.icon}
-                </svg>
-                {tone.live && (
-                  <span className="absolute -end-1 -top-1 flex size-3">
-                    <span
-                      className="absolute inset-0 animate-ping rounded-full opacity-70 motion-reduce:animate-none"
-                      style={{ background: tone.accent }}
-                    />
-                    <span className="relative size-3 rounded-full ring-2 ring-card" style={{ background: tone.accent }} />
-                  </span>
-                )}
-              </span>
-
-              <div className="min-w-0 sm:flex-1">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold leading-5 ${tone.ink}`}
-                    style={{ background: mix(tone.accent, 13) }}
-                  >
-                    {tone.label}
-                  </span>
-                  {announcement.title && (
-                    <strong className="text-[14px] font-extrabold leading-6 tracking-tight text-foreground sm:text-[15px]">
-                      {announcement.title}
-                    </strong>
-                  )}
+              onPointerMove={(event) => {
+                const state = swipe.current;
+                const card = cardRef.current;
+                if (!state || !card) return;
+                const dx = event.clientX - state.x, dy = event.clientY - state.y;
+                if (!state.active) {
+                  if (Math.abs(dy) > 10) { swipe.current = null; return; }
+                  if (Math.abs(dx) < 10) return;
+                  state.active = true;
+                  card.setPointerCapture(event.pointerId);
+                  card.style.transition = "none";
+                }
+                state.dx = dx;
+                card.style.transform = `translateX(${dx}px)`;
+                card.style.opacity = String(Math.max(.2, 1 - Math.abs(dx) / card.offsetWidth));
+              }}
+              onPointerUp={endSwipe} onPointerCancel={endSwipe}>
+              <span className={styles.halo} aria-hidden />
+              <span className={styles.edge} aria-hidden />
+              <span className={styles.ring} aria-hidden />
+              <div className={styles.row}>
+                <span className={styles.tile} aria-hidden>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9}>{tone.icon}</svg>
+                  {tone.live && <span className={styles.live} />}
+                </span>
+                <div className={styles.copy}>
+                  <div className={styles.meta}>
+                    {extra.badge && <span className={styles.pill}>{extra.badge}</span>}
+                    {remaining && <span className={styles.until} data-soon={remaining.soon}>
+                      <svg viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>{remaining.text}
+                    </span>}
+                    {announcement.title && <strong className={styles.title}>{announcement.title}</strong>}
+                  </div>
+                  <p className={styles.body} data-clamp={clamped} onClick={() => setClamped(false)}>{announcement.body}</p>
                 </div>
-                <p className="mt-0.5 text-[13px] leading-6 text-foreground/75 sm:text-sm">{announcement.body}</p>
+                {announcement.dismissible && <span className={styles.closeCell}>
+                  <button type="button" onClick={close} aria-label="بستن اعلان" className={styles.close}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+                      <path strokeLinecap="round" d="m7 7 10 10M17 7 7 17" />
+                    </svg>
+                  </button>
+                </span>}
+                {hasLink && <span className={styles.ctaCell}>
+                  {announcement.linkUrl!.startsWith("/") ?
+                    <Link href={announcement.linkUrl!} className={styles.cta}>{contentLink}</Link> :
+                    <a href={announcement.linkUrl!} target="_blank" rel="noopener noreferrer" className={styles.cta}>
+                      {contentLink}<span className="sr-only"> (در پنجرهٔ تازه)</span>
+                    </a>}
+                </span>}
               </div>
-
-              {announcement.dismissible && (
-                <button
-                  type="button"
-                  onClick={close}
-                  aria-label="بستن اعلان"
-                  className="flex size-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-foreground/8 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:order-last"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-4" aria-hidden>
-                    <path strokeLinecap="round" d="m6 6 12 12M18 6 6 18" />
-                  </svg>
-                </button>
-              )}
-
-              {hasLink && (
-                <div className="col-span-2 col-start-2 sm:col-auto">
-                  <LinkButton url={announcement.linkUrl!} label={announcement.linkLabel!} accent={tone.accent} />
-                </div>
-              )}
             </div>
           </div>
         </div>
       </div>
     </div>
-  );
-}
-
-function LinkButton({
-  url,
-  label,
-  accent,
-}: {
-  url: string;
-  label: string;
-  accent: string;
-}) {
-  const internal = url.startsWith("/");
-  const className =
-    "group inline-flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-4 text-[13px] font-bold text-white transition-[transform,filter] hover:brightness-110 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2";
-  const style = {
-    background: accent,
-    outlineColor: accent,
-    boxShadow: `0 6px 14px -8px ${mix(accent, 80)}, inset 0 1px 0 rgb(255 255 255 / 0.2)`,
-  } as const;
-
-  const inner = (
-    <>
-      {label}
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2.4}
-        className="size-3.5 transition-transform group-hover:-translate-x-0.5"
-        aria-hidden
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M11 6 5 12l6 6M19 12H5" />
-      </svg>
-    </>
-  );
-
-  if (internal) {
-    return (
-      <Link href={url} className={className} style={style}>
-        {inner}
-      </Link>
-    );
-  }
-
-  return (
-    <a href={url} target="_blank" rel="noopener noreferrer" className={className} style={style}>
-      {inner}
-      <span className="sr-only"> (در پنجرهٔ تازه)</span>
-    </a>
   );
 }
