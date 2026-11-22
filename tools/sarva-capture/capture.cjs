@@ -10,6 +10,13 @@ const routes = ['/', '/game', '/game/jasoos', '/game/vocab', '/game/grammar-circ
   '/game/ninja', '/game/pairs', '/game/aruz-bridge', '/game/role-hunt', '/game/tarazoo',
   '/doroos', '/exam', '/konkur', '/shab-emtehan', '/learn', '/aruz', '/vazn-yab',
   '/timeline', '/sarvaclub', '/guide', '/about', '/plus'];
+// Only known controls in public, anonymous pages: never click account, purchase,
+// post, send, or other state-changing actions on behalf of a user.
+const interactionNames = {
+  '/': 'فهرست', '/game/pairs': 'فارسی دهم', '/game/ninja': 'بزن بریم',
+  '/game/aruz-rapid': 'شروع', '/game/taar': 'شروع',
+  '/game/kimia': 'شروع آزمایش', '/game/vocab': 'درس اول، ۲۵ کارت',
+};
 const digest = b => crypto.createHash('sha256').update(b).digest('hex');
 async function main() {
   await fs.mkdir(path.join(out, 'resources'), { recursive: true });
@@ -52,7 +59,7 @@ async function main() {
         await page.screenshot({ path: path.join(out, name + '.png'), fullPage: true, timeout: 30000 });
         item.title = await page.title();
         // Only explicitly selected, anonymous, non-submitting interactions.
-        const action = route === '/' ? 'فهرست' : route === '/game/pairs' ? 'فارسی دهم' : route === '/game/ninja' ? 'بزن بریم' : null;
+        const action = interactionNames[route] || null;
         if (action) {
           try {
             const button = page.getByRole('button', { name: action, exact: true }).first();
@@ -71,6 +78,18 @@ async function main() {
       } catch (err) { item.errors.push(String(err)); }
       await Promise.allSettled([...pending]);
       await context.close();
+      // Independent mobile context: the initial state only, no stored account.
+      const mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'fa-IR', serviceWorkers: 'block' });
+      const mobile = await mobileContext.newPage();
+      try {
+        const response = await mobile.goto(origin + route, { waitUntil: 'domcontentloaded', timeout: 45000 });
+        await mobile.waitForTimeout(1500);
+        const name = route === '/' ? 'home' : route.slice(1).replaceAll('/', '-');
+        await mobile.screenshot({ path: path.join(out, name + '-mobile.png'), timeout: 30000 });
+        await fs.writeFile(path.join(out, name + '-mobile.html'), await mobile.content());
+        item.mobileStatus = response?.status();
+      } catch (err) { item.errors.push('mobile: ' + String(err)); }
+      await mobileContext.close();
     }
   } catch (err) { report.errors.push(String(err)); }
   finally {
