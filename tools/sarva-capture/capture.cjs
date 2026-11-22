@@ -42,6 +42,13 @@ async function main() {
           // Record paths only (no queries, headers, cookies or response bodies) to
           // discover whether anonymous play fetches additional data.
           if (u.pathname.startsWith('/api/')) {
+            if (route === '/game/taar' && u.pathname === '/api/v1/taar/bayts' && response.request().method() === 'GET') {
+              try {
+                const json = await response.json();
+                const shape = value => Array.isArray(value) ? {type:'array', length:value.length, item:value.length?shape(value[0]):null} : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([k,v])=>[k,shape(v)])) : typeof value;
+                item.taarResponseShape = shape(json);
+              } catch { item.taarResponseShape = 'not-json'; }
+            }
             if (response.request().method() === 'GET' && ['/game/taar','/game/tarazoo'].includes(route)) item.publicApiGets.push({ path: u.pathname, status: response.status() });
             return;
           }
@@ -73,7 +80,7 @@ async function main() {
           try {
             const button = page.getByRole('button', { name: action, exact: true }).first();
             await button.click({ timeout: 5000 });
-            await page.waitForTimeout(1200);
+            await page.waitForTimeout(route === '/game/taar' ? 15000 : 1200);
             await fs.writeFile(path.join(out, name + '-interaction.html'), await page.content());
             await page.screenshot({ path: path.join(out, name + '-interaction.png'), fullPage: true, timeout: 30000 });
             const metrics = await page.locator('button, a, [role="menu"], main, h1, h2').evaluateAll(nodes => nodes.slice(0, 250).map(el => {
