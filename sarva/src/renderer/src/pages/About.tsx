@@ -17,6 +17,8 @@ export default function About() {
     let revealObserver: IntersectionObserver | undefined
     let stepObserver: IntersectionObserver | undefined
     let tocObserver: IntersectionObserver | undefined
+    let countObserver: IntersectionObserver | undefined
+    const countFrames = new Set<number>()
     let copyTimer: ReturnType<typeof setTimeout> | undefined
     let animationFrame: number | undefined
     const dissect = root.querySelector<HTMLElement>(cls('dissect'))
@@ -59,6 +61,26 @@ export default function About() {
         if (entry.isIntersecting) { entry.target.classList.add(prefix + 'isIn'); revealObserver?.unobserve(entry.target) }
       }), { rootMargin: '0px 0px -12% 0px' })
       revealed.forEach(e => revealObserver!.observe(e))
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const counters = [...root.querySelectorAll<HTMLElement>(`${cls('factNum')} > span`)]
+        countObserver = new IntersectionObserver(entries => entries.forEach(entry => {
+          if (!entry.isIntersecting) return
+          countObserver?.unobserve(entry.target)
+          const node = entry.target as HTMLElement
+          const finalText = node.textContent || ''
+          const value = Number(finalText.replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))).replace(/[٬,]/g, ''))
+          if (!Number.isFinite(value)) return
+          const start = performance.now()
+          node.textContent = (0).toLocaleString('fa-IR')
+          const tick = (now: number) => {
+            const progress = Math.min(1, Math.max(0, (now - start) / 1100))
+            node.textContent = Math.round(value * (1 - Math.pow(1 - progress, 3))).toLocaleString('fa-IR')
+            if (progress < 1) { const frame = requestAnimationFrame(tick); countFrames.add(frame) }
+          }
+          const frame = requestAnimationFrame(tick); countFrames.add(frame)
+        }), { threshold: .6 })
+        counters.forEach(counter => countObserver!.observe(counter))
+      }
       tocObserver = new IntersectionObserver(entries => entries.forEach(entry => {
         if (entry.isIntersecting) tocLinks.forEach(a => {
           if (a.getAttribute('href') === '#' + entry.target.id) a.setAttribute('aria-current', 'true')
@@ -111,7 +133,8 @@ export default function About() {
     root.addEventListener('pointermove', onPointer)
     return () => {
       root.removeEventListener('click', onClick); root.removeEventListener('pointermove', onPointer)
-      revealObserver?.disconnect(); stepObserver?.disconnect(); tocObserver?.disconnect()
+      revealObserver?.disconnect(); stepObserver?.disconnect(); tocObserver?.disconnect(); countObserver?.disconnect()
+      countFrames.forEach(cancelAnimationFrame)
       if (copyTimer) clearTimeout(copyTimer)
       if (animationFrame !== undefined) cancelAnimationFrame(animationFrame)
     }
