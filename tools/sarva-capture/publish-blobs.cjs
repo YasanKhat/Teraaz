@@ -24,6 +24,6 @@ async function main() {
   for (const item of files) item.gitBlob = await publish(path.join(root, item.file));
   const indexPath = path.join(root, 'blob-index.json');
   await fs.writeFile(indexPath, JSON.stringify({ files, manifest }));
-  console.log(`::notice title=CaptureIndex::${await publish(indexPath)}`);
+  console.log(`::notice title=${process.env.INDEX_TITLE || "CaptureIndex"}::${await publish(indexPath)}`);
 }
 main().catch(err => { console.error(err); process.exitCode = 1; });

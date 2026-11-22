@@ -5,11 +5,13 @@ const crypto = require('node:crypto');
 const path = require('node:path');
 const out = 'sarva-capture-output';
 const origin = 'https://sarvaedu.ir';
-const routes = ['/', '/game', '/game/jasoos', '/game/vocab', '/game/grammar-circuit',
+const defaultRoutes = ['/', '/game', '/game/jasoos', '/game/vocab', '/game/grammar-circuit',
   '/game/rang-ara', '/game/imla', '/game/aruz-rapid', '/game/taar', '/game/kimia',
   '/game/ninja', '/game/pairs', '/game/aruz-bridge', '/game/role-hunt', '/game/tarazoo',
   '/doroos', '/exam', '/konkur', '/shab-emtehan', '/learn', '/aruz', '/vazn-yab',
   '/timeline', '/sarvaclub', '/guide', '/about', '/plus'];
+const routes = process.env.CAPTURE_ROUTES ? process.env.CAPTURE_ROUTES.split(',').map(s => s.trim()).filter(Boolean) : defaultRoutes;
+if (routes.some(route => !route.startsWith('/') || route.startsWith('//'))) throw new Error('Invalid capture route');
 // Only known controls in public, anonymous pages: never click account, purchase,
 // post, send, or other state-changing actions on behalf of a user.
 const interactionNames = {
