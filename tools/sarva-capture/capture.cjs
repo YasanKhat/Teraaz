@@ -75,6 +75,22 @@ async function main() {
             item.action = action;
           } catch (err) { item.errors.push('interaction: ' + String(err)); }
         }
+        if (route === '/game/imla') {
+          try {
+            // Dismiss the introductory coachmark, select the public first lesson,
+            // and capture the game before making any answer or network mutation.
+            const skip = page.getByRole('button', { name: 'رد کردن', exact: true }).first();
+            if (await skip.isVisible()) await skip.click({ timeout: 5000 });
+            await page.locator('button[title="چشمه"]').first().click({ timeout: 5000 });
+            await page.getByRole('button', { name: 'شروع', exact: true }).click({ timeout: 5000 });
+            await page.waitForTimeout(3500);
+            await fs.writeFile(path.join(out, name + '-playing.html'), await page.content());
+            await page.screenshot({ path: path.join(out, name + '-playing.png'), fullPage: true, timeout: 30000 });
+            const controls = await page.locator('button, [role="button"], [role="status"], h1, h2').evaluateAll(nodes => nodes.map(el => ({ text: (el.innerText || '').trim().slice(0,200), aria: el.getAttribute('aria-label'), title: el.getAttribute('title'), disabled: el.hasAttribute('disabled') })));
+            await fs.writeFile(path.join(out, name + '-playing-metrics.json'), JSON.stringify(controls));
+            item.action = 'چشمه → شروع';
+          } catch (err) { item.errors.push('imla scenario: ' + String(err)); }
+        }
       } catch (err) { item.errors.push(String(err)); }
       await Promise.allSettled([...pending]);
       await context.close();
