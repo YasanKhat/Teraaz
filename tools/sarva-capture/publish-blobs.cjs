@@ -16,7 +16,7 @@ async function publish(file) {
 async function main() {
   const manifest = JSON.parse(await fs.readFile(path.join(root, 'manifest.json'), 'utf8'));
   const files = [];
-  for (const name of await fs.readdir(root)) if (name.endsWith('.html') || name.endsWith('.png') || name.endsWith('-metrics.json')) files.push({ file: name });
+  for (const name of await fs.readdir(root)) if (name.endsWith('.html') || name.endsWith('.png') || name.endsWith('-metrics.json') || name === 'taar-public-bank.json') files.push({ file: name });
   for (const [hash, info] of Object.entries(manifest.resources)) {
     if (/javascript|text\/css|font|image|audio/i.test(info.type) && info.size <= 2 * 1024 * 1024)
       files.push({ file: `resources/${hash}`, url: info.url, type: info.type });
