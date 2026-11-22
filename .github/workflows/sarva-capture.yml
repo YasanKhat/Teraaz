@@ -24,12 +24,6 @@ jobs:
             tail -15 /tmp/sarva-browser-install.log | while IFS= read -r line; do echo "::error::$line"; done
             exit 1
           }
-      - name: Prepare browser libraries for local preview checks
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          tar -czhf "$RUNNER_TEMP/browser-libs.tar.gz" -C /usr/lib/x86_64-linux-gnu libnspr4.so libplc4.so libplds4.so libnss3.so libnssutil3.so libsmime3.so libssl3.so libsoftokn3.so libfreebl3.so
-          node tools/sarva-capture/publish-local-libs.cjs "$RUNNER_TEMP/browser-libs.tar.gz"
       - name: Capture anonymous public pages
         env:
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/capture-deps/node_modules/playwright
@@ -48,3 +42,13 @@ jobs:
           path: sarva-capture-output/
           if-no-files-found: error
           retention-days: 3
+  browser-libs:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare browser libraries for local preview checks
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          tar -czhf "$RUNNER_TEMP/browser-libs.tar.gz" -C /usr/lib/x86_64-linux-gnu libnspr4.so libplc4.so libplds4.so libnss3.so libnssutil3.so libsmime3.so libssl3.so libsoftokn3.so libfreebl3.so
+          node tools/sarva-capture/publish-local-libs.cjs "$RUNNER_TEMP/browser-libs.tar.gz"
