@@ -184,6 +184,11 @@ export default function AnnouncementBar() {
   const swipe = useRef<{ x: number; y: number; dx: number; active: boolean } | null>(null);
 
   useEffect(() => {
+    setLeaving(false);
+    setClamped(true);
+  }, [storageKey]);
+
+  useEffect(() => {
     // بستنِ حالت اینجا انجام *نمی‌شود*: وقتی اعلانی نیست یا بسته شده،
     // کامپوننت پایین‌تر null برمی‌گرداند و چیزی رندر نمی‌شود، پس یک
     // setState همگام در افکت فقط یک رندرِ آبشاریِ بی‌فایده می‌سازد.
