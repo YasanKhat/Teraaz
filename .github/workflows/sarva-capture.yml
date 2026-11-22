@@ -1,0 +1,31 @@
+name: Capture public Sarva pages
+on:
+  push:
+    branches: [arena/3c4e6c63-teraaz]
+    paths: ['.github/workflows/sarva-capture.yml', 'tools/sarva-capture/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --prefix "$RUNNER_TEMP/capture-deps" playwright@1.56.1
+      - run: '"$RUNNER_TEMP/capture-deps/node_modules/.bin/playwright" install --with-deps chromium'
+      - name: Capture anonymous public pages
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/capture-deps/node_modules/playwright
+        run: node tools/sarva-capture/capture.cjs
+      - name: Upload capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sarva-public-capture
+          path: sarva-capture-output/
+          if-no-files-found: error
+          retention-days: 3
