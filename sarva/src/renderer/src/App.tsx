@@ -7,6 +7,7 @@ import { GeometricPattern } from '@/components/persian-patterns'
 import LogoReveal from '@/components/UI/LogoReveal'
 import { NavigationProgress } from '@/components/UI/NavigationProgress'
 import { SiteContentProvider } from '@/lib/site/use-site-content'
+import { useChromeMode } from '@/lib/immersive-mode'
 import PanelShell from '@/components/UI/panel/shell/PanelShell'
 import * as db from '@/platform/db'
 import * as auth from '@/platform/auth'
@@ -141,7 +142,8 @@ function render(path: string): JSX.Element {
 
 export default function App() {
   const path = usePathname()
-  const chrome = chromeModeFor(path)
+  const requestedChrome = useChromeMode()
+  const chrome = requestedChrome === 'off' ? chromeModeFor(path) : requestedChrome
   const isGalaxy = path === '/game'
   /** پنل و مدیریت پوستهٔ خودشان را دارند و هدر/پاورقیِ سایت را نمی‌خواهند. */
   const isPanel = path === '/panel' || path.startsWith('/panel/')
@@ -208,7 +210,7 @@ export default function App() {
               حتا پایِ صفحه‌هایِ بازی. تأیید با اچ‌تی‌ام‌الِ زندهٔ /game: آنجا
               هم پاورقی هست (۱۹ پیوند). `/plus` استثناست چون خودش پاورقیِ
               مخصوصِ خود را می‌سازد. */}
-          {!isPlus && <Footer />}
+          {!isPlus && requestedChrome === 'off' && <Footer />}
           {chrome !== 'fullscreen' && !isGalaxy && (
             <GeometricPattern className="fixed z-10 h-screen text-gold" opacity={0.06} />
           )}

@@ -22,6 +22,7 @@ type GameEntry = {
 }
 
 const load = {
+  taar: () => import('@/components/UI/taar/TaarGame'),
   tarazoo: () => import('@/components/UI/tarazoo/TarazooGame'),
   imla: () => import('@/components/UI/imla/ImlaGame'),
   jasoos: () => import('@/components/UI/jasoos/JasoosGame'),
@@ -45,6 +46,7 @@ function lazyGame(key: keyof typeof load): ComponentType {
 }
 
 const GAMES: Record<string, GameEntry> = {
+  taar: { title: 'تار وزن', component: lazyGame('taar') },
   tarazoo: { title: 'ترازوی معنا', component: lazyGame('tarazoo') },
   imla: { title: 'بازرس املا', component: lazyGame('imla') },
   jasoos: { title: 'جاسوسِ نقش‌ها', component: lazyGame('jasoos'), shell: true },
