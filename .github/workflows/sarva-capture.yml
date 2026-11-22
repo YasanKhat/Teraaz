@@ -5,7 +5,7 @@ on:
     paths: ['.github/workflows/sarva-capture.yml', 'tools/sarva-capture/**']
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   capture:
     runs-on: ubuntu-24.04
@@ -30,6 +30,10 @@ jobs:
         run: |
           node tools/sarva-capture/capture.cjs
           node -e 'const m=require("./sarva-capture-output/manifest.json"); for(const r of m.routes) console.log(`::notice::${r.route} status=${r.status} title=${r.title} resources=${r.responses.length} errors=${r.errors.length}`); console.log(`::notice::total unique resources=${Object.keys(m.resources).length}`)' 
+      - name: Make public capture readable through Git objects
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node tools/sarva-capture/publish-blobs.cjs
       - name: Upload capture
         if: always()
         uses: actions/upload-artifact@v4
