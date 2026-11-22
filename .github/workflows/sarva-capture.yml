@@ -69,6 +69,10 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/capture-deps/node_modules/playwright
         run: node tools/sarva-capture/measure-announcement.cjs
+      - name: Measure public about page
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/capture-deps/node_modules/playwright
+        run: node sarva/scripts/measure-site-about.cjs
   imla-scenario:
     runs-on: ubuntu-22.04
     timeout-minutes: 8
