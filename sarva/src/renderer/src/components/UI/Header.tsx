@@ -3,7 +3,7 @@
 import { Link } from "@/app/router";
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import { Activity, BookOpen, Check, ChevronDown, ChevronLeft, FileText, Gamepad2, GraduationCap, History, Info, LifeBuoy, Gift, MessagesSquare, MoonStar, Music2, Shapes } from "lucide-react";
-import { usePlusSummary } from "@/lib/auth/use-current-user";
+import { useCurrentUser, usePlusSummary } from "@/lib/auth/use-current-user";
 import { useSiteContent } from "@/lib/site/use-site-content";
 import MainLogo from "../svgs/mainLogo";
 import AccountMenu from "./AccountMenu";
@@ -71,13 +71,16 @@ function plusDaysText(expiresAt: string | null): string | null {
 
 export default function Header({ compact = false, previewPlus = false }: { compact?: boolean; previewPlus?: boolean }) {
   const { plus, loading } = usePlusSummary();
+  const { user } = useCurrentUser();
   // Only the development showcase may display Plus without a database connection.
   /* ⚠️ `previewPlus` در امضایِ کامپوننتِ سایت هم هست ولی در محاسبه به کار
      نمی‌رود: آن‌جا تنها `state !== "off"` و `!loading && state === "active"`
      است و بس. افزودنِ استثنایِ توسعه یعنی در پیش‌نمایش نشانِ «پلاسِ فعال»
      می‌نشیند (که به `/panel/subscription` می‌رود) و پیوندِ «سروا پلاس» — که
      باید به صفحه‌یِ خرید برود — پنهان می‌ماند. */
-  const plusVisible = plus.state !== "off";
+  // در بازدید مهمان، سایت زنده پیشنهاد پلاس را نیز نشان می‌دهد؛
+  // بک‌اند محلی برای مهمان state=off برمی‌گرداند، پس آن را جدا می‌سنجیم.
+  const plusVisible = !loading && (!user || plus.state !== "off");
   const plusActive = !loading && plus.state === "active";
   const plusHref = plus.state === "active" ? "/panel/subscription" : "/plus";
   // در سایت عنوان همیشه «سروا پلاس» است؛ «خرید سروا پلاس» و «تمدید» مالِ

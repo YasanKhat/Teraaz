@@ -40,13 +40,13 @@ export type SiteContentSeed = {
 
 export const SITE_CONTENT_SEED: SiteContentSeed = {
   announcement: {
-    id: '55e0c44d-c2f5-45bf-967e-4ef8251618d6',
-    version: '2026-11-07T17:39:15.623228Z',
-    title: 'کانال تلگرام سروا 💚',
-    body: 'در کانال تلگرام سروا عضو شوید.',
-    tone: 'warning',
-    linkUrl: 'https://t.me/sarva_edu',
-    linkLabel: 'کانال تلگرام',
+    id: 'sarvaclub-launch',
+    version: 'sarvaclub-launch-1',
+    title: 'سروا کلاب راه اندازی شد🔥',
+    body: 'اگه سوال داری فقط کافیه تو سروا کلاب بپرسی تا هم دبیران فعال در سروا و هم دانش آموزان دیگر پاسخ بدهند💚',
+    tone: 'success',
+    linkUrl: '/sarvaclub',
+    linkLabel: 'سروا کلاب',
     dismissible: true
   },
   supporters: {
