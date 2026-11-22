@@ -97,8 +97,7 @@
   flex: 0 0 auto;
 }
 
-/* در سایت این منو `display:flex` است بی‌آن‌که جهتی بگیرد — یعنی ردیفی:
-   شبکه‌یِ ۳×۳ بخش‌ها و کارتِ پلاس کنارِ هم می‌نشینند، نه زیرِ هم. */
+/* پوستهٔ مشترک منو؛ چیدمان تازه در انتهای فایل تعریف شده است. */
 .menu {
   z-index: 300;
   direction: rtl;
@@ -595,3 +594,40 @@
     transition: none;
   }
 }
+
+/* Three-column menu introduced in the latest public site bundle. */
+.menu { display: grid; grid-template-columns: repeat(3, minmax(0, 212px)); gap: 0 4px; padding: 10px; }
+.menu:global(.glass-pop) { background: color-mix(in oklch, var(--card) 88%, transparent); }
+:global(.dark) .menu:global(.glass-pop) { background: color-mix(in oklch, var(--card) 90%, transparent); }
+.column { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.column + .column { border-inline-start: 1px solid color-mix(in oklch, var(--foreground) 7%, transparent); padding-inline-start: 4px; }
+.groupTitle { color: var(--muted-foreground); padding: 6px 10px 4px; font-size: 11px; font-weight: 700; line-height: 1.6; }
+.row { display: flex; position: relative; min-height: 56px; color: var(--foreground); border-radius: 14px; outline: none; align-items: center; gap: 11px; padding: 8px 10px; text-decoration: none; transition: background .16s; }
+.row:hover, .row[data-highlighted] { background: color-mix(in oklch, var(--primary) 9%, transparent); }
+.rowIcon { width: 36px; height: 36px; color: var(--primary); background: color-mix(in oklch, var(--primary) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--primary) 14%, transparent); border-radius: 11px; flex-shrink: 0; place-items: center; transition: background .16s, color .16s, box-shadow .16s; display: grid; }
+.row:hover .rowIcon, .row[data-highlighted] .rowIcon { color: var(--primary-foreground); background: var(--primary); box-shadow: none; }
+.rowIcon[data-plus] { color: var(--gold-ink); background: color-mix(in oklab, var(--gold) 20%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--gold) 38%, transparent); }
+.row:hover .rowIcon[data-plus], .row[data-highlighted] .rowIcon[data-plus], .row[data-plus="active"] .rowIcon[data-plus] { color: #fff; background: linear-gradient(135deg, var(--gold-deep), var(--gold)); box-shadow: none; }
+.row[data-plus="active"] .rowIcon[data-plus] svg { fill: currentColor; }
+.rowText { flex: 1; min-width: 0; line-height: 1.45; display: grid; }
+.rowText b { font-size: 13px; font-weight: 800; }
+.rowText small { color: var(--muted-foreground); white-space: nowrap; text-overflow: ellipsis; font-size: 11px; overflow: hidden; }
+.rowTitle { align-items: center; gap: 6px; min-width: 0; display: flex; }
+.rowTitle b { white-space: nowrap; }
+.pill { white-space: nowrap; border-radius: 999px; flex-shrink: 0; align-items: center; gap: 3px; height: 19px; padding: 0 7px; font-size: 10px; font-weight: 800; display: inline-flex; }
+.pill[data-tone="active"] { color: lab(38.9003% -38.7251 20.0366); background: lab(69.4676% -47.8626 24.6835 / .17); }
+:global(.dark) .pill[data-tone="active"] { color: lab(83.021% -37.8188 19.4437); }
+.pill[data-tone="promo"] { color: lab(13.056% 3.90695 18.9236); background: var(--gold); }
+@media (max-width: 639px) {
+  .menu { grid-template-columns: minmax(0, 1fr); gap: 2px; width: calc(100vw - 32px); max-width: 420px; padding: 8px; }
+  .column { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2px 4px; }
+  .column + .column { padding-inline-start: 0; border-inline-start: 0; border-top: 1px solid color-mix(in oklch, var(--foreground) 7%, transparent); padding-top: 4px; }
+  .groupTitle { grid-column: 1 / -1; padding: 4px 8px 2px; }
+  .row { gap: 8px; min-height: 48px; padding: 6px 8px; }
+  .rowIcon { border-radius: 10px; width: 32px; height: 32px; }
+  .rowText b { font-size: 12.5px; }
+  .rowText small { display: none; }
+  .row[data-plus] { grid-column: 1 / -1; }
+  .row[data-plus] .rowText small { display: block; }
+}
+@media (prefers-reduced-motion: reduce) { .row, .rowIcon { transition: none; } }

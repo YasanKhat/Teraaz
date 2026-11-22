@@ -2,7 +2,7 @@
 
 import { Link } from "@/app/router";
 import * as Menu from "@radix-ui/react-dropdown-menu";
-import { Activity, BookOpen, Check, ChevronDown, ChevronLeft, FileText, Gamepad2, GraduationCap, History, Info, MessagesSquare, MoonStar, Music2, Shapes } from "lucide-react";
+import { Activity, BookOpen, Check, ChevronDown, ChevronLeft, FileText, Gamepad2, GraduationCap, History, Info, LifeBuoy, Gift, MessagesSquare, MoonStar, Music2, Shapes } from "lucide-react";
 import { usePlusSummary } from "@/lib/auth/use-current-user";
 import { useSiteContent } from "@/lib/site/use-site-content";
 import MainLogo from "../svgs/mainLogo";
@@ -12,30 +12,26 @@ import PaletteButton from "./PaletteButton";
 import SarvaStar from "./SarvaStar";
 import styles from "./header.module.css";
 
-/** فهرستِ سایت — ترتیب و نام‌ها برابرِ سایتِ زنده است (بسته‌ی سربرگ در
- *  HAR-4). نسبت به پورتِ پیشین دو بخش کم بود («کنکور» و «کارگاه») و ترتیب
- *  فرق می‌کرد: سایت آزمون‌ها، درسنامه، کنکور، بازی‌ها، کارگاه، شب امتحان،
- *  عروض، وزن‌یاب، خط زمان. */
-const navLinks = [
-  { id: "exam", title: "آزمون‌ها", href: "/exam", icon: FileText },
-  { id: "doroos", title: "درسنامه", href: "/doroos", icon: BookOpen },
-  { id: "konkur", title: "کنکور", href: "/konkur", icon: GraduationCap },
-  { id: "game", title: "بازی‌ها", href: "/game", icon: Gamepad2 },
-  { id: "learn", title: "کارگاه", href: "/learn", icon: Shapes },
-  { id: "shab", title: "شب امتحان", href: "/shab-emtehan", icon: MoonStar },
-  { id: "aruz", title: "عروض", href: "/aruz", icon: Activity },
-  { id: "vazn", title: "وزن‌یاب", href: "/vazn-yab", icon: Music2 },
-  { id: "timeline", title: "خط زمان", href: "/timeline", icon: History },
-];
-
-/** ستونِ کناریِ فهرست — دو پیوند با یک توضیحِ کوتاه زیرِ هر کدام.
- *
- *  ⚠️ این ستون تازه است. در بسته‌یِ سربرگِ ۹ نوامبر، منو فقط شبکه‌یِ نه‌بخشی
- *  را داشت (`[...k]`، بی‌هیچ ستونی)؛ در بسته‌یِ ۱۲ نوامبر ستون اضافه شده و
- *  کارتِ پلاس هم از پایینِ شبکه به *داخلِ* همین ستون کوچیده است. */
-const sideLinks = [
-  { id: "club", title: "سروا کلاب", note: "سؤال بپرس، جواب بگیر", href: "/sarvaclub", icon: MessagesSquare },
-  { id: "about", title: "درباره سروا", note: "ما کی هستیم", href: "/about", icon: Info },
+// نسخهٔ جدید سایت: سه گروه با توضیح کوتاه برای هر پیوند.
+const menuGroups = [
+  { id: "study", title: "درس و امتحان", items: [
+    { id: "doroos", title: "درسنامه", note: "معنی بیت‌به‌بیت و آرایه‌ها", href: "/doroos", icon: BookOpen },
+    { id: "shab", title: "شب امتحان", note: "جمع‌بندی پیش از امتحان", href: "/shab-emtehan", icon: MoonStar },
+    { id: "exam", title: "آزمون‌ها", note: "نمونه‌سؤال امتحان نهایی", href: "/exam", icon: FileText },
+    { id: "konkur", title: "کنکور", note: "تست علوم و فنون با پاسخ", href: "/konkur", icon: GraduationCap },
+  ] },
+  { id: "practice", title: "تمرین و یادگیری", items: [
+    { id: "learn", title: "کارگاه", note: "دستور و آرایه، قدم‌به‌قدم", href: "/learn", icon: Shapes },
+    { id: "game", title: "بازی‌ها", note: "آرایه، دستور و وزن با بازی", href: "/game", icon: Gamepad2 },
+    { id: "aruz", title: "عروض", note: "وزن شعر را با گوش یاد بگیر", href: "/aruz", icon: Activity },
+    { id: "vazn", title: "وزن‌یاب", note: "وزن و تقطیع هر بیت", href: "/vazn-yab", icon: Music2 },
+  ] },
+  { id: "more", title: "بیشتر", items: [
+    { id: "timeline", title: "خط زمان", note: "سبک‌ها، شاعران و آثار", href: "/timeline", icon: History },
+    { id: "club", title: "سروا کلاب", note: "سؤال بپرس، جواب بگیر", href: "/sarvaclub", icon: MessagesSquare },
+    { id: "about", title: "درباره سروا", note: "ما کی هستیم", href: "/about", icon: Info },
+    { id: "support", title: "پشتیبانی", note: "تیکت، تلگرام و ایمیل", href: "/support", icon: LifeBuoy },
+  ] },
 ];
 
 const BADGE_LABELS: Record<string, string> = { new: "جدید", en: "NEW", fresh: "تازه", hot: "داغ", fire: "" };
@@ -87,7 +83,11 @@ export default function Header({ compact = false, previewPlus = false }: { compa
   // در سایت عنوان همیشه «سروا پلاس» است؛ «خرید سروا پلاس» و «تمدید» مالِ
   // منویِ حساب است، نه این‌جا.
   const plusTitle = "سروا پلاس";
-  const navBadges = useSiteContent()?.navBadges as Record<string, string> | undefined;
+  const siteContent = useSiteContent() as (ReturnType<typeof useSiteContent> & {
+    navBadges?: Record<string, string>; plusPromo?: { label: string } | null;
+  });
+  const navBadges = siteContent?.navBadges;
+  const plusPromo = siteContent?.plusPromo;
 
   return (
     <nav dir="rtl" aria-label="ناوبری اصلی" className={`container ${styles.header}`} data-compact={compact}>
@@ -114,62 +114,36 @@ export default function Header({ compact = false, previewPlus = false }: { compa
               </Menu.Trigger>
               <Menu.Portal>
                 <Menu.Content aria-label="بخش‌های سروا" className={`${styles.menu} glass-pop`} align="start" sideOffset={12} collisionPadding={16} loop>
-                  <div className={styles.grid}>
-                    {navLinks.map(({ id, title, href, icon: Icon }) => (
-                      <Menu.Item key={id} asChild>
-                        <Link href={href} className={styles.menuItem}>
-                          <span className={styles.menuIcon}><Icon size={22} strokeWidth={1.6} aria-hidden /></span>
-                          <span>{title}</span>
-                          <NavBadge kind={navBadges?.[id]} />
-                        </Link>
-                      </Menu.Item>
-                    ))}
-                  </div>
-                  <div className={styles.side}>
-                    {sideLinks.map(({ id, title, note, href, icon: Icon }) => (
-                      <Menu.Item key={id} asChild>
-                        <Link href={href} className={styles.sideItem}>
-                          <span className={styles.sideIcon}><Icon size={19} strokeWidth={1.7} aria-hidden /></span>
-                          <span className={styles.sideText}>
-                            <b>{title}</b>
-                            <small>{note}</small>
-                          </span>
-                          <ChevronLeft size={15} aria-hidden className={styles.sideChevron} />
-                          <NavBadge kind={navBadges?.[id]} />
-                        </Link>
-                      </Menu.Item>
-                    ))}
-                    {plusVisible && (
-                      plusActive ? (
-                        /* مشترکِ فعال: کارت دیگر پیوند نیست — مُهرِ
-                           «مشترک هستی» رویش می‌نشیند و جایی نمی‌رود. نشانِ
-                           «پلاسِ» کنارِ لوگو (بالا) همچنان به صفحه‌یِ
-                           اشتراک می‌رود، پس دسترسی از بین نمی‌رود. */
-                        <Menu.Item disabled className={`${styles.plusCard} ${styles.plusOwned}`}>
-                          <span className={styles.menuIcon}><SarvaStar size={24} aria-hidden /></span>
-                          <span className={styles.plusText}>
-                            <b>{plusTitle}</b>
-                            <small>{plusDaysText(plus.expiresAt) ?? "اشتراکت فعال است"}</small>
-                          </span>
-                          <span className={styles.stamp} aria-label="اشتراک فعال">
-                            <Check size={13} strokeWidth={3} aria-hidden />
-                            مشترک هستی
-                          </span>
-                        </Menu.Item>
-                      ) : (
-                        <Menu.Item asChild>
-                          <Link href={plusHref} className={styles.plusCard}>
-                            <span className={styles.menuIcon}><SarvaStar size={24} aria-hidden /></span>
-                            <span className={styles.plusText}>
-                              <b>{plusTitle}</b>
-                              <small>همهٔ درس‌ها و بازی‌ها، بی‌محدودیت</small>
-                            </span>
-                            <NavBadge kind={navBadges?.plus} />
+                  {menuGroups.map((group) => (
+                    <Menu.Group key={group.id} className={styles.column}>
+                      <Menu.Label className={styles.groupTitle}>{group.title}</Menu.Label>
+                      {group.items.map(({ id, title, note, href, icon: Icon }) => (
+                        <Menu.Item key={id} asChild>
+                          <Link href={href} className={styles.row}>
+                            <span className={styles.rowIcon}><Icon size={19} strokeWidth={1.7} aria-hidden /></span>
+                            <span className={styles.rowText}><b>{title}</b><small>{note}</small></span>
+                            <NavBadge kind={navBadges?.[id]} />
                           </Link>
                         </Menu.Item>
-                      )
-                    )}
-                  </div>
+                      ))}
+                      {group.id === "more" && plusVisible && (
+                        <Menu.Item asChild>
+                          <Link href={plusHref} className={styles.row} data-plus={plusActive ? "active" : "offer"}>
+                            <span className={styles.rowIcon} data-plus><SarvaStar size={20} aria-hidden /></span>
+                            <span className={styles.rowText}>
+                              <span className={styles.rowTitle}>
+                                <b>{plusTitle}</b>
+                                {plusActive ? <span className={styles.pill} data-tone="active"><Check size={11} strokeWidth={3} aria-hidden />فعال</span>
+                                  : plusPromo ? <span className={styles.pill} data-tone="promo"><Gift size={11} strokeWidth={2.4} aria-hidden />{plusPromo.label}</span> : null}
+                              </span>
+                              <small>{plusActive ? plusDaysText(plus.expiresAt) ?? "بدون محدودیت زمانی" : "همه‌چیز، بی‌محدودیت"}</small>
+                            </span>
+                            {!plusActive && !plusPromo && <NavBadge kind={navBadges?.plus} />}
+                          </Link>
+                        </Menu.Item>
+                      )}
+                    </Menu.Group>
+                  ))}
                 </Menu.Content>
               </Menu.Portal>
             </Menu.Root>
