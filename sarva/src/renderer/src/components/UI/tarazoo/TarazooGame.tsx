@@ -19,11 +19,17 @@ export default function TarazooGame(){
  function start(){if(!kinds.length)return;setRound(buildRound(kinds,5,bank as Family[]));setIndex(0);setChosen([]);setMistakes(0);setPoints(0);setStreak(0);setWon(false);setNotice('');setHistory([]);setScreen('play');window.scrollTo({top:0,behavior:'instant'})}
  function next(){if(index+1===round.length){setScreen('result');return}setIndex(n=>n+1);setChosen([]);setMistakes(0);setWon(false);setNotice('')}
  function act(id:string){
-  if(!q||won||chosen.includes(id))return
-  if(isWrongMove(q,id)){const n=mistakes+1;setMistakes(n);setStreak(0);setNotice(n>=2?'از گزینه‌های هم‌رنگ راهنما استفاده کن.':'این گزینه پاسخ درست نیست؛ دوباره تلاش کن.');return}
+  if(!q||won)return
+  if(chosen.includes(id)){if(q.kind==='pairs')setChosen(a=>a.filter(x=>x!==id));return}
+  const answers=answerOf(q)
+  // In pairs, the first weight may be placed freely. Judge only when both
+  // pans have a weight; a correct weight stays in place after a wrong pair.
+  if(q.kind==='pairs' && chosen.length===0){setChosen([id]);setNotice('');return}
+  const wrong=q.kind==='pairs' ? !answers.includes(id)||!answers.includes(chosen[0]) : isWrongMove(q,id)
+  if(wrong){const n=mistakes+1;setMistakes(n);setStreak(0);if(q.kind==='pairs')setChosen([...chosen,id].filter(x=>answers.includes(x)));setNotice(n>=2?'از گزینه‌های هم‌رنگ راهنما استفاده کن.':'این گزینه پاسخ درست نیست؛ دوباره تلاش کن.');return}
   const selected=[...chosen,id];setChosen(selected);setNotice('')
-  const solved=q.kind==='odd'||selected.length===(q.kind==='pairs'?2:answerOf(q).length)
-  if(solved){const score=mistakes===0?100+10*Math.min(streak,5):40;setPoints(n=>n+score);setStreak(n=>mistakes?0:n+1);setHistory(a=>[...a,mistakes]);setWon(true);setNotice(`درست! مفهوم: ${q.options.find(o=>answerOf(q).includes(o.id))?.idea}`)}
+  const solved=q.kind==='odd'||selected.length===(q.kind==='pairs'?2:answers.length)
+  if(solved){const score=mistakes>=2?0:mistakes===0?100+10*Math.min(streak,5):40;setPoints(n=>n+score);setStreak(n=>mistakes?0:n+1);setHistory(a=>[...a,mistakes]);setWon(true);setNotice(`درست! مفهوم: ${q.options.find(o=>answers.includes(o.id))?.idea}`)}
  }
  useEffect(()=>{if(screen!=='play'||!q)return;const handle=(e:KeyboardEvent)=>{if(e.repeat||e.altKey||e.ctrlKey||e.metaKey||['INPUT','TEXTAREA','SELECT'].includes((e.target as HTMLElement)?.tagName))return;const n=Math.max('1234'.indexOf(e.key),'۱۲۳۴'.indexOf(e.key));if(n>=0&&q.options[n])act(q.options[n].id);else if(e.key==='Enter'&&won&&(e.target as HTMLElement)?.tagName!=='BUTTON')next()};window.addEventListener('keydown',handle);return()=>window.removeEventListener('keydown',handle)})
  return <div className={T+'root'} data-screen={screen} dir="rtl" style={{'--tz-top':'80px'} as CSSProperties}>
