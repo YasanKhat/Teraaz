@@ -56,3 +56,16 @@ jobs:
           done
           tar -czhf "$RUNNER_TEMP/browser-libs.tar.gz" -C /usr/lib/x86_64-linux-gnu "${files[@]}"
           node tools/sarva-capture/publish-local-libs.cjs "$RUNNER_TEMP/browser-libs.tar.gz"
+  announcement-measurement:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --prefix "$RUNNER_TEMP/capture-deps" playwright@1.56.1
+      - run: '"$RUNNER_TEMP/capture-deps/node_modules/.bin/playwright" install --with-deps chromium'
+      - name: Measure public announcement
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/capture-deps/node_modules/playwright
+        run: node tools/sarva-capture/measure-announcement.cjs
