@@ -2,7 +2,6 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const https = require('node:https');
-const { gzipSync } = require('node:zlib');
 const root = 'sarva-capture-output';
 async function publish(file) {
   const bytes = await fs.readFile(file);
@@ -23,8 +22,8 @@ async function main() {
       files.push({ file: `resources/${hash}`, url: info.url, type: info.type });
   }
   for (const item of files) item.gitBlob = await publish(path.join(root, item.file));
-  const compressed = gzipSync(Buffer.from(JSON.stringify({ files, manifest }))).toString('base64');
-  for (let i = 0; i < compressed.length; i += 5000) console.log(`::notice title=CaptureIndex::${compressed.slice(i,i+5000)}`);
-  console.log(`::notice title=CaptureIndexCount::${Math.ceil(compressed.length / 5000)}`);
+  const indexPath = path.join(root, 'blob-index.json');
+  await fs.writeFile(indexPath, JSON.stringify({ files, manifest }));
+  console.log(`::notice title=CaptureIndex::${await publish(indexPath)}`);
 }
 main().catch(err => { console.error(err); process.exitCode = 1; });
