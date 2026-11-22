@@ -50,5 +50,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          tar -czhf "$RUNNER_TEMP/browser-libs.tar.gz" -C /usr/lib/x86_64-linux-gnu libnspr4.so libplc4.so libplds4.so libnss3.so libnssutil3.so libsmime3.so libssl3.so libsoftokn3.so libfreebl3.so
+          files=()
+          for lib in libnspr4.so libplc4.so libplds4.so libnss3.so libnssutil3.so libsmime3.so libssl3.so libsoftokn3.so libfreebl3.so; do
+            if [ -e "/usr/lib/x86_64-linux-gnu/$lib" ]; then files+=("$lib"); else echo "::notice::Missing optional $lib"; fi
+          done
+          tar -czhf "$RUNNER_TEMP/browser-libs.tar.gz" -C /usr/lib/x86_64-linux-gnu "${files[@]}"
           node tools/sarva-capture/publish-local-libs.cjs "$RUNNER_TEMP/browser-libs.tar.gz"
